@@ -1,4 +1,4 @@
- 
+
 Nisha	Please give me a summary of this providers recent prescribing trends (Journavx and other pain products), have they had any recent abandoned prescriptions, what managed care plans will they have the least friction with, what procedures would be the most
  meaningful to describe acute moderate to severe pain patients for this provider, what pharmacies do most of their patients go to?	Performance/Targeting	 	XPO, LAAD Rx Claims, MMIT Coverage, LAAD Procedural Claims, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
 Nisha	Vertex internal question: Where can I find open AOC reports? Can you pull up sample delivery orders that have been returned?	Sampling	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 
@@ -120,3 +120,51 @@ WHERE
         'TXR_NTILE_HCP_ANYPAIN_R52W',
         'TXR_NTILE_HCP_SUZ_R52W'
     );
+
+SELECT 
+    TABLE_CATALOG AS DB_NAME,
+    TABLE_SCHEMA AS SCHEMA_NAME,
+    TABLE_NAME,
+    -- This generates the exact code you need to copy and paste
+    'SELECT GET_DDL(\'TABLE\', \'' || TABLE_CATALOG || '.' || TABLE_SCHEMA || '.' || TABLE_NAME || '\');' AS RUN_TO_GET_DDL
+FROM 
+    SNOWFLAKE.ACCOUNT_USAGE.TABLES
+WHERE 
+    DELETED IS NULL  -- Excludes deleted tables
+    AND TABLE_NAME IN (
+        'TXR_VRTX_MCO_PAYER_CAT_2_PLAN',
+        'TD_MM_PAYER_CATEGORY_L3',
+        'TD_MM_PAYER_CATEGORY_L2',
+        'TD_VRTX_MCO_PAYER',
+        'TD_VRTX_MCO_PLAN',
+        'TM_NRAF_L1_SOC_OTLT_DC_NDC_WK',
+        'TM_NRAF_L1_SOC_OTLT_DC_NDC_MTH',
+        'TM_RX_L1_HCPPLNDC_NDC_WK',
+        'TM_RX_L1_HCPPLNDC_NDC_MTH',
+        'TM_NRAFIC_L1_OTLT_SOC_DC_NDC_WK',
+        'TD_GEO_LOC',
+        'TXR_HCP_GEOLOC_PRIM',
+        'TD_SALESFORCE_L1',
+        'TD_DATA_LOAD',
+        'TXR_HCP_SF_L1',
+        'TD_OTLT_SUBCAT',
+        'TXR_OTLT_SUBCAT',
+        'TD_TIME_DT',
+        'TXR_MKTGPGM_GHEM_HCO_SUBTYPE',
+        'TXR_MKTGPGM_CURR_PTAM_HCP_TGT',
+        'TXR_MKTGPGM_CURR_SAL_IDN_TGT',
+        'TXR_MKTGPGM_SUZ_HCP_SEGMENT',
+        'TXR_MKTGPGM_PAIN_SOC_TGT',
+        'TD_IDN',
+        'TD_SOC',
+        'TD_HCP',
+        'TXR_SOC_IDN',
+        'TXR_HCP_SOC',
+        'TD_SPECGRP',
+        'TXR_HCP_SPEC',
+        'TXR_NTILE_HCP_SUZ_QTRLY_STATIC_R52W',
+        'TXR_NTILE_HCP_ANYPAIN_R52W',
+        'TXR_NTILE_HCP_SUZ_R52W'
+    )
+ORDER BY 
+    TABLE_NAME;

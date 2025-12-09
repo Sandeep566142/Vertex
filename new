@@ -1,0 +1,19 @@
+ 
+Nisha	Please give me a summary of this providers recent prescribing trends (Journavx and other pain products), have they had any recent abandoned prescriptions, what managed care plans will they have the least friction with, what procedures would be the most
+ meaningful to describe acute moderate to severe pain patients for this provider, what pharmacies do most of their patients go to?	Performance/Targeting	 	XPO, LAAD Rx Claims, MMIT Coverage, LAAD Procedural Claims, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Nisha	Vertex internal question: Where can I find open AOC reports? Can you pull up sample delivery orders that have been returned?	Sampling	 	 	 	 	 	 	 	 	 	 	 	 	 	 	 
+Nisha	Who are the top opioid prescribers in Geisinger Community Medical Center?	Targeting	 	Veeva CRM Affiliations, LAAD Claims	 	 	 	 	 	 	 	 	 	 	 	 	 
+Nisha	Show me the top 5 orthopedic shoulder surgeons in Allentown Pa?	Targeting	 	LAAD, IQVIA OneKey	 	 	 	 	 	 	 	 	 	 	 	 	 
+Nisha	Who are my top prescribers prescribing Norco sorted by city, address, and parent account	Targeting	 	Veeva CRM Affiliations, Current Sales Alignment, LAAD Claims, Veeva CRM Primary Address	 	 	 	 	 	 	 	 	 	 	 	 	 
+Rakesh	Who are my top prescribers prescribing Tramadol sorted by city, address, and parent account	Targeting	 	Veeva CRM Affiliations, Current Sales Alignment, LAAD Claims, Veeva CRM Primary Address	 	 	 	 	 	 	 	 	 	 	 	 	 
+Rakesh	Provide me a list of top prescribers for all opioids sorted by city and address and parent account	Targeting	 	Veeva CRM Affiliations, Current Sales Alignment, LAAD Claims, Veeva CRM Primary Address	 	 	 	 	 	 	 	 	 	 	 	 	 
+Rakesh	Based on prescribing habits, leads data, AI generated leads dashboard, build me a routing for Town X.  Sort these providers first by Journavx Rx over the past 4 weeks.  	Targeting	 	NBX Data, Veeva CRM Address, XPO JVX Rx	 	 	 	 	 	 	 	 	 	 	 	 	 
+Rakesh	Based on a combination of procedure volume and prescribing habits provide me a list of HCP with high volume Opioid use and a list of low volume opioid use.  	Targeting	 	Veeva CRM Affiliations, Current Sales Alignment, LAAD Procedure Claims	 	 	 	 	 	 	 	 	 	 	 	 	 
+Rakesh	Which zip codes should we focus on to capitalize on positive payer access?	Targeting	 	Targeting Hub Payer Data, MMIT Payer Wins Data, Veeva CRM Address Data, LAAD Rx Claims	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	Which high potential zip codes have the least amount of activity?	Targeting	 	Veeva CRM Address data, Engagement Data	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	I am going into this practice that has 10 providers,  based on all available data, which provider is the most likely to be an early adopter of Journavx (same concept for an hospital department/system)?	Targeting	 	Adopter model, Veeva CRM Affilitions, Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	Who are the first-time prescribers that I need to follow up with this week?	Targeting	 	XPO, NBX, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	Which adopters have not written within the last 2 weeks that I should follow up with?	Targeting	 	XPO, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	What high volume prescribers have I not seen within the last month?	Targeting	 	XPO, Sales Alignment, Veeva CRM Engagement	 	 	 	 	 	 	 	 	 	 	 	 	 
+ 
+ 

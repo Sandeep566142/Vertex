@@ -624,3 +624,108 @@ Sandeep	I am going into this practice that has 10 providers,  based on all avail
 Sandeep	Who are the first-time prescribers that I need to follow up with this week?	Targeting	 	XPO, NBX, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
 Sandeep	Which adopters have not written within the last 2 weeks that I should follow up with?	Targeting	 	XPO, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
 Sandeep	What high volume prescribers have I not seen within the last month?	Targeting	 	XPO, Sales Alignment, Veeva CRM Engagement	 	 	 	 	 								
+
+
+
+-- STEP 1: Create the Master Output Table
+-- This will hold every piece of information we find.
+CREATE OR REPLACE TEMPORARY TABLE MASTER_TABLE_INFO (
+    TABLE_NAME      VARCHAR,
+    DATABASE_NAME   VARCHAR,
+    SCHEMA_NAME     VARCHAR,
+    ROW_COUNT       NUMBER,
+    TABLE_OWNER     VARCHAR,
+    DESCRIPTION     VARCHAR,  -- The business comment
+    FULL_DDL        VARCHAR   -- Contains PKs, FKs, Data Types
+);
+
+-- STEP 2: Load Your Specific List
+CREATE OR REPLACE TEMPORARY TABLE MY_TARGET_LIST (TBL_NAME VARCHAR);
+
+INSERT INTO MY_TARGET_LIST (TBL_NAME) VALUES 
+('TXR_VRTX_MCO_PAYER_CAT_2_PLAN'), ('TD_MM_PAYER_CATEGORY_L3'), ('TD_MM_PAYER_CATEGORY_L2'), 
+('TD_VRTX_MCO_PAYER'), ('TD_VRTX_MCO_PLAN'), ('TM_NRAF_L1_SOC_OTLT_DC_NDC_WK'), 
+('TM_NRAF_L1_SOC_OTLT_DC_NDC_MTH'), ('TM_RX_L1_HCPPLNDC_NDC_WK'), ('TM_RX_L1_HCPPLNDC_NDC_MTH'), 
+('TM_NRAFIC_L1_OTLT_SOC_DC_NDC_WK'), ('TD_GEO_LOC'), ('TXR_HCP_GEOLOC_PRIM'), 
+('TD_SALESFORCE_L1'), ('TD_DATA_LOAD'), ('TXR_HCP_SF_L1'), ('TD_OTLT_SUBCAT'), 
+('TXR_OTLT_SUBCAT'), ('TD_TIME_DT'), ('TXR_MKTGPGM_GHEM_HCO_SUBTYPE'), 
+('TXR_MKTGPGM_CURR_PTAM_HCP_TGT'), ('TXR_MKTGPGM_CURR_SAL_IDN_TGT'), ('TXR_MKTGPGM_SUZ_HCP_SEGMENT'), 
+('TXR_MKTGPGM_PAIN_SOC_TGT'), ('TD_IDN'), ('TD_SOC'), ('TD_HCP'), ('TXR_SOC_IDN'), 
+('TXR_HCP_SOC'), ('TD_SPECGRP'), ('TXR_HCP_SPEC'), ('TXR_NTILE_HCP_SUZ_QTRLY_STATIC_R52W'), 
+('TXR_NTILE_HCP_ANYPAIN_R52W'), ('TXR_NTILE_HCP_SUZ_R52W');
+
+-- STEP 3: The Collection Script
+-- This script searches for metadata AND DDL for each table.
+EXECUTE IMMEDIATE $$
+DECLARE
+    target_tbl VARCHAR;
+    
+    -- Variables to hold findings
+    found_db VARCHAR;
+    found_sch VARCHAR;
+    found_rows NUMBER;
+    found_owner VARCHAR;
+    found_comment VARCHAR;
+    
+    full_path VARCHAR;
+    ddl_query VARCHAR;
+    
+    c_list CURSOR FOR SELECT TBL_NAME FROM MY_TARGET_LIST;
+BEGIN
+    OPEN c_list;
+    
+    FOR rec IN c_list DO
+        target_tbl := rec.TBL_NAME;
+        found_db := NULL; -- Reset for each loop
+        
+        -- A. Get Metadata (Location, Rows, Comment, Owner)
+        EXECUTE IMMEDIATE 'SHOW TABLES LIKE \'' || target_tbl || '\' IN ACCOUNT';
+        
+        BEGIN
+            -- Safely extract metadata from the SHOW command result
+            LET c_meta CURSOR FOR 
+                SELECT "database_name", "schema_name", "rows", "owner", "comment"
+                FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) 
+                LIMIT 1;
+            OPEN c_meta;
+            FETCH c_meta INTO found_db, found_sch, found_rows, found_owner, found_comment;
+            CLOSE c_meta;
+        END;
+
+        -- B. If found, Get DDL and Insert
+        IF (found_db IS NOT NULL) THEN
+            full_path := '"' || found_db || '"."' || found_sch || '"."' || target_tbl || '"';
+            
+            -- Construct DDL command
+            ddl_query := 'SELECT GET_DDL(\'TABLE\', \'' || full_path || '\')';
+            
+            -- Run DDL command
+            EXECUTE IMMEDIATE :ddl_query;
+            
+            -- Insert everything into Master Table (using Result Scan to grab the DDL text)
+            INSERT INTO MASTER_TABLE_INFO 
+            SELECT 
+                :target_tbl, 
+                :found_db, 
+                :found_sch, 
+                :found_rows, 
+                :found_owner, 
+                :found_comment, 
+                $1  -- This is the DDL column from the query we just ran
+            FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+            
+        ELSE
+            -- Log missing table
+            INSERT INTO MASTER_TABLE_INFO (TABLE_NAME, DATABASE_NAME, DESCRIPTION) 
+            VALUES (:target_tbl, 'NOT FOUND', 'Could not locate table in any database');
+        END IF;
+        
+    END FOR;
+    
+    CLOSE c_list;
+    RETURN 'Collection Complete.';
+END;
+$$;
+
+-- STEP 4: View the Final Report
+SELECT * FROM MASTER_TABLE_INFO ORDER BY TABLE_NAME;

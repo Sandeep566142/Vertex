@@ -438,3 +438,79 @@ $$;
 
 -- View the results
 SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;
+
+
+-- STEP 1: Setup the tables (Run this to ensure clean start)
+CREATE OR REPLACE TEMPORARY TABLE FINAL_DDL_OUTPUT (
+    TABLE_NAME VARCHAR, 
+    FULL_PATH VARCHAR, 
+    DDL_TEXT VARCHAR
+);
+
+CREATE OR REPLACE TEMPORARY TABLE TBL_LOCATIONS (
+    DB_NAME VARCHAR, 
+    SCH_NAME VARCHAR, 
+    TBL_NAME VARCHAR
+);
+
+-- STEP 2: Find the tables and save their locations
+SHOW TABLES LIKE 'T%' IN ACCOUNT;
+
+INSERT INTO TBL_LOCATIONS 
+SELECT "database_name", "schema_name", "name"
+FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+WHERE "name" IN (
+    'TXR_VRTX_MCO_PAYER_CAT_2_PLAN', 'TD_MM_PAYER_CATEGORY_L3', 'TD_MM_PAYER_CATEGORY_L2',
+    'TD_VRTX_MCO_PAYER', 'TD_VRTX_MCO_PLAN', 'TM_NRAF_L1_SOC_OTLT_DC_NDC_WK',
+    'TM_NRAF_L1_SOC_OTLT_DC_NDC_MTH', 'TM_RX_L1_HCPPLNDC_NDC_WK', 'TM_RX_L1_HCPPLNDC_NDC_MTH',
+    'TM_NRAFIC_L1_OTLT_SOC_DC_NDC_WK', 'TD_GEO_LOC', 'TXR_HCP_GEOLOC_PRIM',
+    'TD_SALESFORCE_L1', 'TD_DATA_LOAD', 'TXR_HCP_SF_L1', 'TD_OTLT_SUBCAT',
+    'TXR_OTLT_SUBCAT', 'TD_TIME_DT', 'TXR_MKTGPGM_GHEM_HCO_SUBTYPE',
+    'TXR_MKTGPGM_CURR_PTAM_HCP_TGT', 'TXR_MKTGPGM_CURR_SAL_IDN_TGT', 'TXR_MKTGPGM_SUZ_HCP_SEGMENT',
+    'TXR_MKTGPGM_PAIN_SOC_TGT', 'TD_IDN', 'TD_SOC', 'TD_HCP', 'TXR_SOC_IDN',
+    'TXR_HCP_SOC', 'TD_SPECGRP', 'TXR_HCP_SPEC', 'TXR_NTILE_HCP_SUZ_QTRLY_STATIC_R52W',
+    'TXR_NTILE_HCP_ANYPAIN_R52W', 'TXR_NTILE_HCP_SUZ_R52W'
+);
+
+-- STEP 3: The "Nuclear" Script (No 'INTO' clause used here)
+EXECUTE IMMEDIATE $$
+DECLARE
+    db_name VARCHAR;
+    sch_name VARCHAR;
+    tbl_name VARCHAR;
+    path VARCHAR;
+    ddl_cmd VARCHAR;
+    
+    c1 CURSOR FOR SELECT DB_NAME, SCH_NAME, TBL_NAME FROM TBL_LOCATIONS;
+BEGIN
+    OPEN c1;
+    FOR rec IN c1 DO
+        db_name := rec.DB_NAME;
+        sch_name := rec.SCH_NAME;
+        tbl_name := rec.TBL_NAME;
+        path := '"' || db_name || '"."' || sch_name || '"."' || tbl_name || '"';
+        
+        -- Build the command
+        ddl_cmd := 'SELECT GET_DDL(\'TABLE\', \'' || path || '\')';
+        
+        BEGIN
+            -- NEW METHOD: Run command without saving directly to variable
+            EXECUTE IMMEDIATE :ddl_cmd;
+            
+            -- Capture the result from the query we just ran
+            INSERT INTO FINAL_DDL_OUTPUT (TABLE_NAME, FULL_PATH, DDL_TEXT) 
+            SELECT :tbl_name, :path, $1 FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+            
+        EXCEPTION
+            WHEN OTHER THEN
+                INSERT INTO FINAL_DDL_OUTPUT (TABLE_NAME, FULL_PATH, DDL_TEXT) 
+                VALUES (:tbl_name, :path, 'ERROR: Could not retrieve DDL. Permission denied or table locked.');
+        END;
+    END FOR;
+    CLOSE c1;
+    RETURN 'Success. Run the SELECT below to see results.';
+END;
+$$;
+
+-- STEP 4: View the results
+SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;

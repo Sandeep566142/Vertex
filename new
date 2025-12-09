@@ -617,3 +617,10 @@ END;
 $$;
 
 SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;
+
+
+Sandeep	Which high potential zip codes have the least amount of activity?	Targeting	 	Veeva CRM Address data, Engagement Data	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	I am going into this practice that has 10 providers,  based on all available data, which provider is the most likely to be an early adopter of Journavx (same concept for an hospital department/system)?	Targeting	 	Adopter model, Veeva CRM Affilitions, Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	Who are the first-time prescribers that I need to follow up with this week?	Targeting	 	XPO, NBX, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	Which adopters have not written within the last 2 weeks that I should follow up with?	Targeting	 	XPO, Sales Alignment	 	 	 	 	 	 	 	 	 	 	 	 	 
+Sandeep	What high volume prescribers have I not seen within the last month?	Targeting	 	XPO, Sales Alignment, Veeva CRM Engagement	 	 	 	 	 								

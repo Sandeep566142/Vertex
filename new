@@ -387,3 +387,54 @@ WHERE
         'TXR_HCP_SOC', 'TD_SPECGRP', 'TXR_HCP_SPEC', 'TXR_NTILE_HCP_SUZ_QTRLY_STATIC_R52W',
         'TXR_NTILE_HCP_ANYPAIN_R52W', 'TXR_NTILE_HCP_SUZ_R52W'
     );
+-- Create the table to hold the final definitions
+CREATE OR REPLACE TEMPORARY TABLE FINAL_DDL_OUTPUT (
+    TABLE_NAME VARCHAR, 
+    FULL_PATH VARCHAR,
+    DDL_TEXT VARCHAR
+);
+
+-- Run the logic to fetch DDLs
+EXECUTE IMMEDIATE $$
+DECLARE
+    db VARCHAR;
+    sch VARCHAR;
+    tbl VARCHAR;
+    path VARCHAR;
+    ddl_cmd VARCHAR;
+    ddl_out VARCHAR;
+    
+    -- Iterate over the table we created in Step 2
+    c1 CURSOR FOR SELECT DB_NAME, SCH_NAME, TBL_NAME FROM TBL_LOCATIONS;
+BEGIN
+    OPEN c1;
+    FOR rec IN c1 DO
+        db := rec.DB_NAME;
+        sch := rec.SCH_NAME;
+        tbl := rec.TBL_NAME;
+        path := '"' || db || '"."' || sch || '"."' || tbl || '"';
+        
+        -- Build the GET_DDL command
+        ddl_cmd := 'SELECT GET_DDL(\'TABLE\', \'' || path || '\')';
+        
+        BEGIN
+            -- Try to run GET_DDL
+            EXECUTE IMMEDIATE ddl_cmd INTO :ddl_out;
+            
+            -- Insert success
+            INSERT INTO FINAL_DDL_OUTPUT (TABLE_NAME, FULL_PATH, DDL_TEXT) 
+            VALUES (:tbl, :path, :ddl_out);
+        EXCEPTION
+            WHEN OTHER THEN
+                -- If permission denied or table locked, log the error
+                INSERT INTO FINAL_DDL_OUTPUT (TABLE_NAME, FULL_PATH, DDL_TEXT) 
+                VALUES (:tbl, :path, 'ERROR: Could not retrieve DDL. Check permissions.');
+        END;
+    END FOR;
+    CLOSE c1;
+    RETURN 'Done.';
+END;
+$$;
+
+-- View the results
+SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;

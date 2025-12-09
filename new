@@ -514,3 +514,106 @@ $$;
 
 -- STEP 4: View the results
 SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;
+
+
+-- 1. Create a table to hold the results
+CREATE OR REPLACE TEMPORARY TABLE FINAL_DDL_OUTPUT (
+    TABLE_NAME VARCHAR, 
+    LOCATION_FOUND VARCHAR, 
+    DDL_DEFINITION VARCHAR
+);
+
+-- 2. Create a table to hold YOUR SPECIFIC list
+CREATE OR REPLACE TEMPORARY TABLE MY_TARGET_LIST (TBL_NAME VARCHAR);
+
+-- 3. Load ONLY the tables you care about
+INSERT INTO MY_TARGET_LIST (TBL_NAME) VALUES 
+('TXR_VRTX_MCO_PAYER_CAT_2_PLAN'), 
+('TD_MM_PAYER_CATEGORY_L3'), 
+('TD_MM_PAYER_CATEGORY_L2'), 
+('TD_VRTX_MCO_PAYER'), 
+('TD_VRTX_MCO_PLAN'), 
+('TM_NRAF_L1_SOC_OTLT_DC_NDC_WK'), 
+('TM_NRAF_L1_SOC_OTLT_DC_NDC_MTH'), 
+('TM_RX_L1_HCPPLNDC_NDC_WK'), 
+('TM_RX_L1_HCPPLNDC_NDC_MTH'), 
+('TM_NRAFIC_L1_OTLT_SOC_DC_NDC_WK'), 
+('TD_GEO_LOC'), 
+('TXR_HCP_GEOLOC_PRIM'), 
+('TD_SALESFORCE_L1'), 
+('TD_DATA_LOAD'), 
+('TXR_HCP_SF_L1'), 
+('TD_OTLT_SUBCAT'), 
+('TXR_OTLT_SUBCAT'), 
+('TD_TIME_DT'), 
+('TXR_MKTGPGM_GHEM_HCO_SUBTYPE'), 
+('TXR_MKTGPGM_CURR_PTAM_HCP_TGT'), 
+('TXR_MKTGPGM_CURR_SAL_IDN_TGT'), 
+('TXR_MKTGPGM_SUZ_HCP_SEGMENT'), 
+('TXR_MKTGPGM_PAIN_SOC_TGT'), 
+('TD_IDN'), 
+('TD_SOC'), 
+('TD_HCP'), 
+('TXR_SOC_IDN'), 
+('TXR_HCP_SOC'), 
+('TD_SPECGRP'), 
+('TXR_HCP_SPEC'), 
+('TXR_NTILE_HCP_SUZ_QTRLY_STATIC_R52W'), 
+('TXR_NTILE_HCP_ANYPAIN_R52W'), 
+('TXR_NTILE_HCP_SUZ_R52W');
+
+
+EXECUTE IMMEDIATE $$
+DECLARE
+    target_tbl VARCHAR;
+    found_db VARCHAR;
+    found_sch VARCHAR;
+    full_path VARCHAR;
+    ddl_query VARCHAR;
+    
+    -- Cursor for your specific list
+    c_list CURSOR FOR SELECT TBL_NAME FROM MY_TARGET_LIST;
+BEGIN
+    OPEN c_list;
+    
+    FOR rec IN c_list DO
+        target_tbl := rec.TBL_NAME;
+        found_db := NULL;
+        
+        -- 1. Search ONLY for this specific table name
+        EXECUTE IMMEDIATE 'SHOW TABLES LIKE \'' || target_tbl || '\' IN ACCOUNT';
+        
+        -- 2. Grab the first location found
+        BEGIN
+            LET c_res CURSOR FOR SELECT "database_name", "schema_name" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) LIMIT 1;
+            OPEN c_res;
+            FETCH c_res INTO found_db, found_sch;
+            CLOSE c_res;
+        END;
+
+        -- 3. Get DDL if found
+        IF (found_db IS NOT NULL) THEN
+            full_path := '"' || found_db || '"."' || found_sch || '"."' || target_tbl || '"';
+            ddl_query := 'SELECT GET_DDL(\'TABLE\', \'' || full_path || '\')';
+            
+            -- Run DDL command (Nuclear method: No INTO clause to avoid errors)
+            EXECUTE IMMEDIATE :ddl_query;
+            
+            -- Save Result
+            INSERT INTO FINAL_DDL_OUTPUT 
+            SELECT :target_tbl, :full_path, $1 
+            FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+            
+        ELSE
+            -- Log missing tables
+            INSERT INTO FINAL_DDL_OUTPUT VALUES (:target_tbl, 'NOT FOUND', 'Table not found in any database.');
+        END IF;
+        
+    END FOR;
+    
+    CLOSE c_list;
+    RETURN 'Done. Only processed specific tables.';
+END;
+$$;
+
+SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;

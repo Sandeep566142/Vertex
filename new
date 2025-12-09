@@ -260,3 +260,106 @@ $$;
 
 -- 3. View the final results
 SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;
+
+
+
+-- Create a new database for admin tasks
+CREATE DATABASE IF NOT EXISTS ADHOC_ADMIN_DB;
+
+-- Create a schema specifically for this extraction
+CREATE SCHEMA IF NOT EXISTS ADHOC_ADMIN_DB.METADATA_EXTRACT;
+
+-- Set your context to this new location
+USE SCHEMA ADHOC_ADMIN_DB.METADATA_EXTRACT;
+
+-- 1. Create a container for the results
+CREATE OR REPLACE TEMPORARY TABLE FINAL_DDL_OUTPUT (
+    TABLE_NAME VARCHAR, 
+    DATABASE_PATH VARCHAR,
+    DDL_DEFINITION VARCHAR
+);
+
+-- 2. Execute the Search and Extraction Logic
+EXECUTE IMMEDIATE $$
+DECLARE
+    -- Variables for processing
+    db_name VARCHAR;
+    sch_name VARCHAR;
+    tbl_name VARCHAR;
+    full_path VARCHAR;
+    get_ddl_cmd VARCHAR;
+    ddl_result VARCHAR;
+    
+    -- Cursor to iterate through the found tables
+    -- We first run SHOW TABLES to find locations, then filter for your specific list
+    c1 CURSOR FOR 
+        SELECT database_name, schema_name, name
+        FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+        WHERE "name" IN (
+            'TXR_VRTX_MCO_PAYER_CAT_2_PLAN',
+            'TD_MM_PAYER_CATEGORY_L3',
+            'TD_MM_PAYER_CATEGORY_L2',
+            'TD_VRTX_MCO_PAYER',
+            'TD_VRTX_MCO_PLAN',
+            'TM_NRAF_L1_SOC_OTLT_DC_NDC_WK',
+            'TM_NRAF_L1_SOC_OTLT_DC_NDC_MTH',
+            'TM_RX_L1_HCPPLNDC_NDC_WK',
+            'TM_RX_L1_HCPPLNDC_NDC_MTH',
+            'TM_NRAFIC_L1_OTLT_SOC_DC_NDC_WK',
+            'TD_GEO_LOC',
+            'TXR_HCP_GEOLOC_PRIM',
+            'TD_SALESFORCE_L1',
+            'TD_DATA_LOAD',
+            'TXR_HCP_SF_L1',
+            'TD_OTLT_SUBCAT',
+            'TXR_OTLT_SUBCAT',
+            'TD_TIME_DT',
+            'TXR_MKTGPGM_GHEM_HCO_SUBTYPE',
+            'TXR_MKTGPGM_CURR_PTAM_HCP_TGT',
+            'TXR_MKTGPGM_CURR_SAL_IDN_TGT',
+            'TXR_MKTGPGM_SUZ_HCP_SEGMENT',
+            'TXR_MKTGPGM_PAIN_SOC_TGT',
+            'TD_IDN',
+            'TD_SOC',
+            'TD_HCP',
+            'TXR_SOC_IDN',
+            'TXR_HCP_SOC',
+            'TD_SPECGRP',
+            'TXR_HCP_SPEC',
+            'TXR_NTILE_HCP_SUZ_QTRLY_STATIC_R52W',
+            'TXR_NTILE_HCP_ANYPAIN_R52W',
+            'TXR_NTILE_HCP_SUZ_R52W'
+        );
+
+BEGIN
+    -- A. Run a broad search (Since your tables start with T, we use 'T%')
+    SHOW TABLES LIKE 'T%' IN ACCOUNT;
+
+    -- B. Open the cursor to process the filtered results from the search above
+    OPEN c1;
+    
+    FOR rec IN c1 DO
+        db_name := rec."database_name";
+        sch_name := rec."schema_name";
+        tbl_name := rec."name";
+        full_path := db_name || '.' || sch_name || '.' || tbl_name;
+        
+        -- C. Construct the GET_DDL command dynamically
+        get_ddl_cmd := 'SELECT GET_DDL(''TABLE'', ''' || full_path || ''')';
+        
+        -- D. Run GET_DDL and capture the text
+        EXECUTE IMMEDIATE get_ddl_cmd INTO :ddl_result;
+        
+        -- E. Save to our output table
+        INSERT INTO FINAL_DDL_OUTPUT (TABLE_NAME, DATABASE_PATH, DDL_DEFINITION) 
+        VALUES (:tbl_name, :full_path, :ddl_result);
+        
+    END FOR;
+    
+    CLOSE c1;
+    RETURN 'DDL Generation Complete. Check FINAL_DDL_OUTPUT table.';
+END;
+$$;
+
+-- 3. View the final results
+SELECT * FROM FINAL_DDL_OUTPUT ORDER BY TABLE_NAME;

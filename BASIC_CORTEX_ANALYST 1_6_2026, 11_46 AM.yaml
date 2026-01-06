@@ -1793,3 +1793,105 @@ tables:
           - '20251024'
           - '20241220'
           - '20250321'
+relationships:
+  # Relationship between Weekly LAAD Facts and HCP Dimension
+  - name: laad_weekly_to_hcp
+    left_table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+    right_table: TD_HCP
+    relationship_columns:
+      - left_column: HCP_ID
+        right_column: HCP_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Weekly Exposure (XPO) Facts and HCP Dimension
+  - name: xpo_weekly_to_hcp
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: TD_HCP
+    relationship_columns:
+      - left_column: HCP_ID
+        right_column: HCP_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Weekly LAAD Facts and Postal Geography
+  # Connecting via ZIP Code as the common identifier
+  - name: laad_weekly_to_postal
+    left_table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+    right_table: TD_GEO_POSTAL
+    relationship_columns:
+      - left_column: ZIP_CODE
+        right_column: GEO_POSTAL_CD
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Weekly Exposure (XPO) Facts and Postal Geography
+  # Connecting via ZIP Code as the common identifier
+  - name: xpo_weekly_to_postal
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: TD_GEO_POSTAL
+    relationship_columns:
+      - left_column: ZIP_CODE
+        right_column: GEO_POSTAL_CD
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Cities and States (Geographic Hierarchy)
+  - name: city_to_state
+    left_table: TD_GEO_CITY
+    right_table: TD_GEO_STATE
+    relationship_columns:
+      - left_column: GEO_STATE_KEY
+        right_column: GEO_STATE_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Postal Codes and States (Geographic Hierarchy)
+  - name: postal_to_state
+    left_table: TD_GEO_POSTAL
+    right_table: TD_GEO_STATE
+    relationship_columns:
+      - left_column: GEO_STATE_KEY
+        right_column: GEO_STATE_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Specific Locations and Cities (Geographic Hierarchy)
+  - name: location_to_city
+    left_table: TD_GEO_LOC
+    right_table: TD_GEO_CITY
+    relationship_columns:
+      - left_column: GEO_CITY_KEY
+        right_column: GEO_CITY_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Specific Locations and Postal Codes (Geographic Hierarchy)
+  - name: location_to_postal
+    left_table: TD_GEO_LOC
+    right_table: TD_GEO_POSTAL
+    relationship_columns:
+      - left_column: GEO_POSTAL_KEY
+        right_column: GEO_POSTAL_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Specific Locations and States (Geographic Hierarchy)
+  - name: location_to_state
+    left_table: TD_GEO_LOC
+    right_table: TD_GEO_STATE
+    relationship_columns:
+      - left_column: GEO_STATE_KEY
+        right_column: GEO_STATE_KEY
+    join_type: left_outer
+    relationship_type: many_to_one
+
+  # Relationship between Healthcare Organizations and their Subtypes
+  - name: hco_to_subtype
+    left_table: TD_HCO
+    right_table: TD_HCO_SUBTYPE
+    relationship_columns:
+      - left_column: HCO_SUBTYPE_KEY
+        right_column: HCO_SUBTYPE_KEY
+    join_type: left_outer
+    relationship_type: many_to_one

@@ -1885,7 +1885,9 @@ relationships:
         right_column: GEO_STATE_KEY
     join_type: left_outer
     relationship_type: many_to_one
-
+{"'.
+syntax error line 19 at position 6 unexpected 'question'.
+parse error line 50 at position 142 near '<EOF>'. (line 18)
   # Relationship between Healthcare Organizations and their Subtypes
   - name: hco_to_subtype
     left_table: TD_HCO

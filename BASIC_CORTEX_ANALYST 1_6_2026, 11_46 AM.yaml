@@ -107,10 +107,10 @@ tables:
         data_type: VARCHAR(256)
         sample_values:
           - ORAL
-          - TOPICAL
+          - Sales territory identifier used to designate specific geographicTOPICAL
           - TOPICAL-PATCH
       - name: SAL_TERRITORY_ID
-        description: Sales territory identifier used to designate specific geographic or organizational sales regions.
+        description:  or organizational sales regions.
         expr: SAL_TERRITORY_ID
         data_type: VARCHAR(255)
         sample_values:
@@ -1885,11 +1885,97 @@ relationships:
         right_column: GEO_STATE_KEY
     join_type: left_outer
     relationship_type: many_to_one
-{"'.
-syntax error line 19 at position 6 unexpected 'question'.
-parse error line 50 at position 142 near '<EOF>'. (line 18)
-  # Relationship between Healthcare Organizations and their Subtypes
-  - name: hco_to_subtype
+def main(session: Session, user_query: str, parent_node_ids_json: str, tree_id: str = ''Pharma_Master_v1''):
+    try:
+        log_debug(session, "MAIN_ENTRY", f"TreeID: {tree_id}, Query: {user_query}")
+
+        # 1. Load Decision Tree Structure
+        tree_row = session.sql("SELECT GRAPH_JSON FROM DECISION_TREE_STORE_NEW WHERE TREE_ID = ?", params=[tree_id]).collect()
+        
+        if not tree_row: 
+            return json.dumps({"error": f"Tree ID not found: {tree_id}"})
+        
+        full_json = json.loads(tree_row[0][''GRAPH_JSON''])
+        graph = full_json.get(''graph'', full_json)
+        
+        # Build Lookup Maps
+        all_nodes_map = {n[''id'']: n for n in graph.get(''nodes'', [])}
+        name_to_node_map = {n[''metric'']: n for n in graph.get(''nodes'', [])}
+        all_edges = graph.get(''edges'', [])
+
+        # 2. Determine Strategy (Search vs Drill)
+        targets_phase_1 = []
+        
+        # Robust Null Check
+        is_drill_mode = (
+            parent_node_ids_json is not None and 
+            parent_node_ids_json != '''' and 
+            parent_node_ids_json.upper() != ''NULL'' and 
+            parent_node_ids_json != ''[]''
+        )
+
+        if not is_drill_mode and user_query:
+            log_debug(session, "STRATEGY", "Vector Search (No parent IDs provided)")
+            # Vector Search for Entry Point
+            vec_sql = """
+            SELECT METRIC_NAME FROM KPI_KNOWLEDGE_BASE_NEW 
+            ORDER BY VECTOR_L2_DISTANCE(SNOWFLAKE.CORTEX.EMBED_TEXT_768(''snowflake-arctic-embed-m-v1.5'', ?), KPI_EMBEDDING) ASC 
+            LIMIT 1
+            """
+            kb_row = session.sql(vec_sql, params=[user_query]).collect()
+            if kb_row and kb_row[0][''METRIC_NAME''] in name_to_node_map:
+                found_metric = kb_row[0][''METRIC_NAME'']
+                targets_phase_1.append(name_to_node_map[found_metric])
+                log_debug(session, "ANCHOR_FOUND", f"Matched: {found_metric}")
+
+        elif is_drill_mode:
+            log_debug(session, "STRATEGY", "Drill Down (Parent IDs provided)")
+            try:
+                p_ids = json.loads(parent_node_ids_json)
+                if not isinstance(p_ids, list): p_ids = [p_ids]
+                parent_set = set(p_ids)
+                
+                # Find children of provided parents
+                for edge in all_edges:
+                    if edge[''source''] in all_nodes_map and edge[''target''] in parent_set:
+                         # Note: Depending on edge direction (source->target), adjust accordingly.
+                         # Assuming Source=Parent, Target=Child? Or Source=Metric, Target=Root?
+                         # Usually standard DAG is Parent -> Child. 
+                         # If input is ''Parent Nodes'', we want their children.
+                         # CHECK: Your previous code checked ''target'' in parent_set. 
+                         # If Edge is Source(Parent)->Target(Child), then Target in ParentSet means we are looking for parents?
+                         # Let''s assume the previous logic was correct: "Find nodes connected to these parents"
+                         if edge[''target''] in parent_set:
+                             targets_phase_1.append(all_nodes_map[edge[''source'']])
+            except Exception as e:
+                log_debug(session, "DRILL_ERROR", str(e))
+
+        # 3. Execute Phase 1 (Entry Nodes)
+        results_phase_1 = execute_batch(session, targets_phase_1, user_query)
+
+        # 4. Execute Phase 2 (Greedy Traversal of "Bad" Nodes)
+        bad_ids = {r[''id''] for r in results_phase_1 if r.get(''status'') == ''bad''}
+        targets_phase_2 = []
+        
+        if bad_ids:
+            log_debug(session, "PHASE_2", f"Expanding bad nodes: {list(bad_ids)}")
+            for edge in all_edges:
+                # If a node was bad, check its relationships
+                if edge[''target''] in bad_ids and edge[''source''] in all_nodes_map:
+                    targets_phase_2.append(all_nodes_map[edge[''source'']])
+        
+        results_phase_2 = execute_batch(session, targets_phase_2, user_query)
+
+        # 5. Final Output
+        return json.dumps({
+            "nodes_analyzed": results_phase_1 + results_phase_2,
+            "edges_traversed": [e for e in all_edges if e[''target''] in bad_ids or e[''source''] in bad_ids]
+        })
+
+    except Exception as e:
+        log_debug(session, "MAIN_CRASH", str(e))
+        return json.dumps({"error": "Critical Procedure Error", "details": str(e), "trace": traceback.format_exc()})
+';
     left_table: TD_HCO
     right_table: TD_HCO_SUBTYPE
     relationship_columns:

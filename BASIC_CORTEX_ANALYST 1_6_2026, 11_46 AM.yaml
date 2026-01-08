@@ -2299,3 +2299,4 @@ def main(session: snowpark.Session):
     }
 }
 $$);
+Could not parse response. Raw: {'status': 500, 'content': '{\n\t"code":\t"300014",\n\t"message":\t"Cannot construct instance of `com.snowflake.snowapi.cortexliteagent.model.AgentRunRequest` (although at least one Creator exists): n...

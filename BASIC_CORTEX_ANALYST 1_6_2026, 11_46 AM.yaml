@@ -2312,3 +2312,199 @@ Submitting Feedback: 'Global Rule: Our fiscal year begins on February 1st. User 
 📖 Memory Found: False (Length: 17)
 [AGENT REPLY AFTER]:
 {'status': 500, 'content': '{\n\t"code":\t"300014",\n\t"message":\t"Cannot construct instance of `com.snowflake.snowapi.cortexdataagent.model.DataAgentRunRequest` (although at least one Creator exists): no String-argument constructor/factory method to deserialize from String value (\'{\"model\": \"claude-3-5-sonnet\", \"instructions\": {\"orchestration\": \"\\n    You are a helpful corporate analyst agent.\\n    - Never fabricate data.\\n    - If you use a tool to get data, rely ONLY on that data.\\n    - CRITICAL: You must adhere to the USER CONTEXT provided below in your logic.\\n    \\n\\n### USER CONTEXT ###\\nNo prior context.\", \"response\": \"\\n    - Be professional and concise.\\n    - Use Markdown for formatting.\\n    \"}, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"When does the fiscal year start? Please list the months of Q1.\"}]}], \"stream\": false}\')\n at [Source: (org.eclipse.jetty.server.HttpInputOverHTTP); line: 1, column: 1]",\n\t"request_id":\t"2f23c5b9-1174-402f-ba88-64f165fd5e2a",\n\t"error_code":\t"300014"\n}', 'headers': {'\nContent-Type': 'application/json', '\nContent-Length': '1033', '\nDate': 'Thu, 08 Jan 2026 18:42:48 GMT', '\nX-Snowflake-Request-ID': '2f23c5b9-1174-402f-ba88-64f165fd5e2a'}}
+
+
+Skip to main content
+Skip to editor
+Skip to results
+Site
+
+
+
+
+
+Worksheets
+Selection deleted
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+    
+    # --- CONFIGURATION ---
+    # Endpoint for stateless agent execution - FIX THE QUOTES
+    AGENT_ENDPOINT_URL = "/api/v2/databases/DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB/schemas/AI_POC/agents/FEEDBACK_NEW:run"
+    TIMEOUT_MS = 180_000  # 3 minutes
+
+    # 1. Retrieve Memory (Fast Lookup)
+    try:
+        mem_df = session.sql(f"SELECT current_summary FROM user_memory WHERE user_id = '{user_id}'").collect()
+        retrieved_memory = mem_df[0]['CURRENT_SUMMARY'] if mem_df and mem_df[0]['CURRENT_SUMMARY'] else "No prior context."
+        print(f"📖 Memory Found: {len(retrieved_memory) > 20} (Length: {len(retrieved_memory)})")
+    except:
+        retrieved_memory = "No prior context."
+
+    # 2. Define Instructions
+    # Logic rules for the "brain"
+    orchestration_rules = """
+    You are a helpful corporate analyst agent.
+    - Never fabricate data.
+    - If you use a tool to get data, rely ONLY on that data.
+    - CRITICAL: You must adhere to the USER CONTEXT provided below in your logic.
+    """
+    # Style rules for the "voice"
+    response_rules = """
+    - Be professional and concise.
+    - Use Markdown for formatting.
+    """
+
+    # 3. Construct the Payload (using AgentInstruction schema)
+    # We inject the retrieved memory directly into the orchestration block.
+    payload = {
+        "model": "claude-3-5-sonnet",  # Or your preferred supported model
+        "instructions": {
+            "orchestration": f"{orchestration_rules}\n\n### USER CONTEXT ###\n{retrieved_memory}",
+            "response": response_rules
+        },
+        "messages": [
+            {"role": "user", "content": [{"type": "text", "text": user_query}]}
+        ],
+        "stream": False
+    }
+
+    # Headers for internal API call
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    # 4. Make the internal API request
+    try:
+        response_dict = _snowflake.send_snow_api_request(
+            "POST",
+            AGENT_ENDPOINT_URL,
+            headers,
+            {},  # query params
+            payload,
+            {},  # cookies
+            TIMEOUT_MS
+        )
+        print("Hi")
+        # Parse the response body
+        response_content = response_dict.get("content")
+        # if not response_content:
+        #     return "Error: Empty response from agent API."
+        print(response_dict)    
+        parsed_response = json.loads(response_content)
+
+        # Extract the final text response.
+        # Handle standard blocking response format
+        if isinstance(parsed_response, dict) and 'message' in parsed_response:
+            content_items = parsed_response['message'].get('content', [])
+            for item in reversed(content_items):
+                if isinstance(item, dict) and item.get("type") == "text":
+                    return item.get("text", "No text found in response.")
+        
+        # Handle potential streaming-style chunks in blocking response
+        if isinstance(parsed_response, list) and len(parsed_response) > 0:
+            item = parsed_response[-1]  # Get last chunk
+            if 'message' in item and 'content' in item['message']:
+                content_block = item['message']['content'][-1]
+                if content_block.get('type') == 'text':
+                    return content_block.get('text')
+
+        return f"Could not parse response. Raw: {str(parsed_response)[:200]}..."
+
+    except Exception as e:
+        return f"An error occurred calling the agent API: {str(e)}"
+Starting Test Run for User: worksheet_user_1767899167
+════ PART 1: BASELINE (Before Feedback) ════
+--- Calling Agent for worksheet_user_1767899167 ---
+📖 Memory Found: False (Length: 17)
+Hi
+{'status': 200, 'content': '[{\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"The"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" fiscal year start"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" date varies"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" depending"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" on the organization"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" and country:"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\n\n**Most"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" common"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" fiscal"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" year starts"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t":**\n- **October"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" 1** (U"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t".S. federal"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" government)\n- **April"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" 1** (many"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" countries including"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" Japan"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t", India"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t", UK"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t")"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\n- **January 1** ("\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"calendar"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" year -"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" many"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" businesses"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t")"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\n- **July 1** (some"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" states"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" an"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"d organizations"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t")\n\n**Q"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"1 months"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" for"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" each"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t":**"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\n\n-"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" **October"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" start"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t":** Q"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"1 ="\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" October,"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" November"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t", December\n- **April start:**"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" Q1 = April, May,"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" June  "\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\n- **January start:** Q1"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" = January, February, March"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\n- **July start:** Q1 "\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"= July, August, September\n\nIf"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" you\'re asking about a specific organization"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" or country, I"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"\'d be happy to provide"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t" more targete"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text.delta",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"d information!"\n\t\t}\n\t}, {\n\t\t"event":\t"response.text",\n\t\t"data":\t{\n\t\t\t"content_index":\t0,\n\t\t\t"text":\t"The fiscal year start date varies depending on the organization and country:\n\n**Most common fiscal year starts:**\n- **October 1** (U.S. federal government)\n- **April 1** (many countries including Japan, India, UK)\n- **January 1** (calendar year - many businesses)\n- **July 1** (some states and organizations)\n\n**Q1 months for each:**\n\n- **October start:** Q1 = October, November, December\n- **April start:** Q1 = April, May, June  \n- **January start:** Q1 = January, February, March\n- **July start:** Q1 = July, August, September\n\nIf you\'re asking about a specific organization or country, I\'d be happy to provide more targeted information!"\n\t\t}\n\t}, {\n\t\t"event":\t"response",\n\t\t"data":\t{\n\t\t\t"content":\t[{\n\t\t\t\t\t"text":\t"The fiscal year start date varies depending on the organization and country:\n\n**Most common fiscal year starts:**\n- **October 1** (U.S. federal government)\n- **April 1** (many countries including Japan, India, UK)\n- **January 1** (calendar year - many businesses)\n- **July 1** (some states and organizations)\n\n**Q1 months for each:**\n\n- **October start:** Q1 = October, November, December\n- **April start:** Q1 = April, May, June  \n- **January start:** Q1 = January, February, March\n- **July start:** Q1 = July, August, September\n\nIf you\'re asking about a specific organization or country, I\'d be happy to provide more targeted information!",\n\t\t\t\t\t"type":\t"text"\n\t\t\t\t}],\n\t\t\t"metadata":\t{\n\t\t\t\t"usage":\t{\n\t\t\t\t\t"tokens_consumed":\t[{\n\t\t\t\t\t\t\t"context_window":\t200000,\n\t\t\t\t\t\t\t"input_tokens":\t{\n\t\t\t\t\t\t\t\t"cache_read":\t0,\n\t\t\t\t\t\t\t\t"cache_write":\t0,\n\t\t\t\t\t\t\t\t"total":\t78,\n\t\t\t\t\t\t\t\t"uncached":\t78\n\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t"model_name":\t"claude-4-sonnet",\n\t\t\t\t\t\t\t"output_tokens":\t{\n\t\t\t\t\t\t\t\t"total":\t175\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}]\n\t\t\t\t}\n\t\t\t},\n\t\t\t"role":\t"assistant",\n\t\t\t"schema_version":\t"v2"\n\t\t}\n\t}, {\n\t\t"event":\t"done",\n\t\t"data":\t"[DONE]"\n\t}]', 'headers': {'\nDate': 'Thu, 08 Jan 2026 19:06:08 GMT', '\nX-Snowflake-Request-ID': '32911316-3d54-4627-a217-a074a4a3fd52', '\nContent-Type': 'application/json', '\nTransfer-Encoding': 'chunked'}}
+[AGENT REPLY BEFORE]:
+Could not parse response. Raw: [{'event': 'response.text.delta', 'data': {'content_index': 0, 'text': 'The'}}, {'event': 'response.text.delta', 'data': {'content_index': 0, 'text': ' fiscal year start'}}, {'event': 'response.text.d...
+

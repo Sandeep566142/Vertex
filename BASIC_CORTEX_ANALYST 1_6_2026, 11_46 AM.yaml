@@ -2509,6 +2509,162 @@ Hi
 Could not parse response. Raw: [{'event': 'response.text.delta', 'data': {'content_index': 0, 'text': 'The'}}, {'event': 'response.text.delta', 'data': {'content_index': 0, 'text': ' fiscal year start'}}, {'event': 'response.text.d...
 
 Starting Test Run for User: worksheet_user_1767900217
+
+
+import _snowflake
+import json
+import time
+import snowflake.snowpark as snowpark
+from snowflake.snowpark.exceptions import SnowparkSQLException
+
+# ==========================================
+# HELPER 1: FAST FEEDBACK SUBMISSION (SQL)
+# ==========================================
+def submit_feedback_sql(session: snowpark.Session, user_id: str, text: str, is_positive: bool):
+    try:
+        # Simple SQL-safe string escape
+        clean_text = text.replace("'", "''")
+        query = f"""
+            INSERT INTO feedback_staging 
+            (user_id, feedback_text, feedback_rating)
+            VALUES ('{user_id}', '{clean_text}', {is_positive})
+        """
+        session.sql(query).collect()
+        print(f"✅ Feedback submitted for: {user_id}")
+    except Exception as e:
+        print(f"❌ Submit Error: {e}")
+
+# ==========================================
+# HELPER 2: CALL AGENT VIA INTERNAL API
+# ==========================================
+def call_cortex_agent_internal(session: snowpark.Session, user_id: str, user_query: str):
+    print(f"\n--- Calling Agent for {user_id} ---")
+    
+    # --- CONFIGURATION ---
+    # Endpoint for stateless agent execution - FIX THE QUOTES
+    AGENT_ENDPOINT_URL = "/api/v2/databases/DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB/schemas/AI_POC/agents/FEEDBACK_NEW:run"
+    TIMEOUT_MS = 180_000  # 3 minutes
+
+    # 1. Retrieve Memory (Fast Lookup)
+    try:
+        mem_df = session.sql(f"SELECT current_summary FROM user_memory WHERE user_id = '{user_id}'").collect()
+        retrieved_memory = mem_df[0]['CURRENT_SUMMARY'] if mem_df and mem_df[0]['CURRENT_SUMMARY'] else "No prior context."
+        print(f"📖 Memory Found: {len(retrieved_memory) > 20} (Length: {len(retrieved_memory)})")
+    except:
+        retrieved_memory = "No prior context."
+
+    # 2. Define Instructions
+    # Logic rules for the "brain"
+    orchestration_rules = """
+    You are a helpful corporate analyst agent.
+    - Never fabricate data.
+    - If you use a tool to get data, rely ONLY on that data.
+    - CRITICAL: You must adhere to the USER CONTEXT provided below in your logic.
+    """
+    # Style rules for the "voice"
+    response_rules = """
+    - Be professional and concise.
+    - Use Markdown for formatting.
+    """
+
+    # 3. Construct the Payload (using AgentInstruction schema)
+    # We inject the retrieved memory directly into the orchestration block.
+    payload = {
+        "model": "claude-3-5-sonnet",  # Or your preferred supported model
+        "instructions": {
+            "orchestration": f"{orchestration_rules}\n\n### USER CONTEXT ###\n{retrieved_memory}",
+            "response": response_rules
+        },
+        "messages": [
+            {"role": "user", "content": [{"type": "text", "text": user_query}]}
+        ],
+        "stream": False
+    }
+
+    # Headers for internal API call
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    # 4. Make the internal API request
+    try:
+        response_dict = _snowflake.send_snow_api_request(
+            "POST",
+            AGENT_ENDPOINT_URL,
+            headers,
+            {},  # query params
+            payload,
+            {},  # cookies
+            TIMEOUT_MS
+        )
+
+        # Parse the response body
+        response_content = response_dict.get("content", "")
+        if not response_content:
+            return "Error: Empty response from agent API."
+             
+        parsed_response = json.loads(response_content)
+
+        # Extract the final text response.
+        # Handle standard blocking response format
+        if isinstance(parsed_response, dict) and 'message' in parsed_response:
+            content_items = parsed_response['message'].get('content', [])
+            for item in reversed(content_items):
+                if isinstance(item, dict) and item.get("type") == "text":
+                    return item.get("text", "No text found in response.")
+        
+        # Handle potential streaming-style chunks in blocking response
+        if isinstance(parsed_response, list) and len(parsed_response) > 0:
+            item=parsed_response
+            print(parsed_response)
+            if 'event' in item and 'response' in item['event']:
+                content_block = item['data']['content'][-1]
+                if content_block.get('type') == 'text':
+                    return content_block.get('text')
+
+        return f"Could not parse response. Raw: {str(parsed_response)[:200]}..."
+
+    except Exception as e:
+        return f"An error occurred calling the agent API: {str(e)}"
+
+# ==========================================
+# MAIN HANDLER FUNCTION
+# ==========================================
+def main(session: snowpark.Session):
+    # Generate a unique user ID for this test run
+    test_user_id = f"worksheet_user_{int(time.time())}"
+    test_query = "When does the fiscal year start? Please list the months of Q1."
+
+    print(f"Starting Test Run for User: {test_user_id}")
+
+    # --- PART 1: BEFORE FEEDBACK ---
+    print("\n════ PART 1: BASELINE (Before Feedback) ════")
+    # The agent should give a generic answer.
+    response_before = call_cortex_agent_internal(session, test_user_id, test_query)
+    print(f"\n[AGENT REPLY BEFORE]:\n{response_before}\n")
+
+    # # --- PART 2: SUBMIT FEEDBACK & WAIT ---
+    # print("\n════ PART 2: TEACHING THE SYSTEM ════")
+    # fb_text = "Global Rule: Our fiscal year begins on February 1st. User Preference: Use bullet points for lists."
+    # print(f"Submitting Feedback: '{fb_text}'")
+    # # Submit negative feedback to initiate the correction loop
+    # submit_feedback_sql(session, test_user_id, fb_text, is_positive=False)
+
+    # print("\n--- Waiting 130 seconds for background tasks to process... ---")
+    # # Wait for Classifier Task (1 min) + Summarizer Task (1 min) to finish cycles.
+    # # This allows data to flow from Staging -> Logs -> Memory.
+    # time.sleep(130) 
+    # print("--- Wait complete. Memory should be updated. ---")
+
+    # # --- PART 3: AFTER FEEDBACK ---
+    # print("\n════ PART 3: VERIFICATION (After Feedback) ════")
+    # # Run the exact same query. The agent should now use the new memory.
+    # response_after = call_cortex_agent_internal(session, test_user_id, test_query)
+    # print(f"\n[AGENT REPLY AFTER]:\n{response_after}\n")
+
+    # return "Test Complete. Check output panel for results."
+
 ════ PART 1: BASELINE (Before Feedback) ════
 --- Calling Agent for worksheet_user_1767900217 ---
 📖 Memory Found: False (Length: 17)

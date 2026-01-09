@@ -2869,3 +2869,252 @@ To find out when your fiscal year starts, you could:
 - Ask your HR department or manager
 
 Is there anything else I can help you with regarding fiscal year planning or budgeting concepts in general?
+
+
+
+-- ================================================
+-- SELF-CORRECTING AGENT: BACKEND SETUP CREATE
+-- ================================================
+
+-- ================================================
+-- 2. STORAGE LAYER (TABLES)
+-- ================================================
+
+-- A. The "Fast Inbox" (Staging)
+-- Your backend inserts here instantly. No processing happens on insert.
+CREATE OR REPLACE TABLE feedback_staging (
+    stage_id STRING DEFAULT UUID_STRING(),
+    user_id STRING NOT NULL,
+    feedback_text STRING,
+    feedback_rating BOOLEAN, -- True=Positive, False=Negative (needs correction)
+    created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- B. The "Raw Journal" (Permanent Logs)
+-- Data moves here AFTER the AI procedure classifies the scope.
+CREATE OR REPLACE TABLE feedback_logs (
+    log_id STRING DEFAULT UUID_STRING(),
+    user_id STRING,
+    feedback_text STRING,
+    feedback_rating BOOLEAN,
+    scope STRING,            -- 'USER' or 'GLOBAL' (Determined by AI)
+    created_at TIMESTAMP_NTZ,
+    processed_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- C. The "Active Memory" (Hybrid Table)
+-- Optimized for ultra-fast, single-row lookups during agent runtime.
+-- Requires an account enabled for Hybrid Tables.
+CREATE OR REPLACE HYBRID TABLE user_memory (
+    user_id STRING PRIMARY KEY,
+    current_summary STRING,
+    last_updated TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- ================================================
+-- 3. CHANGE DETECTION (STREAMS)
+-- ================================================
+
+-- Stream tracking new insertions into the Inbox
+CREATE OR REPLACE STREAM feedback_staging_stream ON TABLE feedback_staging;
+
+-- Stream tracking new validated entries in the Journal
+CREATE OR REPLACE STREAM feedback_logs_stream ON TABLE feedback_logs;
+
+-- ================================================
+-- 4. PROCESSING LAYER (AI STORED PROCEDURES)
+-- ================================================
+
+-- PROCEDURE 1: CLASSIFIER (Staging -> Logs)
+-- Reads new staging data, uses small LLM to classify scope, inserts into logs.
+CREATE OR REPLACE PROCEDURE process_staging_to_logs()
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.10'
+PACKAGES = ('snowflake-snowpark-python')
+HANDLER = 'run_classification'
+AS
+$$
+import pandas as pd
+
+def run_classification(session):
+    # 1. Read new INSERT data from the staging stream
+    raw_df = session.sql("""
+        SELECT user_id, feedback_text, feedback_rating, created_at
+        FROM feedback_staging_stream
+        WHERE metadata$action = 'INSERT'
+    """).to_pandas()
+    
+    if raw_df.empty:
+        return "Skipping: No new staging data detected."
+
+    processed_rows = []
+    
+    # 2. Iterate and classify
+    for _, row in raw_df.iterrows():
+        text = row['FEEDBACK_TEXT']
+        rating = row['FEEDBACK_RATING']
+        user_id = row['USER_ID']
+        created_at = row['CREATED_AT']
+        
+        detected_scope = 'USER' # Default assumption
+
+        # Only execute AI classification for negative, textual feedback
+        if rating == False and text and text.strip():
+             # Escape for SQL safety in prompt
+             safe_text_prompt = text.replace("'", "\\'").replace('"', '\\"')
+             
+             prompt = f"""
+             <snowflake_prompt_trigger>
+             Task: Classify feedback scope for an AI Agent.
+             Definitions:
+             - GLOBAL: Factual errors, wrong math, hallucinations, business logic bugs. (Applies to everyone).
+             - USER: Tone preferences, formatting requests, language style. (Applies only to this user).
+             
+             Feedback: "{safe_text_prompt}"
+             
+             Output: Reply ONLY with the single word 'GLOBAL' or 'USER'.
+             </snowflake_prompt_trigger>
+             """
+             
+             try:
+                # Use a fast, cheap model for simple classification
+                cmd = "SELECT SNOWFLAKE.CORTEX.COMPLETE('llama3-8b', ?)"
+                result_df = session.sql(cmd, params=[prompt]).collect()
+                ai_response = result_df[0][0].strip().upper()
+                
+                if ai_response in ['GLOBAL', 'USER']:
+                    detected_scope = ai_response
+                # Else keep default 'USER' if LLM response is weird
+             except Exception as e:
+                 print(f"Classification error for user {user_id}: {e}")
+                 # Keep default 'USER' on error
+
+        # Prepare string for bulk insert
+        safe_text_insert = text.replace("'", "''") if text else ""
+        processed_rows.append(
+            f"('{user_id}', '{safe_text_insert}', {rating}, '{detected_scope}', '{created_at}')"
+        )
+
+    # 3. Bulk Insert into Final Logs
+    if processed_rows:
+        values_str = ",".join(processed_rows)
+        insert_sql = f"""
+            INSERT INTO feedback_logs (user_id, feedback_text, feedback_rating, scope, created_at)
+            VALUES {values_str}
+        """
+        session.sql(insert_sql).collect()
+
+    return f"Success: Classified and moved {len(processed_rows)} rows to logs."
+$$;
+
+-- PROCEDURE 2: SUMMARIZER (Logs -> Active Memory)
+-- Reads new logs, aggregates by user, merges with existing memory, summarizes using large LLM.
+CREATE OR REPLACE PROCEDURE process_incremental_batch()
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.10'
+PACKAGES = ('snowflake-snowpark-python')
+HANDLER = 'run_summarization'
+AS
+$$
+from snowflake.snowpark.functions import col, lit, listagg
+import pandas as pd
+
+def run_summarization(session):
+    # 1. Aggregate new logs by User ID into a single text block
+    # We limit the aggregated string length to avoid overflowing LLM context windows unnecessarily.
+    new_feedback_df = session.sql("""
+        SELECT 
+            user_id, 
+            SUBSTR(LISTAGG('[' || scope || '] ' || feedback_text, ' | SELECT NEW_LINE'), 0, 20000) as new_notes 
+        FROM feedback_logs_stream 
+        WHERE metadata$action = 'INSERT' 
+        GROUP BY user_id
+    """)
+    
+    count_df = new_feedback_df.count()
+    if count_df == 0:
+         return "Skipping: No new logs to summarize."
+
+    # 2. Join with Current Memory (Hybrid Table) to get the "Old State"
+    # We use a LEFT JOIN to handle new users who don't have memory yet.
+    batch_df = new_feedback_df.join(
+        session.table("user_memory"), 
+        new_feedback_df.col("user_id") == session.table("user_memory").col("user_id"), 
+        "left"
+    ).select(
+        new_feedback_df.col("user_id"),
+        new_feedback_df.col("new_notes"),
+        col("current_summary")
+    )
+
+    # 3. Vectorized AI Call (SQL-based parallel execution)
+    # We construct the prompt within SQL and pass it to Cortex in bulk.
+    # Using a larger model (llama3-70b) for complex summarization.
+    prompt_template = """
+    You are an expert memory manager for an AI agent.
+    Task: Update the user's profile based on new feedback.
+    
+    ### OLD PROFILE:
+    ' || NVL(current_summary, 'No prior profile.') || '
+    
+    ### NEW FEEDBACK TO INTEGRATE:
+    ' || new_notes || '
+    
+    ### INSTRUCTIONS:
+    1. Consolidate the new feedback into the old profile.
+    2. Resolve conflicts: New feedback overrides old profile data.
+    3. Categorize clearly between "GLOBAL RULES" (facts/logic) and "USER PREFERENCES" (style/tone).
+    4. Be concise. Output ONLY the updated profile text.
+    """
+    
+    source_query = f"""
+    SELECT 
+        user_id,
+        SNOWFLAKE.CORTEX.COMPLETE('llama3-70b', '{prompt_template}') as new_sum
+    FROM ({batch_df.queries['queries'][0]})
+    """
+
+    # 4. Execute MERGE (Upsert) into Hybrid Table
+    merge_sql = f"""
+        MERGE INTO user_memory AS target
+        USING ({source_query}) AS source
+        ON target.user_id = source.user_id
+        WHEN MATCHED THEN 
+            UPDATE SET current_summary = source.new_sum, last_updated = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN 
+            INSERT (user_id, current_summary) VALUES (source.user_id, source.new_sum)
+    """
+    
+    session.sql(merge_sql).collect()
+    return f"Success: Updated memory for {count_df} users."
+$$;
+
+-- ================================================
+-- 5. AUTOMATION (TASKS)
+-- ================================================
+
+-- Task 1: The Classifier (Checks staging stream every minute)
+CREATE OR REPLACE TASK backend_classifier_task
+    WAREHOUSE = 'DEV_IMPACT_WH' -- Replace with your warehouse
+    SCHEDULE = '1 MINUTE'
+    WHEN SYSTEM$STREAM_HAS_DATA('feedback_staging_stream')
+AS
+    CALL process_staging_to_logs();
+
+-- Task 2: The Summarizer (Checks logs stream every minute)
+CREATE OR REPLACE TASK incremental_memory_task
+    WAREHOUSE = 'DEV_IMPACT_WH' -- Replace with your warehouse
+    SCHEDULE = '1 MINUTE'
+    WHEN SYSTEM$STREAM_HAS_DATA('feedback_logs_stream')
+AS
+    CALL process_incremental_batch();
+
+-- Start the automation tasks
+ALTER TASK backend_classifier_task RESUME;
+ALTER TASK incremental_memory_task RESUME;
+
+-- ================================================
+-- SETUP COMPLETE
+-- ================================================

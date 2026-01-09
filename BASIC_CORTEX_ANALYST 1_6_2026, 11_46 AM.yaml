@@ -2679,3 +2679,8 @@ Checking Task History (Last 5 runs)...
       🔴 Error: Cannot execute task , USAGE privilege on the task's warehouse must be granted to owner role
    ❌ [BACKEND_CLASSIFIER_TASK] State: FAILED
       🔴 Error: Cannot execute task , USAGE privilege on the task's warehouse must be granted to owner role
+GRANT USAGE ON WAREHOUSE DEV_PAIN_SALES_PERFORMANCE_B_WH TO ROLE FR_PRJ_DEV_PAIN_SALES_RW;
+print(grant_permission)
+
+-- 3. Grant permission to execute tasks (just in case)
+GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN;

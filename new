@@ -759,3 +759,222 @@ JOIN
     ON CAT_L3.MM_PAYER_CAT_L2_KEY = CAT_L2.MM_PAYER_CAT_L2_KEY
 GROUP BY 
     1, 2, 3, 4;
+
+
+
+
+import _snowflake
+import json
+import snowflake.snowpark as snowpark
+
+# ==========================================
+# 1. HELPER: CALL AGENT (PROCESSOR MODE)
+# ==========================================
+def call_cortex_agent_with_data(query, mock_data, feedback_rule):
+    
+    # --- CONFIGURATION ---
+    # Your specific endpoint
+    AGENT_ENDPOINT_URL = "/api/v2/databases/DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB/schemas/AI_POC/agents/FEEDBACK_NEW:run"
+    TIMEOUT_MS = 180_000
+
+    # --- BUILD THE PROMPT ---
+    # We give the agent the Mock Data and the Rule, asking it to process the data.
+    
+    prompt = f"""
+    [ROLE]
+    You are a data reporting assistant. I will provide you with RAW DATA.
+    Your job is to format and filter this data based on the USER RULES.
+
+    [RAW DATA]
+    {mock_data}
+
+    [USER RULES / FEEDBACK]
+    {feedback_rule}
+
+    [USER REQUEST]
+    {query}
+
+    [INSTRUCTION]
+    1. Read the RAW DATA.
+    2. Apply the USER RULES strictly. 
+       - If the rule says "limit to 2 rows", you must ignore the other 8 rows in the raw data.
+       - If the rule says "format as %", reformat the numbers.
+    3. Output the final result.
+    """
+
+    # --- PAYLOAD ---
+    payload = {
+        "messages": [
+            {
+                "role": "user", 
+                "content": [{"type": "text", "text": prompt}]
+            }
+        ],
+        "stream": False
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    # --- API CALL ---
+    try:
+        response_dict = _snowflake.send_snow_api_request(
+            "POST",
+            AGENT_ENDPOINT_URL,
+            headers,
+            {}, 
+            payload, 
+            {}, 
+            TIMEOUT_MS
+        )
+        
+        response_content = response_dict.get("content", "")
+        if not response_content: return "Error: Empty response"
+            
+        parsed_response = json.loads(response_content)
+
+        # --- PARSING ---
+        if isinstance(parsed_response, dict) and 'message' in parsed_response:
+            content_items = parsed_response['message'].get('content', [])
+            for item in reversed(content_items):
+                if isinstance(item, dict) and item.get("type") == "text":
+                    return item.get("text")
+        
+        # Fallback for list/stream format
+        elif isinstance(parsed_response, list):
+            for item in parsed_response:
+                if item.get('event') == 'response':
+                    try:
+                        content_list = item.get('data', {}).get('content', [])
+                        for part in content_list:
+                            if part.get('type') == 'text':
+                                return part.get('text')
+                    except Exception: continue
+            
+            # Simple Text Delta reconstruction
+            chunks = []
+            for item in parsed_response:
+                if item.get('event') == 'response.text.delta':
+                    chunks.append(item.get('data', {}).get('text', ''))
+            if chunks: return "".join(chunks)
+
+        return "Could not parse response."
+
+    except Exception as e:
+        return f"API Error: {str(e)}"
+
+# ==========================================
+# 2. MAIN LOGIC
+# ==========================================
+def main(session: snowpark.Session):
+    
+    final_results = []
+
+    # --- SCENARIO 1: TOP 10 PRESCRIBERS (LIMITING ROWS) ---
+    # Mocking a full list of 10 rows
+    data_1 = """
+    1. Dr. Smith (NC) - 500 Rx
+    2. Dr. Jones (NC) - 450 Rx
+    3. Dr. Williams (NC) - 400 Rx
+    4. Dr. Brown (NC) - 350 Rx
+    5. Dr. Davis (NC) - 300 Rx
+    6. Dr. Miller (NC) - 250 Rx
+    7. Dr. Wilson (NC) - 200 Rx
+    8. Dr. Moore (NC) - 150 Rx
+    9. Dr. Taylor (NC) - 100 Rx
+    10. Dr. Anderson (NC) - 50 Rx
+    """
+    
+    # --- SCENARIO 2: ZIP CODES (CONCISENESS) ---
+    data_2 = """
+    Zip 27001 - Vol: High
+    Zip 27002 - Vol: High
+    Zip 27003 - Vol: High
+    Zip 27004 - Vol: Med
+    Zip 27005 - Vol: Med
+    Zip 27006 - Vol: Med
+    Zip 27007 - Vol: Low
+    Zip 27008 - Vol: Low
+    Zip 27009 - Vol: Low
+    Zip 27010 - Vol: Low
+    """
+
+    # --- SCENARIO 3: DRUG TRENDS (NEGATIVE FORMATTING) ---
+    data_3 = """
+    Drug A: Sales -500 units
+    Drug B: Sales +200 units
+    Drug C: Sales -100 units
+    Drug D: Sales +50 units
+    """
+
+    # --- SCENARIO 4: MARKET SHARE (DECIMAL PRECISION) ---
+    data_4 = """
+    North: 25%
+    South: 30%
+    East: 15%
+    West: 30%
+    """
+
+    test_scenarios = [
+        {
+            "id": 1,
+            "topic": "Row Limitation",
+            "question": "Give top 10 prescriber from north carolina",
+            "mock_data": data_1,
+            "feedback": "Display Rule: If there are more than 5 rows, restrict the output to ONLY the top 2 rows."
+        },
+        {
+            "id": 2,
+            "topic": "Conciseness",
+            "question": "Give top 10 zip codes which are outperforming the nations on prescriiton volumen",
+            "mock_data": data_2,
+            "feedback": "Style Rule: Make the response crisp. Do not use filler words like 'Here are the results'. Just list the items."
+        },
+        {
+            "id": 3,
+            "topic": "Negative Number Formatting",
+            "question": "Which drugs have declining sales?",
+            "mock_data": data_3,
+            "feedback": "Formatting Rule: If a number is negative (e.g. -500), display it in parenthesis like (500) instead of using the minus sign."
+        },
+        {
+            "id": 4,
+            "topic": "Decimal Precision",
+            "question": "Show market share by region",
+            "mock_data": data_4,
+            "feedback": "Formatting Rule: Always display percentages with exactly 1 decimal place (e.g. 25.0% instead of 25%)."
+        }
+    ]
+
+    print("Starting Simulation Loop...")
+
+    for test in test_scenarios:
+        print(f"Running Scenario {test['id']}...")
+        
+        # 1. RESPONSE BEFORE (Simulated)
+        # This is just the raw data agent would normally return
+        response_before = f"[Raw Data Returned]:\n{test['mock_data']}"
+
+        # 2. RESPONSE AFTER (Agent Processing)
+        # We pass the raw data + feedback to the agent
+        response_after = call_cortex_agent_with_data(
+            test['question'], 
+            test['mock_data'], 
+            test['feedback']
+        )
+
+        # 3. SAVE RESULTS
+        final_results.append({
+            "Scenario_ID": test['id'],
+            "Topic": test['topic'],
+            "Question": test['question'],
+            "Feedback_Rule": test['feedback'],
+            "Response_BEFORE": response_before,
+            "Response_AFTER": response_after
+        })
+
+    # Output to DataFrame
+    df = session.create_dataframe(final_results)
+    return df

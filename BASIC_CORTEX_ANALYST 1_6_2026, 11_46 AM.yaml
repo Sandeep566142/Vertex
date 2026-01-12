@@ -1,3 +1,31 @@
+ # Note: Use POST, not GET
+            response = _snowflake.send_snow_api_request(
+                "POST", 
+                "/api/v2/cortex/threads", 
+                {"Content-Type": "application/json"}, 
+                {}, 
+                {"origin_application": "my_app"}, 
+                None, 
+                30000
+            )
+
+            print(response)
+
+
+
+ # Note: Use POST, not GET
+            response = _snowflake.send_snow_api_request(
+                "POST", 
+                "/api/v2/cortex/threads", 
+                {"Content-Type": "application/json"}, 
+                {}, 
+                {"origin_application": "my_app"}, 
+                None, 
+                30000
+            )
+
+            print(response)
+            
 name: BASIC_CORTEX_ANALYST
 tables:
   - name: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
@@ -3115,6 +3143,34 @@ AS
 ALTER TASK backend_classifier_task RESUME;
 ALTER TASK incremental_memory_task RESUME;
 
+
+ # Note: Use POST, not GET
+            response = _snowflake.send_snow_api_request(
+                "POST", 
+                "/api/v2/cortex/threads", 
+                {"Content-Type": "application/json"}, 
+                {}, 
+                {"origin_application": "my_app"}, 
+                None, 
+                30000
+            )
+
+            print(response)
+            
 -- ================================================
 -- SETUP COMPLETE
 -- ================================================
+
+
+ # Note: Use POST, not GET
+            response = _snowflake.send_snow_api_request(
+                "POST", 
+                "/api/v2/cortex/threads", 
+                {"Content-Type": "application/json"}, 
+                {}, 
+                {"origin_application": "my_app"}, 
+                None, 
+                30000
+            )
+
+            print(response)

@@ -3808,3 +3808,46 @@ We found that Revenue is stable and performing well, which is great news. Howeve
 }
 
 ```
+
+
+ response_dict = _snowflake.send_snow_api_request(
+            "POST",
+            AGENT_ENDPOINT_URL,
+            headers,
+            {}, 
+            payload, 
+            {}, 
+            TIMEOUT_MS
+        )
+        
+        response_content = response_dict.get("content", "")
+        if not response_content: return "Error: Empty response"
+            
+        parsed_response = json.loads(response_content)
+
+        # --- PARSING ---
+        if isinstance(parsed_response, dict) and 'message' in parsed_response:
+            content_items = parsed_response['message'].get('content', [])
+            for item in reversed(content_items):
+                if isinstance(item, dict) and item.get("type") == "text":
+                    return item.get("text")
+        
+        # Fallback for list/stream format
+        elif isinstance(parsed_response, list):
+            for item in parsed_response:
+                if item.get('event') == 'response':
+                    try:
+                        content_list = item.get('data', {}).get('content', [])
+                        for part in content_list:
+                            if part.get('type') == 'text':
+                                return part.get('text')
+                    except Exception: continue
+            
+            # Simple Text Delta reconstruction
+            chunks = []
+            for item in parsed_response:
+                if item.get('event') == 'response.text.delta':
+                    chunks.append(item.get('data', {}).get('text', ''))
+            if chunks: return "".join(chunks)
+
+        return "Could not parse response."

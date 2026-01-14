@@ -5172,3 +5172,488 @@ def main(session: Session):
     # Final Result Checkpoint
     log_checkpoint("FINAL ORCHESTRATOR OUTPUT", final_output)
     return final_output
+
+
+
+
+
+
+
+import json
+import logging
+import _snowflake # Native Snowflake module for internal API calls
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict, Any, Optional, Literal
+from pydantic import BaseModel, Field
+from snowflake.snowpark import Session
+
+# ==========================================
+# 1. PYDANTIC CONFIGURATION & MODELS
+# ==========================================
+
+class AgentConfig(BaseModel):
+    """Configuration for the agent execution"""
+    model: str = "claude-4-sonnet"
+    # Update paths as per your environment
+    diagnostic_udf: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DIAGNOSTIC_TOOL"
+    # Updated to point to an existing Cortex Analyst Object (Semantic Model)
+    cortex_analyst_object: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.LATEST_MASTER_VIEW"
+    warehouse: str = "DEV_IMPACT_WH"
+
+class PlannerDecision(BaseModel):
+    """
+    Structured output from the Planner Agent.
+    Allows for parallel execution by defining multiple query targets.
+    """
+    sql_question: Optional[str] = Field(None, description="Question for data analysis, metrics, or lists (The 'Show Me' part). Null if not needed.")
+    diagnostic_question: Optional[str] = Field(None, description="Question for root cause analysis or deep dives (The 'Why' part). Null if not needed.")
+    clarification: Optional[str] = Field(None, description="Question to ask user if intent is completely vague.")
+    reasoning: str = Field(..., description="Why these routes were chosen")
+
+class DiagnosticResult(BaseModel):
+    """Structured output from the Diagnostic Agent"""
+    summary_text: str = Field(..., description="Executive summary of findings")
+    react_flow_json: Optional[Dict] = Field(None, description="The visual graph data")
+    clarifying_question: Optional[str] = Field(None, description="Question to ask user if intent is unclear")
+
+class SqlResult(BaseModel):
+    """Structured output from the Cortex Analyst (SQL Agent)"""
+    answer_text: str = Field(..., description="The text response from the analyst")
+    tables: List[Any] = Field(default_factory=list, description="List of result sets (raw data)")
+    charts: List[Dict] = Field(default_factory=list, description="List of Vega-Lite specs")
+    # Extended Metadata Fields extracted from Analyst Delta
+    sql_generated: Optional[str] = Field(None, description="The generated SQL query")
+    sql_explanation: Optional[str] = Field(None, description="Explanation of the generated SQL")
+    is_verified_query: bool = Field(False, description="Whether a verified query was used")
+    reasoning_trace: Optional[str] = Field(None, description="The thinking process of the analyst")
+
+# Global Config Instance
+CONFIG = AgentConfig()
+
+# ==========================================
+# 2. DEBUGGING / CHECKPOINT HELPER
+# ==========================================
+
+def log_checkpoint(step: str, details: Any):
+    """
+    Prints checkpoint info to stdout. Handles Pydantic models serialization.
+    """
+    print(f"\n{'='*50}")
+    print(f"🛑 CHECKPOINT: {step}")
+    print(f"{'-'*50}")
+    
+    if isinstance(details, BaseModel):
+        print(details.model_dump_json(indent=2))
+    elif isinstance(details, (dict, list)):
+        print(json.dumps(details, indent=2))
+    else:
+        print(str(details))
+    print(f"{'='*50}\n")
+
+# ==========================================
+# 3. CORTEX API WRAPPER
+# ==========================================
+
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """
+    Invokes the Cortex Agent API via _snowflake.send_snow_api_request.
+    Includes robust parsing for streaming, especially Analyst Deltas.
+    """
+    AGENT_ENDPOINT_URL = "/api/v2/cortex/agent:run"
+    TIMEOUT_MS = 120 * 1000  # 120 seconds
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream"
+    }
+
+    log_checkpoint(f"INVOKING AGENT: {agent_name}", {
+        "model": payload.get("models", {}).get("orchestration"),
+        "tools": [t['tool_spec']['name'] for t in payload.get("tools", [])]
+    })
+
+    try:
+        response_dict = _snowflake.send_snow_api_request(
+            "POST",
+            AGENT_ENDPOINT_URL,
+            headers,
+            {}, 
+            payload, 
+            {}, 
+            TIMEOUT_MS
+        )
+        
+        response_content = response_dict.get("content", "")
+        if not response_content:
+            return {"error": "Empty response from Agent API"}
+            
+        # Try parsing as JSON
+        try:
+            parsed_response = json.loads(response_content)
+        except json.JSONDecodeError:
+            return {"error": "Failed to decode JSON response content"}
+
+        # Extraction container
+        extracted = {
+            "text": "",
+            "tables": [],
+            "charts": [],
+            "annotations": [],
+            "tool_uses": [],
+            "debug_trace": [],
+            "sql_generated": None,
+            "sql_explanation": None,
+            "is_verified": False
+        }
+
+        # Helper to process a content list (from final 'response')
+        def process_content_list(content_items):
+            for item in content_items:
+                c_type = item.get("type")
+                if c_type == "text":
+                    extracted["text"] += item.get("text", "")
+                    if item.get("annotations"):
+                        extracted["annotations"].extend(item["annotations"])
+                elif c_type == "table":
+                    extracted["tables"].append(item.get("result_set", {}))
+                elif c_type == "chart":
+                    extracted["charts"].append(item.get("chart", {}))
+                elif c_type == "tool_use":
+                    extracted["tool_uses"].append(item)
+
+        # 1. Handle List of Events (Streaming format)
+        if isinstance(parsed_response, list):
+            # First pass: Look for the final 'response' event
+            final_response_event = next((item for item in parsed_response if item.get('event') == 'response'), None)
+            
+            if final_response_event:
+                data = final_response_event.get('data', {})
+                process_content_list(data.get('content', []))
+            
+            # Scan deltas for reconstruction and metadata extraction
+            # This is crucial for capturing 'sql', 'verified_query_used' which appear in tool_result.analyst.delta
+            text_parts = []
+            for item in parsed_response:
+                evt = item.get('event')
+                data = item.get('data', {})
+                
+                if evt == 'response.text.delta':
+                    text_parts.append(data.get('text', ''))
+                elif evt == 'response.text.annotation':
+                    extracted["annotations"].append(data.get('annotation'))
+                elif evt == 'response.chart':
+                    extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+                elif evt == 'response.table':
+                    extracted["tables"].append(data.get('result_set'))
+                elif evt == 'response.tool_use':
+                    extracted["tool_uses"].append(data)
+                elif evt == 'response.thinking.delta':
+                    extracted["debug_trace"].append(f"Think: {data.get('text')}")
+                
+                # --- CRITICAL: ANALYST TOOL DELTA PARSING ---
+                elif evt == 'response.tool_result.analyst.delta':
+                    delta = data.get('delta', {})
+                    
+                    # 1. SQL Code
+                    if delta.get('sql'):
+                        extracted["sql_generated"] = delta.get('sql')
+                    
+                    # 2. Explanation
+                    if delta.get('sql_explanation'):
+                        extracted["sql_explanation"] = delta.get('sql_explanation')
+                    
+                    # 3. Verified Query Flag
+                    if 'verified_query_used' in delta:
+                        extracted["is_verified"] = delta.get('verified_query_used')
+                    
+                    # 4. Result Set (The Table Data)
+                    if delta.get('result_set'):
+                        # Check to avoid duplication if response.table handled it
+                        rs = delta.get('result_set')
+                        if rs not in extracted["tables"]:
+                            extracted["tables"].append(rs)
+                    
+                    # 5. Reasoning/Think
+                    if delta.get('think'):
+                        extracted["debug_trace"].append(f"Analyst Think: {delta.get('think')}")
+                    
+                    # 6. Suggestions
+                    if delta.get('suggestions'):
+                        sug = delta.get('suggestions')
+                        extracted["debug_trace"].append(f"Suggestion: {sug.get('delta')}")
+
+                elif evt == 'error':
+                    return {"error": f"Agent Error: {data.get('message')}"}
+            
+            if not extracted["text"]:
+                extracted["text"] = "".join(text_parts)
+
+        # 2. Handle Single Object (Non-streaming)
+        elif isinstance(parsed_response, dict):
+            if 'message' in parsed_response:
+                process_content_list(parsed_response['message'].get('content', []))
+            elif 'choices' in parsed_response:
+                process_content_list(parsed_response['choices'][0]['message'].get('content', []))
+
+        return extracted
+
+    except Exception as e:
+        return {"error": f"API Execution Exception: {str(e)}"}
+
+# ==========================================
+# 4. PAYLOAD FACTORY
+# ==========================================
+
+class PayloadFactory:
+    @staticmethod
+    def create(query: str, instructions: Dict[str, str], tools: List[Dict] = None, tool_resources: Dict = None, history: List[Dict] = None) -> Dict:
+        messages = history if history else []
+        messages.append({"role": "user", "content": [{"type": "text", "text": query}]})
+
+        return {
+            "messages": messages,
+            "tool_choice": {"type": "auto"},
+            "models": {"orchestration": CONFIG.model},
+            "instructions": instructions,
+            "tools": tools or [],
+            "tool_resources": tool_resources or {}
+        }
+
+# ==========================================
+# 5. AGENT MANAGERS
+# ==========================================
+
+class AgentManager:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def run_rephraser(self, query: str, history: List[Dict] = None) -> str:
+        """Step 1: Rephrase"""
+        log_checkpoint("START STEP 1: Rephraser", f"Input: {query}")
+
+        instructions = {
+            "system": "You are a sophisticated Query Refinement Engine.",
+            "response": "Output ONLY the final rephrased string.",
+            "orchestration": "Transform the user's input into a standalone query. Resolve pronouns (it, they, that). Preserve metrics and IDs."
+        }
+        
+        payload = PayloadFactory.create(f"Rephrase this to be standalone: {query}", instructions, history=history)
+        resp = invoke_cortex_agent(self.session, payload, "Rephraser")
+        
+        result = resp.get('text', query).strip() or query
+        log_checkpoint("END STEP 1: Rephraser", f"Output: {result}")
+        return result
+
+    def run_planner(self, query: str) -> PlannerDecision:
+        """Step 2: Plan Route"""
+        log_checkpoint("START STEP 2: Planner", f"Input: {query}")
+
+        schema_hint = '{"sql_question": "string or null", "diagnostic_question": "string or null", "clarification": "string or null", "reasoning": "string"}'
+        
+        instructions = {
+            "system": "You are a Strategic Intent Classifier.",
+            "response": f"Respond ONLY with a valid JSON object matching: {schema_hint}",
+            "orchestration": ("Analyze the user's input and SPLIT it into distinct **NATURAL LANGUAGE** questions. **YOU MUST NOT GENERATE NOT generate SQL code.**\n\n"
+                "**1. SQL Analysis (`sql_question`):**\n"
+                "   - Extract the part asking for Data, 'Show me', 'List', or 'What is'.\n"
+                "   - Keep it as a plain English question. Do not write SELECT statements.\n"
+                "   - Append ' and generate a table and a visual' if helpful.\n"
+                "**2. Why Analysis (`diagnostic_question`):**\n"
+                "   - Extract the part asking for 'Why', 'Explain', 'Reason', or Root Causes.\n"
+                "   - **CRITICAL:** Do NOT assign 'What is the volume?' questions here. Only causal questions.\n"
+                "   - Keep the text EXACT/VERBATIM. Do NOT summarize specific names/IDs.\n"
+                "**3. Combined Intent:**\n"
+                "   - If input is 'Show X and explain Y', put 'Show X' in `sql_question` and 'Explain Y' in `diagnostic_question`.\n\n"
+                "**Few-Shot Examples:**\n"
+                "- Input: 'Show me total sales for Q4.'\n"
+                "  -> sql_question: 'Show me total sales for Q4 and generate a table and a visual'\n"
+                "  -> diagnostic_question: null\n"
+                "- Input: 'Why is profit down?'\n"
+                "  -> sql_question: null\n"
+                "  -> diagnostic_question: 'Why is profit down?'\n"
+                "- Input: 'Get revenue for AZ and explain the dip.'\n"
+                "  -> sql_question: 'Get revenue for AZ and generate a table and a visual'\n"
+                "  -> diagnostic_question: 'explain the dip in revenue for AZ'\n"
+                "- Input: 'SELECT * FROM SALES'\n"
+                "  -> sql_question: 'SELECT * FROM SALES' (Only pass SQL if user explicitly typed it)\n"
+                "  -> diagnostic_question: null"
+                "YOU MUST STRICTLY FOLLOW THE ABOVE INSTRUCTIONS."
+            )
+        }
+        
+        payload = PayloadFactory.create(f"Plan this query: {query}", instructions)
+        resp = invoke_cortex_agent(self.session, payload, "Planner")
+        
+        try:
+            raw = resp.get('text', '')
+            clean = raw.replace("```json", "").replace("```", "").strip()
+            return PlannerDecision.model_validate_json(clean)
+        except Exception:
+            # Fallback assumption
+            return PlannerDecision(diagnostic_query=query, reasoning="Fallback error during planning")
+
+    def run_sql_agent(self, query: str) -> SqlResult:
+        """Step 3b: Run Cortex Analyst (SQL Agent)"""
+        log_checkpoint("START STEP 3b: SQL Agent", f"Input: {query}")
+
+        instructions = {
+            "system": "You are an expert Data Analyst.",
+            "orchestration": "Use the analyst_tool to answer. ALWAYS generate a table (Result Set) for data requests.",
+            "response": "Provide a summary. Tables/Charts are handled automatically."
+        }
+
+        tools = [{
+            "tool_spec": {
+                "type": "cortex_analyst_text_to_sql",
+                "name": "analyst_tool"
+            }
+        }]
+
+        tool_resources = {
+            "analyst_tool": {
+                "type": "cortex_analyst_text_to_sql",
+                "semantic_view": CONFIG.cortex_analyst_object,
+                "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse},
+            }
+        }
+
+        payload = PayloadFactory.create(query, instructions, tools, tool_resources)
+        resp = invoke_cortex_agent(self.session, payload, "SQL Agent")
+
+        # Capture the standard artifacts + the newly extracted analyst delta fields
+        result = SqlResult(
+            answer_text=resp.get('text', ''),
+            tables=resp.get('tables', []),
+            charts=resp.get('charts', []),
+            sql_generated=resp.get('sql_generated'),
+            sql_explanation=resp.get('sql_explanation'),
+            is_verified_query=resp.get('is_verified', False),
+            reasoning_trace="\n".join(resp.get('debug_trace', []))
+        )
+        
+        log_checkpoint("END STEP 3b: SQL Agent", result)
+        return result
+
+    def run_diagnostic_agent(self, query: str) -> DiagnosticResult:
+        """Step 3a: Run Diagnostic Tool"""
+        log_checkpoint("START STEP 3a: Diagnostic", f"Input: {query}")
+
+        response_format = '{"summary_text": "string", "react_flow_json": {}, "clarifying_question": null}'
+        instructions = {
+            "system": "You are an Autonomous Root Cause Analysis Agent.",
+            "orchestration": "Use Diagnostic_tool. Loop: Search -> Evaluate -> Drill.",
+            "response": f"Ensure valid JSON matching: {response_format}"
+        }
+
+        tools = [{
+            "tool_spec": {
+                "type": "generic",
+                "name": "Diagnostic_tool",
+                "description": "Retrieves metric status.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "USER_QUERY": {"type": "string"},
+                        "PARENT_NODE_IDS_JSON": {"type": "string"},
+                        "TREE_ID": {"type": "string"}
+                    },
+                    "required": ["USER_QUERY", "PARENT_NODE_IDS_JSON", "TREE_ID"]
+                }
+            }
+        }]
+
+        tool_resources = {
+            "Diagnostic_tool": {
+                "type": "procedure",
+                "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse},
+                "identifier": CONFIG.diagnostic_udf
+            }
+        }
+
+        payload = PayloadFactory.create(query, instructions, tools, tool_resources)
+        resp = invoke_cortex_agent(self.session, payload, "Diagnostic Agent")
+
+        try:
+            raw = resp.get('text', '{}')
+            clean = raw.replace("```json", "").replace("```", "").strip()
+            result = DiagnosticResult.model_validate_json(clean)
+        except Exception as e:
+            result = DiagnosticResult(summary_text=f"Error: {str(e)} - Raw: {raw}", react_flow_json=None)
+
+        log_checkpoint("END STEP 3a: Diagnostic", result)
+        return result
+
+# ==========================================
+# 6. MAIN EXECUTION (PARALLEL)
+# ==========================================
+
+def main(session: Session):
+    manager = AgentManager(session)
+    history = []
+    
+    # Specific input requesting both Data (SQL) and Explanation (Diagnostic)
+    user_query = "show ME all the health care providers in arizona and Why is the Total Market Volume being driven by the Opioid Category , specifically Tramadol which is seeing massive New Growth, yet the Orthopedic Segment —historically the core driver for this drug—is contributing less than 7% of that growth?"
+    
+    log_checkpoint("CONTEXT", {"history": history, "current_query": user_query})
+    
+    # 1. Rephrase
+    rephrased = manager.run_rephraser(user_query, history)
+    
+    # 2. Plan
+    decision = manager.run_planner(rephrased)
+    
+    final_output = {
+        "original_query": user_query,
+        "processed_query": rephrased,
+        "execution_plan": decision.model_dump(),
+        "results": []
+    }
+
+    # 3. Parallel Execution
+    if decision.clarification:
+        final_output["results"].append({"type": "clarification", "message": decision.clarification})
+    
+    else:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_sql = None
+            future_diag = None
+            
+            # Submit Tasks based on Planner Decision
+            if decision.sql_question:
+                future_sql = executor.submit(manager.run_sql_agent, decision.sql_question)
+            
+            if decision.diagnostic_question:
+                future_diag = executor.submit(manager.run_diagnostic_agent, decision.diagnostic_question)
+            
+            # Collect Results
+            if future_sql:
+                try:
+                    res = future_sql.result()
+                    final_output["results"].append({
+                        "type": "sql_analysis",
+                        "summary": res.answer_text,
+                        "tables": res.tables,
+                        "charts": res.charts,
+                        "metadata": {
+                            "sql": res.sql_generated,
+                            "explanation": res.sql_explanation,
+                            "is_verified": res.is_verified_query
+                        }
+                    })
+                except Exception as e:
+                    final_output["results"].append({"type": "sql_error", "message": str(e)})
+
+            if future_diag:
+                try:
+                    res = future_diag.result()
+                    final_output["results"].append({
+                        "type": "diagnostic_analysis",
+                        "summary": res.summary_text,
+                        "graph": res.react_flow_json
+                    })
+                except Exception as e:
+                    final_output["results"].append({"type": "diagnostic_error", "message": str(e)})
+
+    # Final Result Checkpoint
+    log_checkpoint("FINAL ORCHESTRATOR OUTPUT", final_output)
+    return final_output

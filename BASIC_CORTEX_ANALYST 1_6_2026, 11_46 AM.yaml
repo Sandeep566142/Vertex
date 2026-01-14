@@ -3852,3 +3852,851 @@ We found that Revenue is stable and performing well, which is great news. Howeve
 
         return "Could not parse response."
 100357 (P0000): Cannot create a Python function with the specified packages. Please check your packages specification and try again.
+
+
+
+
+
+
+import json
+import logging
+import _snowflake # Native Snowflake module for internal API calls
+from typing import List, Dict, Any, Optional, Literal
+from pydantic import BaseModel, Field
+from snowflake.snowpark import Session
+
+# ==========================================
+# 1. PYDANTIC MODELS
+# ==========================================
+
+class PlannerDecision(BaseModel):
+    """
+    Structured output from the Planner Agent.
+    """
+    route: Literal['diagnostic', 'clarify'] = Field(..., description="The designated agent to handle the request")
+    query: str = Field(..., description="The refined query to pass to the agent")
+    reasoning: str = Field(..., description="Why this route was chosen")
+
+class DiagnosticResult(BaseModel):
+    """
+    Structured output from the Diagnostic Agent.
+    """
+    summary_text: str = Field(..., description="Executive summary of findings")
+    react_flow_json: Optional[Dict] = Field(None, description="The visual graph data")
+    clarifying_question: Optional[str] = Field(None, description="Question to ask user if intent is unclear")
+
+class AgentConfig(BaseModel):
+    model: str = "claude-4-sonnet"
+    diagnostic_udf: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DIAGNOSTIC_TOOL"
+    warehouse: str = "DEV_IMPACT_WH"
+
+# ==========================================
+# 2. CORTEX API WRAPPER (Native _snowflake)
+# ==========================================
+
+def invoke_cortex_agent(session: Session, payload: Dict) -> Dict:
+    """
+    Invokes the Cortex Agent API using the internal _snowflake module.
+    Parses specific event streams for text, charts, tables, and tool results.
+    """
+    AGENT_ENDPOINT_URL = "/api/v2/cortex/agent:run"
+    TIMEOUT_MS = 90000  # 90 seconds
+    
+    # Construct headers - Authorization is handled internally by _snowflake but headers dict is required
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream"
+    }
+
+    try:
+        # Native Snowflake API call
+        response_dict = _snowflake.send_snow_api_request(
+            "POST",
+            AGENT_ENDPOINT_URL,
+            headers,
+            {}, 
+            payload, 
+            {}, 
+            TIMEOUT_MS
+        )
+        
+        response_content = response_dict.get("content", "")
+        if not response_content:
+            return {"error": "Empty response from Agent API"}
+            
+        # The internal API often returns the stream as a valid JSON list of event objects
+        # or a single JSON object if not streaming.
+        try:
+            parsed_response = json.loads(response_content)
+        except json.JSONDecodeError:
+            return {"error": "Failed to decode JSON response content"}
+
+        # --- COMPREHENSIVE PARSING ---
+        # We need to extract all artifacts: Text, Tables, Charts, Tool info, etc.
+        extracted = {
+            "text": "",
+            "tables": [],
+            "charts": [],
+            "tool_uses": [],
+            "annotations": [],
+            "debug_trace": [] # For thinking, status, etc.
+        }
+
+        # Helper to process a content list (from final 'response' or individual events)
+        def process_content_list(content_items):
+            for item in content_items:
+                c_type = item.get("type")
+                if c_type == "text":
+                    extracted["text"] += item.get("text", "")
+                    if item.get("annotations"):
+                        extracted["annotations"].extend(item["annotations"])
+                elif c_type == "table":
+                    extracted["tables"].append(item.get("result_set", {}))
+                elif c_type == "chart":
+                    extracted["charts"].append(item.get("chart", {}))
+                elif c_type == "tool_use":
+                    extracted["tool_uses"].append(item)
+
+        # 1. Handle List of Events (Streaming format)
+        if isinstance(parsed_response, list):
+            # First pass: Look for the final 'response' event which is the aggregation
+            final_response_event = next((item for item in parsed_response if item.get('event') == 'response'), None)
+            
+            if final_response_event:
+                # Best Case: We have the fully aggregated response
+                data = final_response_event.get('data', {})
+                process_content_list(data.get('content', []))
+            else:
+                # Fallback: Reconstruct from deltas
+                text_parts = []
+                for item in parsed_response:
+                    evt = item.get('event')
+                    data = item.get('data', {})
+                    
+                    if evt == 'response.text.delta':
+                        text_parts.append(data.get('text', ''))
+                    elif evt == 'response.text.annotation':
+                        extracted["annotations"].append(data.get('annotation'))
+                    elif evt == 'response.chart':
+                        extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+                    elif evt == 'response.table':
+                        extracted["tables"].append(data.get('result_set'))
+                    elif evt == 'response.tool_use':
+                        extracted["tool_uses"].append(data)
+                    elif evt == 'response.thinking.delta':
+                        extracted["debug_trace"].append(f"Thinking: {data.get('text')}")
+                    elif evt == 'response.status':
+                        extracted["debug_trace"].append(f"Status: {data.get('status')}")
+                    elif evt == 'error':
+                        return {"error": f"Agent Error: {data.get('message')}"}
+                
+                extracted["text"] = "".join(text_parts)
+
+        # 2. Handle Single Object (Non-streaming or final format)
+        elif isinstance(parsed_response, dict):
+            if 'message' in parsed_response:
+                process_content_list(parsed_response['message'].get('content', []))
+            elif 'choices' in parsed_response: # Legacy/Standard REST format
+                process_content_list(parsed_response['choices'][0]['message'].get('content', []))
+
+        return extracted
+
+    except Exception as e:
+        return {"error": f"API Execution Exception: {str(e)}"}
+
+# ==========================================
+# 3. PAYLOAD FACTORY
+# ==========================================
+
+class PayloadFactory:
+    @staticmethod
+    def create(
+        query: str,
+        instructions: Dict[str, str],
+        tools: List[Dict] = None,
+        tool_resources: Dict = None,
+        history: List[Dict] = None
+    ) -> Dict:
+        config = AgentConfig()
+        messages = history if history else []
+        messages.append({"role": "user", "content": [{"type": "text", "text": query}]})
+
+        return {
+            # "thread_id": 0,
+            # "parent_message_id": 0,
+            "messages": messages,
+            "tool_choice": {"type": "auto"},
+            "models": {"orchestration": config.model},
+            "instructions": instructions,
+            "tools": tools or [],
+            "tool_resources": tool_resources or {}
+        }
+
+# ==========================================
+# 4. AGENT LOGIC
+# ==========================================
+
+class AgentManager:
+    def __init__(self, session: Session):
+        self.session = session
+        self.config = AgentConfig()
+
+    def run_rephraser(self, query: str, history: List[Dict]) -> str:
+        """Step 1: Rephrase Query"""
+        instructions = {
+            "system": "You are a sophisticated Query Refinement Engine.",
+            "response": "Output ONLY the final rephrased string. Do not include prefixes like 'Rephrased:'.",
+            "orchestration": (
+                "Your goal is to transform the user's latest input into a fully standalone, unambiguous query.\n"
+                "1. Resolve all pronouns (it, they, that, this) using the conversation history.\n"
+                "2. If the user refers to a specific metric or ID from history, explicitly include it.\n"
+                "3. If the query is already clear, return it unchanged.\n\n"
+                "**Few-Shot Examples:**\n"
+                "- Context: [User: 'How is Revenue?'] -> Input: 'Why did it drop?' -> Output: 'Why did Revenue drop?'\n"
+                "- Context: [] -> Input: 'Explain the dip in Profit' -> Output: 'Explain the dip in Profit'\n"
+                "- Context: [Asst: 'Cost is high'] -> Input: 'Drill down' -> Output: 'Drill down into Cost'"
+            )
+        }
+        
+        payload = PayloadFactory.create(
+            f"Rephrase this to be standalone: {query}",
+            instructions,
+            history=history
+        )
+        
+        resp = invoke_cortex_agent(self.session, payload)
+        
+        # Extracted text is at the top level now
+        return resp.get('text', query).strip() or query
+
+    def run_planner(self, query: str) -> PlannerDecision:
+        """Step 2: Plan Route"""
+        schema_hint = '{"route": "diagnostic" | "clarify", "query": "string", "reasoning": "string"}'
+        instructions = {
+            "system": "You are a Strategic Intent Classifier.",
+            "response": f"Respond ONLY with valid JSON matching: {schema_hint}",
+            "orchestration": (
+                "Analyze the user's input to determine the precise analytical needs.\n"
+                "**Routing Logic:**\n"
+                "1. **diagnostic**: Use for questions seeking explanations, root causes, drivers, or specific metric analysis (e.g., 'Why', 'What caused', 'Analyze', 'Drill down').\n"
+                "2. **clarify**: Use for vague inputs, greetings, or when the metric/topic is completely missing (e.g., 'Hello', 'Help', 'Data').\n\n"
+                "**Few-Shot Examples:**\n"
+                "- Input: 'Why is Net Income trending down?' -> Route: 'diagnostic'\n"
+                "- Input: 'Can you explain the variance in COGS?' -> Route: 'diagnostic'\n"
+                "- Input: 'Hi, how are you?' -> Route: 'clarify'\n"
+                "- Input: 'What is the root cause?' -> Route: 'diagnostic'"
+            )
+        }
+        
+        payload = PayloadFactory.create(f"Analyze this query: {query}", instructions)
+        resp = invoke_cortex_agent(self.session, payload)
+        
+        try:
+            raw_text = resp.get('text', '')
+            clean_json = raw_text.replace("```json", "").replace("```", "").strip()
+            return PlannerDecision.model_validate_json(clean_json)
+        except Exception:
+            return PlannerDecision(route="diagnostic", query=query, reasoning="Fallback error")
+
+    def run_diagnostic_agent(self, query: str) -> DiagnosticResult:
+        """Step 3: Run Diagnostic Tool"""
+        response_format_instruction = """
+        You must output a JSON object with these exact keys:
+        {
+            "summary_text": "The executive summary...",
+            "react_flow_json": { ... valid React Flow JSON object ... },
+            "clarifying_question": null or "Question string if needed"
+        }
+        """
+
+        instructions = {
+            "system": "You are an Autonomous Root Cause Analysis Agent.",
+            "orchestration": f"""**Role & Objective**
+
+You are an **Autonomous Root Cause Analysis Agent** designed to traverse a metric decision tree from the root node down to the leaf nodes. Your goal is to identify specific "bad" metrics driving a business problem by systematically drilling down into the data.
+
+
+
+ALWAYS USE tree_id as Pharma_Master_v1.
+
+
+
+**Available Tools**
+
+You have access to a single diagnostic tool. You must use this tool for all data retrieval.
+
+
+
+* `Diagnostic_tool(USER_QUERY: str, PARENT_NODE_IDS_JSON: str)`
+
+* **Description:** Retrieves metric status for a given context. It operates in two modes:
+
+1. **Search Mode:** Used to find the starting "Root" node based on a user's question.
+
+2. **Drill Mode:** Used to find the children of specific parent nodes to investigate "bad" metrics further.
+
+
+
+
+
+* **Arguments:**
+
+* `USER_QUERY`: The user's natural language question (e.g., "Why is cost high?"). Set to `NULL` during Drill Mode.
+
+* `PARENT_NODE_IDS_JSON`: A JSON string list of Node IDs (e.g., `'["node_123", "node_456"]'`). Set to `NULL` during Search Mode.
+
+
+
+
+
+**Operational Procedure (The Analysis Loop)**
+
+You must strictly follow this recursive logic for every user request:
+
+
+
+**Step 1: Initialization (Find the Root)**
+
+
+
+* If this is the start of the conversation, call `Diagnostic_tool` in **Search Mode**.
+
+* **Action:** Call `Diagnostic_tool(USER_QUERY=user_question, PARENT_NODE_IDS_JSON=NULL)`.
+
+* **Next:** Proceed to Step 2 with the results.
+
+
+
+**Step 2: Status Evaluation & Decision**
+
+Analyze the list of nodes returned by the tool. Focus **only** on nodes where `"status": "bad"`.
+
+
+
+* **Check:** For every "bad" node, do you see its children in the current list?
+
+* **Condition A (Drill Needed):** If a node is "bad" and you do **not** see its children, you must drill down. Collect these Node IDs.
+
+* **Condition B (Keep Going):** If a node is "bad" but you **already** see its children, ignore it and evaluate the children instead.
+
+* **Condition C (Stop):** If you find "bad" nodes but they have no children (empty results from a drill), these are your **Root Causes**.
+
+
+
+**Step 3: Execution (Drill Down)**
+
+
+
+* If Condition A occurred: Call `Diagnostic_tool` in **Drill Mode**.
+
+* **Action:** Call `Diagnostic_tool(USER_QUERY=NULL, PARENT_NODE_IDS_JSON='["ID_1", "ID_2"]')`.
+
+
+
+
+
+* **Next:** Recursively repeat Step 2 with the new output.
+
+* If Condition C occurred: Present the final root causes to the user.
+
+
+
+**Constraints**
+
+
+
+* **Never** guess the status of a metric; always use the tool.
+
+* **Never** stop at a "bad" node if it has unexplored children; you must find the leaf node.
+
+* Output your reasoning briefly before calling the tool.
+
+
+
+---
+
+
+
+### **Few-Shot Example: Root Cause Analysis**
+
+
+
+**User:** "Why is profitability down?"
+
+
+
+**Assistant:**
+
+*Thought: The user is asking a high-level question about a metric. I need to find the starting node and its immediate children to see what is happening.*
+
+**Tool Use:** `Diagnostic_tool(USER_QUERY='Why is profitability down?', PARENT_NODE_IDS_JSON=NULL)`
+
+
+
+**Tool Output:**
+
+
+
+```json
+
+[
+
+  {"id": "N0", "metric": "Profitability", "status": "bad"},
+
+  {"id": "N1", "metric": "Revenue", "status": "good"},
+
+  {"id": "N2", "metric": "Total Cost", "status": "bad"}
+
+]
+
+
+
+```
+
+
+
+**Assistant:**
+
+*Thought: I have the initial results. `N0` (Profitability) is "bad", which confirms the user's issue. I see two children: `N1` (Revenue) is "good", so that branch is healthy. However, `N2` (Total Cost) is "bad". Since I do not see the children of `N2` in the current list, I must drill down into `N2` to understand what is driving the high cost.*
+
+**Tool Use:** `Diagnostic_tool(USER_QUERY=NULL, PARENT_NODE_IDS_JSON='["N2"]')`
+
+
+
+**Tool Output:**
+
+
+
+```json
+
+[
+
+  {"id": "N3", "metric": "Fixed Cost", "status": "good"},
+
+  {"id": "N4", "metric": "Variable Cost", "status": "bad"}
+
+]
+
+
+
+```
+
+
+
+**Assistant:**
+
+*Thought: I have drilled into Total Cost. `N3` (Fixed Cost) is "good", so I can ignore it. `N4` (Variable Cost) is "bad". I do not see the children of `N4` yet. I need to drill deeper to see if there is a more specific cause.*
+
+**Tool Use:** `Diagnostic_tool(USER_QUERY=NULL, PARENT_NODE_IDS_JSON='["N4"]')`
+
+
+
+**Tool Output:**
+
+
+
+```json
+
+[]
+
+
+
+```
+
+
+
+**Assistant:**
+
+*Thought: The tool returned an empty list for `N4`. This indicates that `N4` (Variable Cost) is a leaf node in the decision tree. I have reached the bottom of the "bad" chain. I can now conclude the diagnosis.*
+
+**Final Answer:** Profitability is down because **Variable Cost (N4)** is performing poorly. While Revenue and Fixed Costs are stable, the high Variable Cost is driving the overall decline.
+""",
+            "response": f"""**Response Structure (STRICT)**
+
+You must output exactly two sections in the following order. Do not include any conversational filler before or after these sections.
+
+
+
+#### **SECTION 1: Diagnostic Executive Summary**
+
+
+
+* **Tone:** Professional, constructive, and polite. Even if metrics are "bad," frame the insights objectively (e.g., instead of "Critical Failure," use "Performance Deviation").
+
+* **Headline:** State the Root Cause clearly (e.g., *"Root Cause Identified: [Deepest Bad Metric Name]"*).
+
+* **The Narrative:** Briefly explain the chain of events in simple English. Start from the top node and explain the path of "bad" metrics that led to the root cause. Mention which branches were ruled out because they were "stable" or "good."
+
+* **Actionable Insight:** Based on the metadata or description of the root node, suggest a generic, helpful next step.
+
+
+
+---
+
+
+
+#### **SECTION 2: React Flow JSON Artifact**
+
+
+
+You must generate a valid JSON object inside a Markdown code block (`json ... `). You act as the layout engine.
+
+
+
+**1. Coordinate Logic (The "Mental Layout"):**
+
+Assign `position: {x, y}` to nodes based on their hierarchy level to ensure a clean tree structure:
+
+
+
+* **Level 0 (Root):** `x: 0, y: 0`
+
+* **Level 1 Children:** `y: 150`. Spread `x` widely (e.g., `-300` and `300`).
+
+* **Level 2 Grandchildren:** `y: 300`. Spread `x` relative to their parent (e.g., `parent_x - 100` and `parent_x + 100`).
+
+* **Level 3+:** Increase `y` by `150` for each level.
+
+
+
+**2. Visual Style Logic:**
+
+
+
+* **Red (`#FFE2E5`):** Status is "bad", "high", or "error".
+
+* **Green (`#CDE8E6`):** Status is "good", "normal", or "stable".
+
+* **Orange (`#FFCCBC`):** The **Root Cause** (the deepest "bad" node in the chain with no "bad" children).
+
+* **White (`#FFFFFF`):** Unexplored or neutral nodes.
+
+
+
+**3. Edge Labeling Logic:**
+
+
+
+* Every edge must have a `label` explaining the relationship.
+
+* If Parent is Bad and Child is Bad, label = "contributes to impact".
+
+* If Parent is Bad and Child is Good, label = "stable factor".
+
+
+
+**4. JSON Schema (Must Follow Exactly):**
+
+Construct the JSON using this structure. Ensure all strings are double-quoted.
+
+
+
+```json
+
+{
+
+  "nodes": [
+
+    {
+
+      "id": "N0",
+
+      "type": "default",
+
+      "data": { "label": "Metric Name: Value" },
+
+      "position": { "x": 0, "y": 0 },
+
+      "style": { 
+
+         "background": "#FFE2E5", 
+
+         "width": 180, 
+
+         "color": "#333", 
+
+         "border": "1px solid #777", 
+
+         "borderRadius": "8px" 
+
+      }
+
+    }
+
+  ],
+
+  "edges": [
+
+    {
+
+      "id": "e-N0-N1",
+
+      "source": "N0",
+
+      "target": "N1",
+
+      "label": "driven by",
+
+      "animated": true,
+
+      "style": { "stroke": "#555", "strokeWidth": 2 }
+
+    }
+
+  ]
+
+}
+
+
+
+```
+
+
+
+---
+
+
+
+### **Few-Shot Example**
+
+
+
+**User:** "Visualize the results for the Profitability analysis."
+
+*(Context provided: Profit is down, Revenue is stable, Cost is up, Variable Cost is up)*
+
+
+
+**Assistant:**
+
+
+
+#### **SECTION 1: Diagnostic Executive Summary**
+
+
+
+**Root Cause Identified: Variable Cost (N3)**
+
+We have completed the analysis of your Profitability metrics. The investigation began with **Profitability**, which is currently tracking below target. To understand why, we analyzed its two main drivers: **Revenue** and **Total Cost**.
+
+
+
+We found that Revenue is stable and performing well, which is great news. However, **Total Cost** is higher than expected. By drilling deeper into the cost structure, we identified that while Fixed Costs are normal, **Variable Costs** are significantly elevated.
+
+
+
+**Actionable Insight:** We recommend reviewing the primary components of your variable spend, such as raw material procurement or hourly labor efficiency, to identify potential savings.
+
+
+
+---
+
+
+
+#### **SECTION 2: React Flow JSON Artifact**
+
+
+
+```json
+
+{
+
+  "nodes": [
+
+    {
+
+      "id": "N0",
+
+      "type": "default",
+
+      "data": { "label": "Profitability: -15%" },
+
+      "position": { "x": 0, "y": 0 },
+
+      "style": { "background": "#FFE2E5", "width": 180, "border": "1px solid #777", "borderRadius": "8px" }
+
+    },
+
+    {
+
+      "id": "N1",
+
+      "type": "default",
+
+      "data": { "label": "Revenue: $1.2M" },
+
+      "position": { "x": -300, "y": 150 },
+
+      "style": { "background": "#CDE8E6", "width": 180, "border": "1px solid #777", "borderRadius": "8px" }
+
+    },
+
+    {
+
+      "id": "N2",
+
+      "type": "default",
+
+      "data": { "label": "Total Cost: $900k" },
+
+      "position": { "x": 300, "y": 150 },
+
+      "style": { "background": "#FFE2E5", "width": 180, "border": "1px solid #777", "borderRadius": "8px" }
+
+    },
+
+    {
+
+      "id": "N3",
+
+      "type": "default",
+
+      "data": { "label": "Variable Cost: $600k" },
+
+      "position": { "x": 300, "y": 300 },
+
+      "style": { "background": "#FFCCBC", "width": 180, "border": "1px solid #777", "borderRadius": "8px" }
+
+    }
+
+  ],
+
+  "edges": [
+
+    {
+
+      "id": "e-N0-N1",
+
+      "source": "N0",
+
+      "target": "N1",
+
+      "label": "stable factor",
+
+      "animated": false
+
+    },
+
+    {
+
+      "id": "e-N0-N2",
+
+      "source": "N0",
+
+      "target": "N2",
+
+      "label": "driven by",
+
+      "animated": true,
+
+      "style": { "stroke": "#FF0000", "strokeWidth": 2 }
+
+    },
+
+    {
+
+      "id": "e-N2-N3",
+
+      "source": "N2",
+
+      "target": "N3",
+
+      "label": "primary driver",
+
+      "animated": true,
+
+      "style": { "stroke": "#FF0000", "strokeWidth": 2 }
+
+    }
+
+  ]
+
+}
+
+
+
+```.
+
+Ensure your final answer is strictly valid JSON matching: {response_format_instruction}"""
+        }
+
+        tools = [{
+            "tool_spec": {
+                "type": "generic",
+                "name": "Diagnostic_tool",
+                "description": "Retrieves metric status. Search Mode or Drill Mode.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "USER_QUERY": {"type": "string", "description": "Query or NULL"},
+                        "PARENT_NODE_IDS_JSON": {"type": "string", "description": "NULL or list of IDs"},
+                        "TREE_ID": {"type": "string", "description": "Always 'Pharma_Master_v1'"}
+                    },
+                    "required": ["USER_QUERY", "PARENT_NODE_IDS_JSON", "TREE_ID"]
+                }
+            }
+        }]
+
+        tool_resources = {
+            "Diagnostic_tool": {
+                "type": "procedure",
+                "execution_environment": {
+                    "type": "warehouse",
+                    "warehouse": self.config.warehouse
+                },
+                "identifier": self.config.diagnostic_udf
+            }
+        }
+
+        payload = PayloadFactory.create(query, instructions, tools, tool_resources)
+        resp = invoke_cortex_agent(self.session, payload)
+        print(resp)
+        try:
+            # The agent returns the JSON structure inside the 'text' field
+            raw_text = resp.get('text', '')
+            clean_content = raw_text.replace("```json", "").replace("```", "").strip()
+            return DiagnosticResult.model_validate_json(clean_content)
+        except Exception as e:
+            return DiagnosticResult(
+                summary_text=f"Analysis failed to format correctly. Agent Output: {resp.get('text', '')}", 
+                react_flow_json=None
+            )
+
+# ==========================================
+# 5. MAIN HANDLER
+# ==========================================
+
+def main(session: Session):
+    manager = AgentManager(session)
+    user_query = "Why is the Total Market Volume being driven by the Opioid Category , specifically Tramadol which is seeing massive New Growth, yet the Orthopedic Segment —historically the core driver for this drug—is contributing less than 7% of that growth?"
+    # Simulating a conversation where the user previously asked about performance
+    history = [
+        {"role": "user", "content": [{"type": "text", "text": "How is the overall Profitability looking?"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Profitability is currently down by 15% compared to last month."}]}
+    ]
+    
+    # 1. Rephrase
+    rephrased = manager.run_rephraser(user_query, history)
+    print(rephrased)
+    # 2. Plan
+    decision = manager.run_planner(rephrased)
+    print(decision)
+    
+    final_output = {}
+
+    if decision.route == "diagnostic":
+        # 3. Diagnose
+        result = manager.run_diagnostic_agent(decision.query)
+        
+        if result.clarifying_question:
+            final_output = {"type": "clarification", "message": result.clarifying_question}
+        else:
+            final_output = {
+                "type": "diagnostic_report",
+                "summary": result.summary_text,
+                "graph": result.react_flow_json
+            }
+    elif decision.route == "clarify":
+        final_output = {"type": "clarification", "message": decision.reasoning}
+
+    return final_output

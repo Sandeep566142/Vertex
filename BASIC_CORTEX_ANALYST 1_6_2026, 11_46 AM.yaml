@@ -6555,3 +6555,4 @@ Example
 }
 
 Invalid expression [PARSE_JSON('{"intent": "market_overview"}')] in VALUES clause
+    # ---------------------------------------------------------

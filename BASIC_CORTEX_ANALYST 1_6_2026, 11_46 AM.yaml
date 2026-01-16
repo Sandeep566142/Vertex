@@ -6462,3 +6462,94 @@ def main(session: Session):
 
     # log_checkpoint("FINAL ORCHESTRATOR OUTPUT", final_output)
     # return final_output
+
+
+
+
+response.tool_result.analyst.delta
+An delta event streamed for the Cortex Analyst tool execution
+
+Field
+
+Type
+
+Description
+
+content_index
+
+integer
+
+The index in the response content array this event represents
+
+tool_use_id
+
+string
+
+Unique identifier for this tool use. Can be used to associated tool results.
+
+tool_type
+
+string
+
+The type of the tool (always cortex_analyst_text_to_sql for this event)
+
+tool_name
+
+string
+
+The unique identifier for this tool instance
+
+delta
+
+CortexAnalystToolResultDelta
+
+The content delta
+
+Example
+
+{
+  "content_index": 0,
+  "tool_use_id": "toolu_123",
+  "tool_type": "cortex_analyst_text_to_sql",
+  "tool_name": "my_cortex_analyst_semantic_view",
+  "delta": {
+    "text": "The...",
+    "think": "Thinking...",
+    "sql": "SELECT...",
+    "sql_explanation": "This...",
+    "query_id": "707787a0-a684-4ead-adb0-3c3b62b043d9",
+    "verified_query_used": false,
+    "result_set": {
+      "statementHandle": "707787a0-a684-4ead-adb0-3c3b62b043d9",
+      "resultSetMetaData": {
+        "partition": 0,
+        "numRows": 0,
+        "format": "jsonv2",
+        "rowType": [
+          {
+            "name": "my_column",
+            "type": "VARCHAR",
+            "length": 0,
+            "precision": 0,
+            "scale": 0,
+            "nullable": false
+          }
+        ]
+      },
+      "data": [
+        [
+          "row1 col1",
+          "row1 col2"
+        ],
+        [
+          "row2 col1",
+          "row2 col2"
+        ]
+      ]
+    },
+    "suggestions": {
+      "index": 0,
+      "delta": "What..."
+    }
+  }
+}

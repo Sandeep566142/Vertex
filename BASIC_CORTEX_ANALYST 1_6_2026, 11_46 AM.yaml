@@ -5657,3 +5657,6 @@ def main(session: Session):
     # Final Result Checkpoint
     log_checkpoint("FINAL ORCHESTRATOR OUTPUT", final_output)
     return final_output
+
+
+https://www.snowflake.com/en/blog/snowflake-cortex-ai-cortex-guard-llm-safeguards/

@@ -8808,3 +8808,209 @@ PROMPT_ROOT_CAUSE_RESPONSE = """
     </section_2_react_flow_json>
 </response_structure_prompt>
 """
+Skip to main content
+Skip to editor
+Skip to results
+Site
+
+
+
+
+
+Worksheets
+Selection deleted
+497
+498
+499
+500
+501
+502
+503
+504
+505
+506
+507
+508
+509
+510
+511
+512
+513
+514
+515
+516
+517
+518
+519
+520
+521
+522
+523
+524
+525
+526
+527
+528
+529
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+540
+541
+542
+543
+544
+545
+546
+547
+548
+549
+550
+551
+552
+553
+554
+555
+556
+557
+558
+559
+560
+561
+562
+563
+564
+565
+566
+567
+568
+569
+570
+571
+572
+573
+574
+575
+576
+577
+578
+579
+580
+581
+582
+583
+584
+        }
+    </section_2_react_flow_json>
+</response_structure_prompt>
+"""
+
+# ==========================================
+# 3. HELPER FUNCTIONS (API WRAPPERS)
+# ==========================================
+
+def log_checkpoint(step: str, details: Any):
+    print(f"\n{'='*50}\n🛑 CHECKPOINT: {step}\n{'-'*50}")
+    if isinstance(details, BaseModel):
+        pprint.pprint(details.model_dump())
+    elif isinstance(details, (dict, list)):
+        pprint.pprint(details)
+    else:
+        print(str(details))
+    print(f"{'='*50}\n")
+
+def invoke_structured_output_extraction(session: Session, messages: List[Dict], pydantic_model: type[BaseModel]) -> BaseModel:
+    """
+    Invokes Cortex Inference using the Pydantic model to generate the JSON schema.
+    Returns an instance of the Pydantic model.
+    """
+    ENDPOINT = "/api/v2/cortex/inference:complete"
+    
+    # Generate JSON Schema directly from Pydantic
+    json_schema = pydantic_model.model_json_schema()
+    
+    # Cleanup schema (optional: remove titles to save tokens)
+    if 'title' in json_schema: del json_schema['title']
+
+    payload = {
+        "model": CONFIG.model,
+        "messages": messages,
+        "max_tokens": 2000,
+        "response_format": {
+            "type": "json",
+            "schema": json_schema
+        }
+    }
+
+    log_checkpoint("API REQUEST (STRUCTURED)", f"Target Model: {pydantic_model.__name__}")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json"}, {}, payload, {}, 120000)
+        print(resp)
+        content_str = resp.get("choices", [{}])[0].get("message", {}).get("content")
+        
+        if not content_str:
+            raise ValueError("Empty response from Cortex")
+
+        # Parse JSON and validate with Pydantic
+        parsed_dict = json.loads(content_str)
+        return pydantic_model(**parsed_dict)
+        
+    except Exception as e:
+        print(f"Structured Extraction Error: {e}")
+        # Return empty/default instance on failure to prevent crash
+        return pydantic_model.construct()
+
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """Invokes 'agent:run' for tools (Analyst/Diagnostic) with 5-row limit."""
+    ENDPOINT = "/api/v2/cortex/agent:run"
+    print(f"--- INVOKING AGENT: {agent_name} ---")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json", "Accept": "text/event-stream"}, {}, payload, {}, 120000)
+        content = resp.get("content")
+        if not content: return {"error": "Empty"}
+        
+        extracted = {"text": "", "tables": [], "charts": [], "sql_generated": None, "sql_explanation": None}
+        try: parsed = json.loads(content)
+        except: parsed = [json.loads(line) for line in content.splitlines() if line.strip()]
+        
+        def process_event(evt, data):
+            if evt == 'response.text.delta': extracted["text"] += data.get('text', '')
+            elif evt == 'response.chart': extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+            elif evt == 'response.table':
+                rs = data.get('result_set', [])
+                extracted["tables"].append(rs[:5]) # Limit 5 rows
+            elif evt == 'response.tool_result.analyst.delta':
+                delta = data.get('delta', {})
+                if delta.get('sql'): extracted["sql_generated"] = delta.get('sql')
+                if delta.get('sql_explanation'): extracted["sql_explanation"] = delta.get('sql_explanation')
+                if delta.get('result_set'): extracted["tables"].append(delta.get('result_set')[:5])
+            elif evt == 'response.tool_result':
+                for item in data.get('content', []):
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'show ME all the health care providers in arizona and Why is the '
+          'Total Market Volume being driven by the Opioid Category?'}
+==================================================
+==================================================
+🛑 CHECKPOINT: START: GUARD
+--------------------------------------------------
+show ME all the health care providers in arizona and Why is the Total Market Volume being driven by the Opioid Category?
+==================================================
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: RephraserOutput
+==================================================
+{'status': 500, 'content': '{\n\t"code":\t"300014",\n\t"message":\t"Cannot deserialize value of type `java.lang.String` from Array value (token `JsonToken.START_ARRAY`)\n at [Source: (org.eclipse.jetty.server.HttpInputOverHTTP); line: 1, column: 73] (through reference chain: com.snowflake.snowapi.cortexinference.model.CompleteRequest[\"messages\"]->java.util.ArrayList[0]->com.snowflake.snowapi.cortexinference.model.CompleteRequestMessagesInner[\"content\"])",\n\t"request_id":\t"0fb6c8b0-1e44-4f10-8ad4-3cccc3cf4dc5",\n\t"error_code":\t"300014"\n}', 'headers': {'\nX-Snowflake-Request-ID': '0fb6c8b0-1e44-4f10-8ad4-3cccc3cf4dc5', '\nContent-Type': 'application/json', '\nDate': 'Mon, 19 Jan 2026 14:03:49 GMT', '\nContent-Length': '497'}}
+Structured Extraction Error: Empty response from Cortex
+

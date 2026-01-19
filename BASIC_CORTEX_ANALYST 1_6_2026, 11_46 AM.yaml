@@ -9603,3 +9603,9 @@ API Error Response: {'status': 400, 'content': '{\n\t"message":\t"input schema v
 {'intent': {'clarification_question': None,
 
 
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: RephraserOutput
+==================================================
+API Error Response: {'status': 500, 'content': '{\n\t"code":\t"300014",\n\t"message":\t"Cannot deserialize value of type `java.lang.String` from Array value (token `JsonToken.START_ARRAY`)\n at [Source: (org.eclipse.jetty.server.HttpInputOverHTTP); line: 1, column: 73] (through reference chain: com.snowflake.snowapi.cortexinference.model.CompleteRequest[\"messages\"]->java.util.ArrayList[0]->com.snowflake.snowapi.cortexinference.model.CompleteRequestMessagesInner[\"content\"])",\n\t"request_id":\t"c5f58b6a-9f4c-4b09-9acd-603d33ce5bc8",\n\t"error_code":\t"300014"\n}', 'headers': {'\nContent-Type': 'application/json', '\nContent-Length': '497', '\nDate': 'Mon, 19 Jan 2026 15:04:53 GMT', '\nX-Snowflake-Request-ID': 'c5f58b6a-9f4c-4b09-9acd-603d33ce5bc8'}}

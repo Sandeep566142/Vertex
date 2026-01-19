@@ -9287,3 +9287,319 @@ API Error Response: {'status': 400, 'content': '{\n\t"message":\t"input schema v
 Target Model: IntentClassification
 ==================================================
 API Error Response: {'status': 400, 'content': '{\n\t"message":\t"input schema validation error: /properties/root_cause_query additional properties are not allowed, /properties/root_cause_query unevaluated properties are not allowed, /properties/clarification_question additional properties are not allowed, /properties/clarification_question unevaluated properties are not allowed, /properties/data_retrieval_query additional properties are not allowed, /properties/data_retrieval_query unevaluated properties are not allowed, /properties/direct_response additional properties are not allowed, /properties/direct_response unevaluated properties are not allowed",\n\t"request_id":\t"b3e4195f-9d1a-4055-97fa-3dbc75bcc038"\n}', 'headers': {'\nCache-Control': 'no-cache', '\nContent-Type': 'application/json;charset=utf-8', '\nX-Accel-Buffering': 'no', '\nContent-Length': '662', '\nX-Snowflake-Request-ID': 'b3e4195f-9d1a-4055-97fa-3dbc75bcc038', '\nDate': 'Mon, 19 Jan 2026 14:38:35 GMT'}}
+Skip to main content
+Skip to editor
+Skip to results
+Site
+
+
+
+
+
+Worksheets
+Selection deleted
+516
+517
+518
+519
+520
+521
+522
+523
+524
+525
+526
+527
+528
+529
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+540
+541
+542
+543
+544
+545
+546
+547
+548
+549
+550
+551
+552
+553
+554
+555
+556
+557
+558
+559
+560
+561
+562
+563
+564
+565
+566
+567
+568
+569
+570
+571
+572
+573
+574
+575
+576
+577
+578
+579
+580
+581
+582
+583
+584
+585
+586
+587
+588
+589
+590
+591
+592
+593
+594
+595
+596
+597
+598
+599
+600
+601
+602
+603
+604
+605
+606
+607
+608
+609
+610
+611
+612
+613
+614
+615
+616
+617
+618
+619
+620
+621
+622
+623
+624
+625
+626
+627
+628
+629
+630
+631
+632
+633
+634
+635
+636
+637
+638
+639
+640
+641
+642
+643
+644
+645
+646
+647
+648
+649
+650
+651
+652
+653
+654
+def invoke_structured_output_extraction(session: Session, messages: List[Dict], pydantic_model: type[BaseModel]) -> BaseModel:
+    """
+    Invokes Cortex Inference with STRICT schema sanitization and robust response parsing.
+    """
+    ENDPOINT = "/api/v2/cortex/inference:complete"
+    
+    # --- HELPER: Strict Schema Sanitizer ---
+    # Whitelists ONLY fields allowed by Cortex. Removes defaults, titles, etc.
+    def strict_schema_transform(schema: Dict) -> Dict:
+        new_schema = {}
+        
+        # 1. Allowed Keys
+        if "type" in schema: new_schema["type"] = schema["type"]
+        if "description" in schema: new_schema["description"] = schema["description"]
+        if "enum" in schema: new_schema["enum"] = schema["enum"]
+        if "required" in schema: new_schema["required"] = schema["required"]
+        
+        # 2. Handle Pydantic's 'anyOf' for Optional fields (Flatten to type: [str, null])
+        if "anyOf" in schema:
+            types = []
+            for opt in schema["anyOf"]:
+                if "type" in opt: types.append(opt["type"])
+            if set(types) == {"string", "null"}: new_schema["type"] = ["string", "null"]
+            elif set(types) == {"integer", "null"}: new_schema["type"] = ["integer", "null"]
+            elif set(types) == {"number", "null"}: new_schema["type"] = ["number", "null"]
+            elif set(types) == {"boolean", "null"}: new_schema["type"] = ["boolean", "null"]
+            elif set(types) == {"object", "null"}: new_schema["type"] = ["object", "null"]
+        
+        # 3. Handle Arrays
+        if "items" in schema:
+            new_schema["items"] = strict_schema_transform(schema["items"])
+            
+        # 4. Handle Objects (Properties)
+        if "properties" in schema:
+            new_props = {}
+            for k, v in schema["properties"].items():
+                new_props[k] = strict_schema_transform(v)
+            new_schema["properties"] = new_props
+            
+        return new_schema
+    # ---------------------------------------
+
+    # 1. Generate & Clean Schema
+    raw_schema = pydantic_model.model_json_schema()
+    clean_json_schema = strict_schema_transform(raw_schema)
+
+    # 2. Sanitize Messages
+    sanitized_messages = []
+    for msg in messages:
+        content = msg.get("content")
+        if isinstance(content, list):
+            flat_text = " ".join([item.get("text", "") for item in content if item.get("type") == "text"])
+            sanitized_messages.append({"role": msg["role"], "content": flat_text})
+        else:
+            sanitized_messages.append(msg)
+
+    payload = {
+        "model": CONFIG.model,
+        "messages": sanitized_messages,
+        "max_tokens": 2000,
+        "response_format": { "type": "json", "schema": clean_json_schema }
+    }
+
+    log_checkpoint("API REQUEST (STRUCTURED)", f"Target Model: {pydantic_model.__name__}")
+
+    try:
+        # 3. Request
+        headers = { "Content-Type": "application/json", "Accept": "application/json" }
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, headers, {}, payload, {}, 120000)
+        
+        if resp.get('status') and resp.get('status') >= 400:
+             print(f"API Error Response: {resp}")
+             return pydantic_model.construct()
+
+        content_str = resp.get("content")
+        if not content_str:
+            print(f"Empty content from Cortex. Raw: {resp}")
+            return pydantic_model.construct()
+
+        # 4. Parse Response Body (Handle NDJSON vs Standard JSON)
+        try:
+            api_body = json.loads(content_str)
+        except json.JSONDecodeError:
+            api_body = [json.loads(line) for line in content_str.splitlines() if line.strip()]
+
+        model_output_str = ""
+
+        # 5. Extraction Logic
+        if isinstance(api_body, list):
+            for chunk in api_body:
+                data_obj = chunk.get("data", {})
+                choices = data_obj.get("choices", [])
+                if choices:
+                    delta = choices[0].get("delta", {})
+                    model_output_str += delta.get("content", "")
+                        
+        elif isinstance(api_body, dict):
+            choices = api_body.get("choices", [{}])
+            if choices:
+                model_output_str = choices[0].get("message", {}).get("content", "")
+
+        if not model_output_str:
+             print(f"Empty model output parsed.")
+             return pydantic_model.construct()
+
+        # 6. Parse Inner JSON & Validate
+        parsed_dict = json.loads(model_output_str)
+        return pydantic_model(**parsed_dict)
+        
+    except Exception as e:
+        print(f"Structured Extraction Error: {e}")
+        return pydantic_model.construct()
+
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """Invokes 'agent:run' for tools (Analyst/Diagnostic) with 5-row limit."""
+    ENDPOINT = "/api/v2/cortex/agent:run"
+    print(f"--- INVOKING AGENT: {agent_name} ---")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json", "Accept": "text/event-stream"}, {}, payload, {}, 120000)
+        content = resp.get("content")
+        if not content: return {"error": "Empty"}
+        
+        extracted = {"text": "", "tables": [], "charts": [], "sql_generated": None, "sql_explanation": None}
+        try: parsed = json.loads(content)
+        except: parsed = [json.loads(line) for line in content.splitlines() if line.strip()]
+        
+        def process_event(evt, data):
+            if evt == 'response.text.delta': extracted["text"] += data.get('text', '')
+            elif evt == 'response.chart': extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+            elif evt == 'response.table':
+                rs = data.get('result_set', [])
+                extracted["tables"].append(rs[:5]) # Limit 5 rows
+            elif evt == 'response.tool_result.analyst.delta':
+                delta = data.get('delta', {})
+                if delta.get('sql'): extracted["sql_generated"] = delta.get('sql')
+                if delta.get('sql_explanation'): extracted["sql_explanation"] = delta.get('sql_explanation')
+                if delta.get('result_set'): extracted["tables"].append(delta.get('result_set')[:5])
+            elif evt == 'response.tool_result':
+==================================================
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: IntentClassification
+==================================================
+--- INVOKING AGENT: Data Agent ---
+--- INVOKING AGENT: Root Cause Agent ---
+--- AGENT Root Cause Agent COMPLETED ---
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: RootCauseParsedOutput
+==================================================
+API Error Response: {'status': 400, 'content': '{\n\t"message":\t"input schema validation error: /properties/evaluation please specify a valid json schema object (\'type\' missing?, additionalProperties used?, invalid type array?) or a \'$ref\' value",\n\t"request_id":\t"2c501f0b-4ba9-472a-8d41-86af324161a0"\n}', 'headers': {'\nX-Accel-Buffering': 'no', '\nCache-Control': 'no-cache', '\nDate': 'Mon, 19 Jan 2026 14:45:30 GMT', '\nContent-Type': 'application/json;charset=utf-8', '\nContent-Length': '247', '\nX-Snowflake-Request-ID': '2c501f0b-4ba9-472a-8d41-86af324161a0'}}
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: DataAgentParsedOutput
+==================================================
+API Error Response: {'status': 400, 'content': '{\n\t"message":\t"input schema validation error: /properties/evaluation please specify a valid json schema object (\'type\' missing?, additionalProperties used?, invalid type array?) or a \'$ref\' value",\n\t"request_id":\t"becb5afe-f26f-4b4e-b675-90d7073eac2f"\n}', 'headers': {'\nX-Accel-Buffering': 'no', '\nContent-Length': '247', '\nContent-Type': 'application/json;charset=utf-8', '\nX-Snowflake-Request-ID': 'becb5afe-f26f-4b4e-b675-90d7073eac2f', '\nDate': 'Mon, 19 Jan 2026 14:45:48 GMT', '\nCache-Control': 'no-cache'}}
+==================================================
+🛑 CHECKPOINT: MAIN: COMPLETED
+--------------------------------------------------
+{'intent': {'clarification_question': None,
+
+

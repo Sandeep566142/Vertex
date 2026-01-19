@@ -9014,3 +9014,266 @@ Target Model: RephraserOutput
 {'status': 500, 'content': '{\n\t"code":\t"300014",\n\t"message":\t"Cannot deserialize value of type `java.lang.String` from Array value (token `JsonToken.START_ARRAY`)\n at [Source: (org.eclipse.jetty.server.HttpInputOverHTTP); line: 1, column: 73] (through reference chain: com.snowflake.snowapi.cortexinference.model.CompleteRequest[\"messages\"]->java.util.ArrayList[0]->com.snowflake.snowapi.cortexinference.model.CompleteRequestMessagesInner[\"content\"])",\n\t"request_id":\t"0fb6c8b0-1e44-4f10-8ad4-3cccc3cf4dc5",\n\t"error_code":\t"300014"\n}', 'headers': {'\nX-Snowflake-Request-ID': '0fb6c8b0-1e44-4f10-8ad4-3cccc3cf4dc5', '\nContent-Type': 'application/json', '\nDate': 'Mon, 19 Jan 2026 14:03:49 GMT', '\nContent-Length': '497'}}
 Structured Extraction Error: Empty response from Cortex
 
+Skip to main content
+Skip to editor
+Skip to results
+Site
+
+
+
+
+
+Worksheets
+Selection deleted
+516
+517
+518
+519
+520
+521
+522
+523
+524
+525
+526
+527
+528
+529
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+540
+541
+542
+543
+544
+545
+546
+547
+548
+549
+550
+551
+552
+553
+554
+555
+556
+557
+558
+559
+560
+561
+562
+563
+564
+565
+566
+567
+568
+569
+570
+571
+572
+573
+574
+575
+576
+577
+578
+579
+580
+581
+582
+583
+584
+585
+586
+587
+588
+589
+590
+591
+592
+593
+594
+595
+596
+597
+598
+599
+600
+601
+602
+603
+604
+605
+606
+607
+608
+609
+610
+611
+612
+613
+614
+615
+616
+617
+618
+619
+620
+621
+622
+623
+624
+625
+626
+627
+628
+629
+630
+631
+632
+def invoke_structured_output_extraction(session: Session, messages: List[Dict], pydantic_model: type[BaseModel]) -> BaseModel:
+    """
+    Invokes Cortex Inference using the Pydantic model to generate the JSON schema.
+    Returns an instance of the Pydantic model.
+    """
+    ENDPOINT = "/api/v2/cortex/inference:complete"
+    
+    # Generate JSON Schema directly from Pydantic
+    json_schema = pydantic_model.model_json_schema()
+    if 'title' in json_schema: del json_schema['title']
+
+    # --- FIX: SANITIZE MESSAGES ---
+    # The inference endpoint requires 'content' to be a STRING, not a LIST.
+    # We must convert the [{"type": "text", "text": "..."}] format used by Agents 
+    # into a simple string for the Inference API.
+    sanitized_messages = []
+    for msg in messages:
+        content = msg.get("content")
+        if isinstance(content, list):
+            # Extract text from the list structure
+            flat_text = " ".join([item.get("text", "") for item in content if item.get("type") == "text"])
+            sanitized_messages.append({"role": msg["role"], "content": flat_text})
+        else:
+            # It's already a string, keep as is
+            sanitized_messages.append(msg)
+    # ------------------------------
+
+    payload = {
+        "model": CONFIG.model,
+        "messages": sanitized_messages, # <--- Use the sanitized list
+        "max_tokens": 2000,
+        "response_format": {
+            "type": "json",
+            "schema": json_schema
+        }
+    }
+
+    log_checkpoint("API REQUEST (STRUCTURED)", f"Target Model: {pydantic_model.__name__}")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json"}, {}, payload, {}, 120000)
+        
+        # Check for HTTP errors in the response dict if _snowflake doesn't raise exception
+        if resp.get('status') and resp.get('status') >= 400:
+             print(f"API Error Response: {resp}")
+             return pydantic_model.construct()
+
+        content_str = resp.get("choices", [{}])[0].get("message", {}).get("content")
+        
+        if not content_str:
+            print(f"Empty content from Cortex. Raw Response: {resp}")
+            return pydantic_model.construct()
+
+        # Parse JSON and validate with Pydantic
+        parsed_dict = json.loads(content_str)
+        return pydantic_model(**parsed_dict)
+        
+    except Exception as e:
+        print(f"Structured Extraction Error: {e}")
+        return pydantic_model.construct()
+
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """Invokes 'agent:run' for tools (Analyst/Diagnostic) with 5-row limit."""
+    ENDPOINT = "/api/v2/cortex/agent:run"
+    print(f"--- INVOKING AGENT: {agent_name} ---")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json", "Accept": "text/event-stream"}, {}, payload, {}, 120000)
+        content = resp.get("content")
+        if not content: return {"error": "Empty"}
+        
+        extracted = {"text": "", "tables": [], "charts": [], "sql_generated": None, "sql_explanation": None}
+        try: parsed = json.loads(content)
+        except: parsed = [json.loads(line) for line in content.splitlines() if line.strip()]
+        
+        def process_event(evt, data):
+            if evt == 'response.text.delta': extracted["text"] += data.get('text', '')
+            elif evt == 'response.chart': extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+            elif evt == 'response.table':
+                rs = data.get('result_set', [])
+                extracted["tables"].append(rs[:5]) # Limit 5 rows
+            elif evt == 'response.tool_result.analyst.delta':
+                delta = data.get('delta', {})
+                if delta.get('sql'): extracted["sql_generated"] = delta.get('sql')
+                if delta.get('sql_explanation'): extracted["sql_explanation"] = delta.get('sql_explanation')
+                if delta.get('result_set'): extracted["tables"].append(delta.get('result_set')[:5])
+            elif evt == 'response.tool_result':
+                for item in data.get('content', []):
+                    if item.get('type') == 'json':
+                        json_p = item.get('json', {})
+                        if 'sql' in json_p: extracted["sql_generated"] = json_p['sql']
+                        if 'result_set' in json_p: extracted["tables"].append(json_p['result_set'][:5])
+
+        if isinstance(parsed, list):
+            for item in parsed: process_event(item.get('event'), item.get('data', {}))
+        
+        print(f"--- AGENT {agent_name} COMPLETED ---")
+        return extracted
+    except Exception as e: return {"error": str(e)}
+
+def check_input_guard(session: Session, user_input: str) -> GuardResult:
+    log_checkpoint("START: GUARD", user_input)
+    try:
+        safe_input = user_input.replace("'", "''")
+        res = session.sql(f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{CONFIG.model}', [{{'role': 'user', 'content': '{safe_input}'}}], {{'guardrails': true}}) as r").collect()
+        if not res: return GuardResult(is_safe=True)
+        is_unsafe = "Response filtered" in json.loads(res[0]['R'])['choices'][0]['messages']
+        return GuardResult(is_safe=not is_unsafe, message="Blocked." if is_unsafe else None)
+    except: return GuardResult(is_safe=True)
+
+class PayloadFactory:
+    @staticmethod
+    def create(query: str, instructions: Dict, tools: List = None, resources: Dict = None, history: List = None) -> Dict:
+        messages = (history if history else []) + [{"role": "user", "content": [{"type": "text", "text": query}]}]
+        return {"messages": messages, "tool_choice": {"type": "auto"}, "models": {"orchestration": CONFIG.model}, "instructions": instructions, "tools": tools or [], "tool_resources": resources or {}}
+
+def save_message(session: Session, conversation_id: str, sender_type: str, message_text: str, metadata: dict = None):
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'show ME all the health care providers in arizona and Why is the '
+          'Total Market Volume being driven by the Opioid Category?'}
+==================================================
+==================================================
+🛑 CHECKPOINT: START: GUARD
+--------------------------------------------------
+show ME all the health care providers in arizona and Why is the Total Market Volume being driven by the Opioid Category?
+==================================================
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: RephraserOutput
+==================================================
+Empty content from Cortex. Raw Response: {'status': 200, 'content': '[{\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t""\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t""\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t""\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t""\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"{\"refi",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"{\"refi"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"{\"refi"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"ned",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"ned"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"ned"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"_query",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"_query"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"_query"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"\": \"Ple",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"\": \"Ple"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"\": \"Ple"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"ase sho",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"ase sho"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"ase sho"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"w all h",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"w all h"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"w all h"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"ealt",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"ealt"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"ealt"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"hcare prov",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"hcare prov"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"hcare prov"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"iders loc",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"iders loc"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"iders loc"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"ated in Ar",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"ated in Ar"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"ated in Ar"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"izona ",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"izona "\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"izona "\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"an",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"an"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"an"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"d e",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"d e"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"d e"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"xplain why ",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"xplain why "\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"xplain why "\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"the Total",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"the Total"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"the Total"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t" Marke",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t" Marke"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t" Marke"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"t ",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"t "\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"t "\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"Volume in Pa",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"Volume in Pa"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"Volume in Pa"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"in ",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"in "\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"in "\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"Management",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"Management"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"Management"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t" is be",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t" is be"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t" is be"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"ing",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"ing"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"ing"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t" d",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t" d"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t" d"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"riven by th",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"riven by th"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"riven by th"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"e Opioid Cat",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"e Opioid Cat"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"e Opioid Cat"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content":\t"egory.\"}",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t"egory.\"}"\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t"egory.\"}"\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t}\n\t\t}\n\t}, {\n\t\t"data":\t{\n\t\t\t"id":\t"25c652c6-a999-4916-b6b8-ae7b8186327b",\n\t\t\t"model":\t"claude-3-5-sonnet",\n\t\t\t"choices":\t[{\n\t\t\t\t\t"delta":\t{\n\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t"content_list":\t[{\n\t\t\t\t\t\t\t\t"type":\t"text",\n\t\t\t\t\t\t\t\t"text":\t""\n\t\t\t\t\t\t\t}],\n\t\t\t\t\t\t"text":\t""\n\t\t\t\t\t}\n\t\t\t\t}],\n\t\t\t"usage":\t{\n\t\t\t\t"prompt_tokens":\t2190,\n\t\t\t\t"completion_tokens":\t62,\n\t\t\t\t"total_tokens":\t2252\n\t\t\t}\n\t\t}\n\t}]', 'headers': {'\nTransfer-Encoding': 'chunked', '\nDate': 'Mon, 19 Jan 2026 14:09:53 GMT', '\nContent-Type': 'text/event-stream', '\nCache-Control': 'no-cache', '\nX-Accel-Buffering': 'no', '\nX-Snowflake-Request-ID': '25c652c6-a999-4916-b6b8-ae7b8186327b'}}
+

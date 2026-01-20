@@ -10546,3 +10546,5 @@ def main(session: Session):
 
     log_checkpoint("MAIN: COMPLETED", final)
     return final
+❌ Save Error: (1304): 01c1da87-081a-05a2-0075-0383f9e29912: 002020 (21S01): 01c1da87-081a-05a2-0075-0383f9e29912: SQL compilation error:
+Insert value list does not match column list expecting 19 but got 17

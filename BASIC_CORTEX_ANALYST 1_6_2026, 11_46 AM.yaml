@@ -15209,3 +15209,45 @@ show me health care prescribers in arizona
 	"message":	"input schema validation error: root level type should be object, got null",
 	"request_id":	"661bb3d2-c1bd-43bb-9baa-cb87bdc19dce"
 }
+
+
+
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """Invokes 'agent:run' for tools (Analyst/Diagnostic)."""
+    ENDPOINT = "/api/v2/cortex/agent:run"
+    print(f"--- INVOKING AGENT: {agent_name} ---")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json", "Accept": "text/event-stream"}, {}, payload, {}, 120000)
+        content = resp.get("content")
+        print(content)
+        if not content: return {"error": "Empty"}
+        
+        extracted = {"text": "", "tables": [], "charts": [], "sql_generated": None, "sql_explanation": None}
+        try: parsed = json.loads(content)
+        except: parsed = [json.loads(line) for line in content.splitlines() if line.strip()]
+        
+        def process_event(evt, data):
+            if evt == 'response.text.delta': extracted["text"] += data.get('text', '')
+            elif evt == 'response.chart': extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+            elif evt == 'response.table':
+                rs = data.get('result_set', [])
+                extracted["tables"].append(rs) # Limit 5 rows
+            elif evt == 'response.tool_result.analyst.delta':
+                delta = data.get('delta', {})
+                if delta.get('sql'): extracted["sql_generated"] = delta.get('sql')
+                if delta.get('sql_explanation'): extracted["sql_explanation"] = delta.get('sql_explanation')
+                if delta.get('result_set'): extracted["tables"].append(delta.get('result_set'))
+            elif evt == 'response.tool_result':
+                for item in data.get('content', []):
+                    if item.get('type') == 'json':
+                        json_p = item.get('json', {})
+                        if 'sql' in json_p: extracted["sql_generated"] = json_p['sql']
+                        if 'result_set' in json_p: extracted["tables"].append(json_p['result_set'])
+
+        if isinstance(parsed, list):
+            for item in parsed: process_event(item.get('event'), item.get('data', {}))
+        
+        print(f"--- AGENT {agent_name} COMPLETED ---")
+        return extracted
+    except Exception as e: return {"error": str(e)}

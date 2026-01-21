@@ -14996,3 +14996,173 @@ def main(session: Session):
     # print(f"✅ Process Completed for: {user_query}")
     # print("Check table AGENT_DETAILED_HISTORY for results.")
     # return final_output
+
+
+Skip to main content
+Skip to editor
+Skip to results
+Site
+
+
+
+
+
+Worksheets
+Selection deleted
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400
+401
+402
+403
+404
+405
+406
+407
+408
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419
+420
+421
+422
+423
+424
+425
+426
+427
+428
+429
+430
+431
+432
+433
+434
+435
+436
+437
+438
+439
+440
+441
+    </section_2_react_flow_json>
+    
+    **CRITICAL** : YOU MUST ONLY EXECUTE ATMOST 8 TOOL CALLS.
+    
+</response_structure_prompt>
+"""
+
+# ==========================================
+# 3. SEMANTIC CONTEXT PARSER (SMART LOGIC)
+# ==========================================
+
+class SemanticViewParser:
+    """
+    Parses the GET_DDL output of the Semantic View to extract:
+    1. SQL Comments (Table Descriptions)
+    2. CA JSON Blob (Column definitions & Sample Values)
+    """
+    def __init__(self, session: Session, view_name: str):
+        self.raw_ddl = self._fetch_ddl(session, view_name)
+        self.ca_json = self._extract_ca_blob(self.raw_ddl)
+        self.table_comments = self._extract_sql_comments(self.raw_ddl)
+
+    def _fetch_ddl(self, session: Session, view_name: str) -> str:
+        """Fetches the raw CREATE VIEW statement."""
+        print(f"📖 FETCHING DDL FOR: {view_name}...")
+        try:
+            return session.sql(f"SELECT GET_DDL('VIEW', '{view_name}') as DDL").collect()
+        except Exception as e:
+            print(f"❌ DDL Fetch Error: {e}")
+            return ""
+
+    def _extract_ca_blob(self, ddl: str) -> Dict:
+        """Extracts the 'CA' JSON blob which contains Columns & Sample Values."""
+        # Pattern finds: with extension (CA='{...}')
+        match = re.search(r"with extension \(CA='(.*?)'\)", ddl, re.DOTALL)
+        if match:
+            try:
+                # Unescape single quotes (Snowflake escapes ' as '')
+                clean_json = match.group(1).replace("''", "'")
+                return json.loads(clean_json)
+            except: pass
+        return {"tables": []}
+
+    def _extract_sql_comments(self, ddl: str) -> Dict[str, str]:
+        """Extracts table descriptions from the SQL part."""
+        comments = {}
+        # Regex to find table names and their comments
+        pattern = r"table\s+([a-zA-Z0-9_.]+)\s+comment='(.*?)'"
+        matches = re.finditer(pattern, ddl, re.IGNORECASE)
+        for m in matches:
+            full_name = m.group(1)
+            comment = m.group(2)
+            # Store by simple name
+            simple_name = full_name.split('.')[-1]
+            comments[simple_name] = comment
+        return comments
+
+    def get_table_summaries(self) -> str:
+        """
+        PHASE 1: Returns ONLY Table Names + Descriptions.
+        Used for the Table Selection Step.
+        """
+        summary_list = []
+        for t in self.ca_json.get('tables', []):
+            t_name = t.get('name')
+            desc = self.table_comments.get(t_name, "No description available.")
+            summary_list.append(f"- Table: {t_name}\n  Description: {desc}")
+        return "\n".join(summary_list)
+📖 FETCHING DDL FOR: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING.BASIC_CORTEX_ANALYST...
+❌ DDL Fetch Error: (1304): 01c1e098-081a-12d3-0075-0383fa88121a: 002030 (42601): 01c1e098-081a-12d3-0075-0383fa88121a: SQL compilation error:
+Invalid object type: '{0}'
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'show me healthcare providers in Arizona'}
+==================================================
+==================================================
+🛑 CHECKPOINT: START: GUARD
+--------------------------------------------------
+show me healthcare providers in Arizona
+==================================================
+Extraction Error: main_module.RephraserOutput() argument after ** must be a mapping, not list
+Databases
+Worksheets
+Data products
+Search objects
+7 more Databases
+Pinned (1)
+

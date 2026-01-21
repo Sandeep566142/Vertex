@@ -15166,3 +15166,9 @@ Search objects
 7 more Databases
 Pinned (1)
 
+
+
+JSON Parse Error: 1 validation error for RephraserOutput
+refined_query
+  Field required [type=missing, input_value={'data': {'id': 'e17fbc0b...t': ''}}], 'usage': {}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing

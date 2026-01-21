@@ -15172,3 +15172,19 @@ JSON Parse Error: 1 validation error for RephraserOutput
 refined_query
   Field required [type=missing, input_value={'data': {'id': 'e17fbc0b...t': ''}}], 'usage': {}}}, input_type=dict]
     For further information visit https://errors.pydantic.dev/2.10/v/missing
+
+
+{'description': "Schema for extracting structured data from the Data Agent's text response.", 'properties': {'clean_answer_text': {'description': 'The user-facing summary of the data, excluding internal evaluations.', 'type': 'string'}, 'clarifying_question': {'type': ['string', 'null'], 'description': 'A question to ask the user if the data result was incomplete or ambiguous.'}, 'evaluation': {'description': 'The self-evaluation of the response quality.'}}, 'required': ['clean_answer_text', 'evaluation'], 'type': 'object'}
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: DataAgentParsedOutput
+==================================================
+{
+	"message":	"input schema validation error: /properties/evaluation please specify a valid json schema object ('type' missing?, additionalProperties used?, invalid type array?) or a '$ref' value",
+	"request_id":	"3276ba80-661c-4776-8ac6-d5636e9ba1e7"
+}
+==================================================
+🛑 CHECKPOINT: RAW ACCUMULATED TEXT
+--------------------------------------------------
+==================================================

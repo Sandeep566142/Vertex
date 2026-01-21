@@ -15201,3 +15201,11 @@ Target Model: IntentClassification
 🛑 CHECKPOINT: RAW ACCUMULATED TEXT
 --------------------------------------------------
 ==================================================
+
+
+show me health care prescribers in arizona
+==================================================
+{
+	"message":	"input schema validation error: root level type should be object, got null",
+	"request_id":	"661bb3d2-c1bd-43bb-9baa-cb87bdc19dce"
+}

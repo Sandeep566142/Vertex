@@ -11630,3 +11630,1827 @@ def main(session: Session):
     print(f"✅ Process Completed for: {user_query}")
     print("Check table AGENT_DETAILED_HISTORY for results.")
     return final_output
+
+
+
+
+name: BASIC_CORTEX_ANALYST
+tables:
+  - name: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+    description: The table contains records of healthcare provider performance metrics in acute care settings, tracked on a weekly basis. Each record represents a healthcare provider's acute episode activity within specific territories and includes details about provider characteristics, geographic location, product categories, and territorial assignments.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+    dimensions:
+      - name: BRANDED_FLAG
+        description: Indicates whether the product is a branded medication.
+        expr: BRANDED_FLAG
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - 'N'
+          - 'Y'
+      - name: GOLDEN_ID
+        description: A unique identifier used to link and track healthcare providers across different systems and databases.
+        expr: GOLDEN_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - GLD004700470057009305
+          - GLD000900090008008206
+          - GLD999909691076060401
+      - name: HCP_ID
+        description: Unique identifier for healthcare providers in the system.
+        expr: HCP_ID
+        data_type: VARCHAR(32)
+        sample_values:
+          - 2bb17ea9ca26bb191254a298da5e5b31
+          - e78d13c51088736b6ad0abcfb0db5496
+          - 232e71209a7c50de00969cff0164f64f
+      - name: HCP_SPECIALTY
+        description: Healthcare provider medical specialty or professional designation.
+        expr: HCP_SPECIALTY
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - GERIATRIC MEDICINE (INTERNAL MEDICINE)
+          - COLON & RECTAL SURGERY
+          - GENERAL SURGERY
+      - name: HCP_SPECIALTY_GROUP
+        description: Healthcare provider specialty groups categorizing medical practice areas.
+        expr: HCP_SPECIALTY_GROUP
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SURGERY
+          - MEDICINE
+          - ALL OTHER
+      - name: NPI
+        description: National Provider Identifier numbers for healthcare providers.
+        expr: NPI
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '1568438992'
+          - '1093197857'
+          - '1710410949'
+      - name: ONEKEY_HCP_ID
+        description: Unique identifier for healthcare professionals in the OneKey system.
+        expr: ONEKEY_HCP_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSM00274580
+          - WUSR03862562
+          - WUSM01303609
+      - name: PRACTICE_SETTING
+        description: The type of healthcare practice setting where medical services are provided.
+        expr: PRACTICE_SETTING
+        data_type: VARCHAR(256)
+        sample_values:
+          - RETAIL
+          - DISCHARGE
+      - name: PROCEDURE_GROUP
+        description: Medical procedure categories or groupings used for classification purposes.
+        expr: PROCEDURE_GROUP
+        data_type: VARCHAR(256)
+        sample_values:
+          - LAPAROSCOPIC UROLOGIC PROCEDURES
+          - OB/GYN PROCEDURES
+          - JOINT REPAIR
+      - name: PRODUCT_CATEGORY
+        description: Categories of pharmaceutical pain management products used in acute care markets.
+        expr: PRODUCT_CATEGORY
+        data_type: VARCHAR(256)
+        sample_values:
+          - ANALGESICS-SEDATIVE COMBINATION
+          - DERMATOLOGICAL LOCAL TOPICAL ANESTHETIC
+          - MODERATE OPIOID COMBINATIONS
+      - name: PRODUCT_FAMILY_GROUP
+        description: Pharmaceutical product family groups used for pain management and treatment.
+        expr: PRODUCT_FAMILY_GROUP
+        data_type: VARCHAR(256)
+        sample_values:
+          - IBUPROFEN
+          - DICLOFENAC
+          - MELOXICAM
+      - name: PTAM_TERRITORY_ID
+        description: Unique identifier for a PTAM (Pain Territory Account Manager) territory.
+        expr: PTAM_TERRITORY_ID
+        data_type: VARCHAR(255)
+        sample_values:
+          - V1NAUSA-5733506
+          - V1NAUSA-5733204
+          - V1NAUSA-5733403
+      - name: ROA
+        description: Route of administration for the medication or treatment.
+        expr: ROA
+        data_type: VARCHAR(256)
+        sample_values:
+          - ORAL
+          - TOPICAL
+          - TOPICAL-PATCH
+      - name: SAL_TERRITORY_ID
+        description: Sales territory identifier used to designate specific geographic or organizational sales regions.
+        expr: SAL_TERRITORY_ID
+        data_type: VARCHAR(255)
+        sample_values:
+          - V1NAUSA-5720008
+          - V1NAUSA-5720014
+          - V1NAUSA-5720013
+      - name: SITE_OF_CARE_ZIP_CODE
+        description: ZIP codes for healthcare facility locations.
+        expr: SITE_OF_CARE_ZIP_CODE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '80911'
+          - '76903'
+          - '32771'
+      - name: VERTEX_ID
+        description: Unique identifier for a vertex in the healthcare provider network.
+        expr: VERTEX_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '14811523'
+          - '14821592'
+          - '17503007'
+      - name: ZIP_CODE
+        description: Postal ZIP codes for geographic locations.
+        expr: ZIP_CODE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '14621'
+          - '01805'
+          - '95337'
+    time_dimensions:
+      - name: DATE_KEY
+        description: A date used as a key identifier in the healthcare provider acute market weekly reporting data.
+        expr: DATE_KEY
+        data_type: DATE
+        sample_values:
+          - '2025-02-14'
+          - '2024-11-15'
+          - '2022-11-11'
+    facts:
+      - name: ACUTE_CALENDAR_DAYS_LAAD
+        description: The number of calendar days in the acute care period for look-alike-alike drug analysis.
+        expr: ACUTE_CALENDAR_DAYS_LAAD
+        data_type: NUMBER(38,5)
+        access_modifier: public_access
+        sample_values:
+          - '1.00000'
+          - '3.00000'
+          - '10.00000'
+      - name: ACUTE_EPISODES_LAAD
+        description: The number of acute episodes within the look-ahead period.
+        expr: ACUTE_EPISODES_LAAD
+        data_type: NUMBER(18,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+          - '4'
+          - '2'
+      - name: ACUTE_PROCEDURES_LAAD
+        description: The number of acute procedures performed using laparoscopic-assisted abdominal delivery techniques.
+        expr: ACUTE_PROCEDURES_LAAD
+        data_type: NUMBER(18,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+          - '3'
+          - '2'
+      - name: ACUTE_REFILLS_LAAD
+        description: The number of acute medication refills within the look-ahead period.
+        expr: ACUTE_REFILLS_LAAD
+        data_type: NUMBER(13,0)
+        access_modifier: public_access
+        sample_values:
+          - '2'
+          - '4'
+          - '1'
+      - name: ACUTE_TRX_LAAD
+        description: The number of acute transactions for the last-as-advertised date period.
+        expr: ACUTE_TRX_LAAD
+        data_type: NUMBER(18,0)
+        access_modifier: public_access
+        sample_values:
+          - '5'
+          - '1'
+          - '3'
+      - name: ACUTE_TX_DAYS_LAAD
+        description: The number of days for acute treatment based on LAAD (Last Available Actual Data).
+        expr: ACUTE_TX_DAYS_LAAD
+        data_type: NUMBER(38,5)
+        access_modifier: public_access
+        sample_values:
+          - '5.00000'
+          - '10.00000'
+          - '30.00000'
+      - name: ACUTE_UNITS_LAAD
+        description: Acute care units measured as a look-ahead average demand.
+        expr: ACUTE_UNITS_LAAD
+        data_type: NUMBER(38,5)
+        access_modifier: public_access
+        sample_values:
+          - '9.00000'
+          - '20.00000'
+          - '90.00000'
+      - name: WEEK_DT
+        description: The date representing the week in the healthcare provider acute market reporting period.
+        expr: WEEK_DT
+        data_type: NUMBER(10,0)
+        access_modifier: public_access
+        sample_values:
+          - '20240524'
+          - '20250418'
+          - '20250606'
+  - name: TD_GEO_CITY
+    description: The table contains records of cities and their geographic information. Each record represents a single city and includes hierarchical location details such as state and country associations, along with precise coordinate data.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_GEO_CITY
+    dimensions:
+      - name: GEO_CITY_KEY
+        description: A unique identifier key for geographic city records.
+        expr: GEO_CITY_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - cb004e0c1c429625db774a086579bd3b
+          - 3de4110deff030eca4c2da9e8e85ae39
+          - 6b5b3307241b5195dd6bfef7630d834e
+      - name: GEO_CITY_NAME
+        description: The name of a geographic city location.
+        expr: GEO_CITY_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - BELLEVUE
+          - MATTAPAN
+          - TALLAHASSEE FALLS
+      - name: GEO_COUNTRY_CD
+        description: Geographic country code representing the country where the city is located.
+        expr: GEO_COUNTRY_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - US
+      - name: GEO_COUNTRY_NAME
+        description: The name of the country in a geographic location.
+        expr: GEO_COUNTRY_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - UNITED STATES
+      - name: GEO_STATE_CD
+        description: State codes for geographic locations.
+        expr: GEO_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - XX
+          - VT
+          - FL
+      - name: GEO_STATE_NAME
+        description: The name of the state within the United States.
+        expr: GEO_STATE_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SOUTH CAROLINA
+          - TENNESSEE
+          - NEBRASKA
+    facts:
+      - name: GEO_COUNTRY_KEY
+        description: A unique identifier for countries in the geographic data structure.
+        expr: GEO_COUNTRY_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+      - name: GEO_LATITUDE
+        description: Geographic latitude coordinate in decimal degrees.
+        expr: GEO_LATITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+      - name: GEO_LONGITUDE
+        description: Geographic longitude coordinate expressed in decimal degrees.
+        expr: GEO_LONGITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+      - name: GEO_STATE_KEY
+        description: Numeric identifier for geographic states.
+        expr: GEO_STATE_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '21'
+          - '22'
+          - '53'
+  - name: TD_GEO_LOC
+    description: The table contains records of geographic locations with their complete address and coordinate information. Each record represents a specific location and includes hierarchical geographic details from address lines through city, state, postal code, and country levels, as well as precise latitude and longitude coordinates.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_GEO_LOC
+    dimensions:
+      - name: GEO_CITY_KEY
+        description: A unique identifier key for geographic cities.
+        expr: GEO_CITY_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - e190c59f3d88823cb626962e558314df
+          - 21bb6ea0074b193b6643355e6b83aec2
+          - a6a0645ce9ac1995532b4bb9f28ce04c
+      - name: GEO_CITY_NAME
+        description: Geographic city names.
+        expr: GEO_CITY_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - HARRISBURG
+          - SAINT LOUIS
+          - DEER LODGE
+      - name: GEO_COUNTRY_CD
+        description: Geographic country code representing the country location.
+        expr: GEO_COUNTRY_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - US
+      - name: GEO_COUNTRY_NAME
+        description: The name of the country in a geographic location.
+        expr: GEO_COUNTRY_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - UNITED STATES
+      - name: GEO_LOC_KEY
+        description: A unique identifier for geographic location records.
+        expr: GEO_LOC_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - 96a44f5985fb18551e9c45db3d75f237
+          - 40665982fb20e15ee0b1e0bde8b43330
+          - 512d454f090f878a6e8175cad706cecc
+      - name: GEO_POSTAL_CD
+        description: Postal codes for geographic locations.
+        expr: GEO_POSTAL_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '45459'
+          - '92037'
+          - '33175'
+      - name: GEO_POSTAL_CD_EXT
+        description: A column holding data of type VARCHAR(16777216).
+        expr: GEO_POSTAL_CD_EXT
+        data_type: VARCHAR(16777216)
+      - name: GEO_POSTAL_KEY
+        description: A unique identifier key for postal geographic locations.
+        expr: GEO_POSTAL_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - c3195f6d307dd319bf1275b8f98dca51
+          - 1a1c1e45309875960a48106f0b73a0b9
+          - f8ca2b7549985685fb5a1275bfcced43
+      - name: GEO_STATE_CD
+        description: State codes for geographic locations.
+        expr: GEO_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - FL
+          - MI
+          - MA
+      - name: GEO_STATE_NAME
+        description: The name of the state within the United States.
+        expr: GEO_STATE_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SOUTH CAROLINA
+          - MONTANA
+          - PENNSYLVANIA
+      - name: LOC_ADDR_LINE_1
+        description: Street addresses including house numbers and street names.
+        expr: LOC_ADDR_LINE_1
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - 12110 NE 64TH PL
+          - 1920 LENLAND AVE
+          - 210 BAXTER ST
+      - name: LOC_ADDR_LINE_2
+        description: Secondary address information such as suite numbers, apartment numbers, or room designations.
+        expr: LOC_ADDR_LINE_2
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - UNIT B
+          - APT 206
+      - name: LOC_ADDR_LINE_3
+        description: The third line of a location's address.
+        expr: LOC_ADDR_LINE_3
+        data_type: VARCHAR(16777216)
+      - name: LOC_ADDR_LINE_4
+        description: The fourth line of a location's address.
+        expr: LOC_ADDR_LINE_4
+        data_type: VARCHAR(16777216)
+    facts:
+      - name: GEO_COUNTRY_KEY
+        description: A unique identifier for countries in the geographic location dimension.
+        expr: GEO_COUNTRY_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+      - name: GEO_LATITUDE
+        description: Geographic latitude coordinate expressed in decimal degrees.
+        expr: GEO_LATITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+      - name: GEO_LONGITUDE
+        description: Geographic longitude coordinate expressed in decimal degrees.
+        expr: GEO_LONGITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+      - name: GEO_STATE_KEY
+        description: Unique identifier for geographic states.
+        expr: GEO_STATE_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '59'
+          - '22'
+          - '30'
+  - name: TD_GEO_POSTAL
+    description: The table contains records of geographic postal code areas with their associated location hierarchies. Each record represents a postal code and includes details about the corresponding state and country jurisdictions as well as precise geographic coordinates.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_GEO_POSTAL
+    dimensions:
+      - name: GEO_COUNTRY_CD
+        description: Geographic country code representing the country associated with a postal location.
+        expr: GEO_COUNTRY_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - US
+      - name: GEO_COUNTRY_KEY
+        description: A unique identifier for geographic countries.
+        expr: GEO_COUNTRY_KEY
+        data_type: NUMBER(38,0)
+        sample_values:
+          - '1'
+      - name: GEO_COUNTRY_NAME
+        description: The name of the country in a geographic location.
+        expr: GEO_COUNTRY_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - UNITED STATES
+      - name: GEO_POSTAL_CD
+        description: Postal codes for geographic locations.
+        expr: GEO_POSTAL_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '25205'
+          - '62545'
+          - '78675'
+      - name: GEO_POSTAL_KEY
+        description: A unique identifier key for geographic postal code records.
+        expr: GEO_POSTAL_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - 794d1a9eee30d774236a5186a2b55bf9
+          - 0eec7bab53a4751845b83ff0ce77c5a1
+          - 728b5b967aeb1d257948dc6e622bbc95
+      - name: GEO_STATE_CD
+        description: State codes for geographic locations.
+        expr: GEO_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - TX
+          - WV
+          - MS
+      - name: GEO_STATE_KEY
+        description: Unique identifier for geographic states within the system.
+        expr: GEO_STATE_KEY
+        data_type: NUMBER(38,0)
+        sample_values:
+          - '75'
+          - '59'
+          - '28'
+      - name: GEO_STATE_NAME
+        description: The name of the geographic state or territory.
+        expr: GEO_STATE_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - GEORGIA
+          - NEW JERSEY
+          - TEXAS
+    facts:
+      - name: GEO_LATITUDE
+        description: Geographic latitude coordinate expressed in decimal degrees.
+        expr: GEO_LATITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+      - name: GEO_LONGITUDE
+        description: Geographic longitude coordinate expressed in decimal degrees.
+        expr: GEO_LONGITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+  - name: TD_GEO_STATE
+    description: The table contains records of geographic states and their associated countries. Each record includes location identifiers, geographic coordinates, and hierarchical relationships between states and countries.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_GEO_STATE
+    dimensions:
+      - name: GEO_COUNTRY_CD
+        description: Geographic country code.
+        expr: GEO_COUNTRY_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - US
+      - name: GEO_COUNTRY_NAME
+        description: The name of the country in a geographic location.
+        expr: GEO_COUNTRY_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - UNITED STATES
+      - name: GEO_STATE_CD
+        description: Geographic state codes used to identify states or territories.
+        expr: GEO_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - NC
+          - XX
+          - DE
+      - name: GEO_STATE_NAME
+        description: Names of US states and territories.
+        expr: GEO_STATE_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SOUTH CAROLINA
+          - DELAWARE
+          - NEBRASKA
+    facts:
+      - name: GEO_COUNTRY_KEY
+        description: Geographic country key used as a unique identifier for countries.
+        expr: GEO_COUNTRY_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+      - name: GEO_LATITUDE
+        description: Geographic latitude coordinates for state locations.
+        expr: GEO_LATITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+        sample_values:
+          - '39.00040000'
+          - '34.00040000'
+      - name: GEO_LONGITUDE
+        description: Geographic longitude coordinates for state locations.
+        expr: GEO_LONGITUDE
+        data_type: NUMBER(11,8)
+        access_modifier: public_access
+        sample_values:
+          - '-86.25030000'
+          - '-71.49980000'
+          - '-123.04600000'
+      - name: GEO_STATE_KEY
+        description: Unique identifier for geographic state records.
+        expr: GEO_STATE_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '21'
+          - '261'
+          - '22'
+  - name: TD_HCO
+    description: The table contains records of healthcare organizations with their identifying information and regulatory details. Each record includes organizational names, business identifiers, operational status, and licensing information including DEA registrations and HIN numbers across multiple categories.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_HCO
+    dimensions:
+      - name: HCO_BUSINESS_NAME
+        description: Healthcare organization business name.
+        expr: HCO_BUSINESS_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - CSC COMMUNITY PHARMACY
+          - ENDOSCOPY AND SURGICAL CARE SUITE
+      - name: HCO_CD
+        description: Healthcare organization codes used to identify specific healthcare entities.
+        expr: HCO_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '1438'
+          - '22740441'
+          - '30819949'
+      - name: HCO_KEY
+        description: A unique identifier key for healthcare organizations.
+        expr: HCO_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - f40f52d91c6e993b6c7c5af4716c359b
+          - 27e97cbb80be61e0fb616254104d33b3
+          - a9322f73290eae0c74ca2d7b98379369
+      - name: HCO_LEGAL_NAME
+        description: The legal name of the healthcare organization.
+        expr: HCO_LEGAL_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - BINUR, NIR, OFFICE
+          - ALTAMED PHARMACY BOYLE HEIGHTS
+          - ONE HEALTH GASTROENTEROLOGY AND HEPATOLOGY
+      - name: HCO_NAME
+        description: Names of healthcare organizations.
+        expr: HCO_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - MYCARE PHARMACY
+          - FERRER, OLGA M, OFFICE
+          - COSHOCTON REGIONAL MEDICAL CENTER INTENSIVE CARE UNIT
+      - name: HCO_P_DEA_LIC_STATUS_CD
+        description: Healthcare organization Drug Enforcement Administration license status code.
+        expr: HCO_P_DEA_LIC_STATUS_CD
+        data_type: VARCHAR(16777216)
+      - name: HCO_P_DEA_NUM
+        description: Drug Enforcement Administration number for healthcare organizations.
+        expr: HCO_P_DEA_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - FV5496244
+          - FG5718347
+      - name: HCO_P_GLN_NUM
+        description: Healthcare organization primary Global Location Number (GLN).
+        expr: HCO_P_GLN_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_P_HIN_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_P_HIN_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - L89YW0W00
+          - 38G06QNF1
+          - 8N302YY00
+      - name: HCO_P_NCPDP_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_P_NCPDP_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_P_NPI_NUM
+        description: Healthcare organization primary National Provider Identifier number.
+        expr: HCO_P_NPI_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_S_DEA_LIC_STATUS_CD
+        description: Healthcare organization Drug Enforcement Administration license status code.
+        expr: HCO_S_DEA_LIC_STATUS_CD
+        data_type: VARCHAR(16777216)
+      - name: HCO_S_DEA_NUM
+        description: Drug Enforcement Administration number for healthcare organizations.
+        expr: HCO_S_DEA_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - FM3749629
+          - FP5150862
+      - name: HCO_S_GLN_NUM
+        description: Healthcare organization Global Location Number (GLN) used for unique identification in supply chain and healthcare transactions.
+        expr: HCO_S_GLN_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_S_HIN_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_S_HIN_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_S_NCPDP_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_S_NCPDP_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_S_NPI_NUM
+        description: National Provider Identifier number for healthcare organizations.
+        expr: HCO_S_NPI_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_SDESC
+        description: Names of healthcare organizations.
+        expr: HCO_SDESC
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - CASPER COLLEGE STUDENT HEALTH SERVICES
+          - ROYAL SUPPLIES
+          - AVERA SURGICAL ASSOCIATES ENDOSCOPY
+      - name: HCO_SRC_ID_IMS
+        description: Healthcare organization source identifier from IMS data system.
+        expr: HCO_SRC_ID_IMS
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSH00158767
+          - '2705090'
+          - '22740441'
+      - name: HCO_SRC_ID_P_SCRUB
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_SRC_ID_P_SCRUB
+        data_type: VARCHAR(16777216)
+      - name: HCO_SRC_ID_P_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_SRC_ID_P_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCO_SRC_ID_S_SCRUB
+        description: Healthcare organization source identifier after data scrubbing processes.
+        expr: HCO_SRC_ID_S_SCRUB
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSF00046723
+          - WUSE01155990
+          - WUSF00100048
+      - name: HCO_SRC_ID_S_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_SRC_ID_S_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCO_SRC_ID_T_SCRUB
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_SRC_ID_T_SCRUB
+        data_type: VARCHAR(16777216)
+      - name: HCO_SRC_ID_T_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_SRC_ID_T_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCO_SRC_ID_WKH
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_SRC_ID_WKH
+        data_type: VARCHAR(16777216)
+      - name: HCO_T_DEA_LIC_STATUS_CD
+        description: Healthcare organization Drug Enforcement Administration license status code.
+        expr: HCO_T_DEA_LIC_STATUS_CD
+        data_type: VARCHAR(16777216)
+      - name: HCO_T_DEA_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_T_DEA_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - HV00789
+          - RM0314790
+      - name: HCO_T_GLN_NUM
+        description: Healthcare organization trading partner Global Location Number (GLN).
+        expr: HCO_T_GLN_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_T_HIN_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_T_HIN_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_T_NCPDP_NUM
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCO_T_NCPDP_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCO_T_NPI_NUM
+        description: Healthcare organization National Provider Identifier number.
+        expr: HCO_T_NPI_NUM
+        data_type: VARCHAR(16777216)
+    time_dimensions:
+      - name: HCO_P_DEA_EXP_DT
+        description: The expiration date of the healthcare organization's Drug Enforcement Administration registration.
+        expr: HCO_P_DEA_EXP_DT
+        data_type: DATE
+      - name: HCO_S_DEA_EXP_DT
+        description: The expiration date of the healthcare organization's Drug Enforcement Administration registration.
+        expr: HCO_S_DEA_EXP_DT
+        data_type: DATE
+      - name: HCO_T_DEA_EXP_DT
+        description: The expiration date of the healthcare organization's Drug Enforcement Administration registration.
+        expr: HCO_T_DEA_EXP_DT
+        data_type: DATE
+    facts:
+      - name: HCO_STATUS_KEY
+        description: Healthcare organization status identifier key.
+        expr: HCO_STATUS_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+      - name: HCO_SUBTYPE_KEY
+        description: The unique identifier for the healthcare organization subtype.
+        expr: HCO_SUBTYPE_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '35'
+          - '30'
+          - '39'
+  - name: TD_HCO_SUBTYPE
+    description: The table contains records of healthcare organization subtypes and their corresponding parent types. Each record represents a specific subtype classification with descriptive information and links to broader organizational type categories.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_HCO_SUBTYPE
+    dimensions:
+      - name: HCO_SUBTYPE_CD
+        description: Healthcare organization subtype codes that classify different types of medical entities and payer organizations.
+        expr: HCO_SUBTYPE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - VA CMOP
+          - PAYER_REG
+          - PBM
+      - name: HCO_SUBTYPE_DESC
+        description: Healthcare organization subtype descriptions that categorize different types of medical entities and payers.
+        expr: HCO_SUBTYPE_DESC
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - MCO PBM
+          - IDN
+          - MCO NATIONAL PAYER
+      - name: HCO_SUBTYPE_KEY
+        description: Unique identifier for healthcare organization subtypes.
+        expr: HCO_SUBTYPE_KEY
+        data_type: NUMBER(38,0)
+        sample_values:
+          - '1'
+          - '2'
+          - '3'
+      - name: HCO_TYPE_CD
+        description: Healthcare organization type code indicating the classification of the healthcare organization.
+        expr: HCO_TYPE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ORG
+          - MCO
+      - name: HCO_TYPE_DESC
+        description: Healthcare organization type description indicating the category or classification of the healthcare entity.
+        expr: HCO_TYPE_DESC
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ORGANIZATION
+          - MANAGED CARE ORGANIZATION
+      - name: HCO_TYPE_KEY
+        description: A unique identifier for healthcare organization types.
+        expr: HCO_TYPE_KEY
+        data_type: NUMBER(38,0)
+        sample_values:
+          - '1'
+          - '2'
+    primary_key:
+      columns:
+        - HCO_SUBTYPE_KEY
+  - name: TD_HCP
+    description: The table contains records of healthcare professionals and their personal and professional information. Each record represents an individual healthcare provider and includes demographic details, contact information, educational background, and various status indicators related to communication preferences and professional classifications.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_HCP
+    dimensions:
+      - name: AMA_NO_CONTACT
+        description: American Medical Association no contact indicator.
+        expr: AMA_NO_CONTACT
+        data_type: VARCHAR(1)
+        sample_values:
+          - 'N'
+          - 'Y'
+      - name: EMAIL_ADDR_P
+        description: Email addresses for healthcare professionals.
+        expr: EMAIL_ADDR_P
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ATELIS1150730@WM.PROVIDENCEDIRECT.ORG
+          - KATYDM7@HOTMAIL.COM
+          - GRANTJSULLIVAN@ATT.NET
+      - name: EMAIL_ADDR_S
+        description: Email addresses of healthcare providers.
+        expr: EMAIL_ADDR_S
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - T.THOMAS@ARCHILDRENS.ORG
+          - EHUANG@POST.HARVARD.EDU
+          - CGOODWIN@UMC.EDU
+      - name: EMAIL_ADDR_T
+        description: Email addresses for healthcare providers.
+        expr: EMAIL_ADDR_T
+        data_type: VARCHAR(16777216)
+      - name: HCP_DEGREE
+        description: The degree or credential held by the healthcare professional.
+        expr: HCP_DEGREE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - PHT
+          - RPH
+          - NP
+      - name: HCP_FIRST_NAME
+        description: The first name of the healthcare provider.
+        expr: HCP_FIRST_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SHANE
+          - ROYAL
+          - CASIANNE
+      - name: HCP_GENDER
+        description: The gender of the healthcare provider.
+        expr: HCP_GENDER
+        data_type: VARCHAR(255)
+        sample_values:
+          - FEMALE
+          - UNKNOWN
+      - name: HCP_GRAD_YR
+        description: The year when the healthcare provider graduated from their medical program.
+        expr: HCP_GRAD_YR
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '1967'
+          - '2019'
+          - '1965'
+      - name: HCP_KEY
+        description: A unique identifier for healthcare providers in the system.
+        expr: HCP_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - 10f535a03919512d15df722bdf50f8fe
+          - 59c026c2a4da8798332fd8140066c866
+          - cce70a032d441fc7cf17357da57ffa3e
+      - name: HCP_LAST_NAME
+        description: Healthcare provider last names.
+        expr: HCP_LAST_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - FULP
+          - GERBER
+          - DIGGINS
+      - name: HCP_ME_NUM
+        description: Healthcare provider medical education number used for identification purposes.
+        expr: HCP_ME_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '4950901017'
+          - '0230178074'
+      - name: HCP_MID_NAME
+        description: Middle names of healthcare providers.
+        expr: HCP_MID_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ANN
+          - DARLENE
+          - TUCKER
+      - name: HCP_P_DEA_BUSINESS_ACTIVITY_CD
+        description: Healthcare provider Drug Enforcement Administration business activity code.
+        expr: HCP_P_DEA_BUSINESS_ACTIVITY_CD
+        data_type: VARCHAR(16777216)
+      - name: HCP_P_DEA_DRUG_SCHEDULE
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_P_DEA_DRUG_SCHEDULE
+        data_type: VARCHAR(16777216)
+      - name: HCP_P_DEA_LIC_STATUS_CD
+        description: The status code indicating whether a healthcare provider's Drug Enforcement Administration license is active or inactive.
+        expr: HCP_P_DEA_LIC_STATUS_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ACTIVE
+      - name: HCP_P_DEA_NUM
+        description: Drug Enforcement Administration number assigned to healthcare providers for prescribing controlled substances.
+        expr: HCP_P_DEA_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - AB7255272
+          - BB3188833
+      - name: HCP_P_DEA_STATE_OF_LICENSURE
+        description: The state where the healthcare provider's Drug Enforcement Administration license is issued.
+        expr: HCP_P_DEA_STATE_OF_LICENSURE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - TX
+          - MA
+          - LA
+      - name: HCP_P_HIN
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_P_HIN
+        data_type: VARCHAR(16777216)
+      - name: HCP_P_MA_ID
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_P_MA_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '216513'
+          - '166691'
+          - '169135'
+      - name: HCP_P_NPI_NUM
+        description: National Provider Identifier (NPI) numbers for healthcare providers.
+        expr: HCP_P_NPI_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '1134821382'
+          - '1235525957'
+          - '1558956375'
+      - name: HCP_P_STATE_LIC_NUM
+        description: Healthcare provider state license numbers.
+        expr: HCP_P_STATE_LIC_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - PA2022-0048
+          - '107955'
+          - '238052'
+      - name: HCP_P_STATE_LIC_STATE_CD
+        description: State code where the healthcare provider holds their professional license.
+        expr: HCP_P_STATE_LIC_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - AR
+          - NV
+          - TX
+      - name: HCP_P_STATE_LIC_STATUS
+        description: The status of a healthcare provider's professional state license.
+        expr: HCP_P_STATE_LIC_STATUS
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - INACTIVE
+          - ACTIVE
+      - name: HCP_PDRP_OPTOUT_IND
+        description: Healthcare provider Patient Data Request Program opt-out indicator.
+        expr: HCP_PDRP_OPTOUT_IND
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - 'Y'
+          - 'N'
+      - name: HCP_PHONE_HOME_P
+        description: Healthcare provider's home phone number.
+        expr: HCP_PHONE_HOME_P
+        data_type: VARCHAR(16777216)
+      - name: HCP_PHONE_MOBILE_P
+        description: Mobile phone number for the healthcare provider.
+        expr: HCP_PHONE_MOBILE_P
+        data_type: VARCHAR(16777216)
+      - name: HCP_PHONE_WORK_P
+        description: Work phone numbers for healthcare providers.
+        expr: HCP_PHONE_WORK_P
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '3604862900'
+          - '2183486888'
+          - '9155323937'
+      - name: HCP_S_DEA_BUSINESS_ACTIVITY_CD
+        description: Drug Enforcement Administration business activity code for healthcare providers.
+        expr: HCP_S_DEA_BUSINESS_ACTIVITY_CD
+        data_type: VARCHAR(16777216)
+      - name: HCP_S_DEA_DRUG_SCHEDULE
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_S_DEA_DRUG_SCHEDULE
+        data_type: VARCHAR(16777216)
+      - name: HCP_S_DEA_LIC_STATUS_CD
+        description: Healthcare provider Drug Enforcement Administration license status code.
+        expr: HCP_S_DEA_LIC_STATUS_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ACTIVE
+      - name: HCP_S_DEA_NUM
+        description: Drug Enforcement Administration number assigned to healthcare providers for prescribing controlled substances.
+        expr: HCP_S_DEA_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - FG6124919
+          - FF8289161
+      - name: HCP_S_DEA_STATE_OF_LICENSURE
+        description: The state where the healthcare provider's Drug Enforcement Administration license was issued.
+        expr: HCP_S_DEA_STATE_OF_LICENSURE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - VA
+          - NE
+      - name: HCP_S_HIN
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_S_HIN
+        data_type: VARCHAR(16777216)
+      - name: HCP_S_MA_ID
+        description: Healthcare provider master agreement identifier.
+        expr: HCP_S_MA_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '381767'
+          - '808700'
+          - '469231'
+      - name: HCP_S_NPI_NUM
+        description: National Provider Identifier number for healthcare providers.
+        expr: HCP_S_NPI_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '1003443490'
+          - '1396321816'
+          - '1295437895'
+      - name: HCP_S_STATE_LIC_NUM
+        description: State license numbers for healthcare providers.
+        expr: HCP_S_STATE_LIC_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - RN528086L
+          - 053978-23
+          - '22566'
+      - name: HCP_S_STATE_LIC_STATE_CD
+        description: State code where the healthcare provider holds their professional license.
+        expr: HCP_S_STATE_LIC_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - CT
+          - WI
+      - name: HCP_S_STATE_LIC_STATUS
+        description: The status of a healthcare provider's state license.
+        expr: HCP_S_STATE_LIC_STATUS
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - PROBATION
+          - ACTIVE
+      - name: HCP_SRC_ID_10_IMS2
+        description: Healthcare provider source identifier from IMS database system.
+        expr: HCP_SRC_ID_10_IMS2
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '7692967'
+          - '24968143'
+          - '8098879'
+      - name: HCP_SRC_ID_3_SCRUB
+        description: Healthcare provider source identifier from the third data source after data scrubbing processes.
+        expr: HCP_SRC_ID_3_SCRUB
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSM01621661
+          - WUSR06017841
+          - WUSP00548392
+      - name: HCP_SRC_ID_4_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_4_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_5_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_5_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_CF_SPDI
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_CF_SPDI
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_IMS
+        description: Healthcare provider source identifier from IMS data system.
+        expr: HCP_SRC_ID_IMS
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '7182700'
+          - '1292510'
+          - '2851684'
+      - name: HCP_SRC_ID_OH_TDDD
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_OH_TDDD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '020363900'
+          - '021366000'
+      - name: HCP_SRC_ID_P_CLIENT
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_P_CLIENT
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_P_COPROMO
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_P_COPROMO
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_P_SCRUB
+        description: Healthcare provider source identifier after data scrubbing processes.
+        expr: HCP_SRC_ID_P_SCRUB
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '13322122'
+          - '15733078'
+      - name: HCP_SRC_ID_P_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_P_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_P_SP
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_P_SP
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_S_CLIENT
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_S_CLIENT
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_S_COPROMO
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_S_COPROMO
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_S_SCRUB
+        description: Healthcare provider source identifier after data scrubbing processes.
+        expr: HCP_SRC_ID_S_SCRUB
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSM05200310
+          - WUSM04669326
+          - WUSM00017540
+      - name: HCP_SRC_ID_S_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_S_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_S_SP
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_S_SP
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_SHA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_SHA
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_T_COPROMO
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_T_COPROMO
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_T_SFA
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_T_SFA
+        data_type: VARCHAR(16777216)
+      - name: HCP_SRC_ID_T_SP
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_SRC_ID_T_SP
+        data_type: VARCHAR(16777216)
+      - name: HCP_SUFFIX
+        description: Healthcare provider name suffix such as senior or junior designations.
+        expr: HCP_SUFFIX
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - JR
+          - II
+          - SR
+      - name: HCP_T_DEA_BUSINESS_ACTIVITY_CD
+        description: Drug Enforcement Administration business activity code for healthcare providers.
+        expr: HCP_T_DEA_BUSINESS_ACTIVITY_CD
+        data_type: VARCHAR(16777216)
+      - name: HCP_T_DEA_DRUG_SCHEDULE
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_T_DEA_DRUG_SCHEDULE
+        data_type: VARCHAR(16777216)
+      - name: HCP_T_DEA_LIC_STATUS_CD
+        description: Healthcare provider Drug Enforcement Administration license status code.
+        expr: HCP_T_DEA_LIC_STATUS_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ACTIVE
+      - name: HCP_T_DEA_NUM
+        description: Drug Enforcement Administration number for healthcare providers.
+        expr: HCP_T_DEA_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - FK9444655
+          - FB3199975
+      - name: HCP_T_DEA_STATE_OF_LICENSURE
+        description: The state where the healthcare provider's Drug Enforcement Administration license was issued.
+        expr: HCP_T_DEA_STATE_OF_LICENSURE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SD
+          - TN
+      - name: HCP_T_HIN
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_T_HIN
+        data_type: VARCHAR(16777216)
+      - name: HCP_T_MA_ID
+        description: A column holding data of type VARCHAR(16777216).
+        expr: HCP_T_MA_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '634359'
+          - '526408'
+      - name: HCP_T_NPI_NUM
+        description: National Provider Identifier number for healthcare providers.
+        expr: HCP_T_NPI_NUM
+        data_type: VARCHAR(16777216)
+      - name: HCP_T_STATE_LIC_NUM
+        description: Healthcare provider state license numbers.
+        expr: HCP_T_STATE_LIC_NUM
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '0810007329'
+          - '23410'
+      - name: HCP_T_STATE_LIC_STATE_CD
+        description: The state code where the healthcare provider holds their license.
+        expr: HCP_T_STATE_LIC_STATE_CD
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - MD
+          - FL
+      - name: HCP_T_STATE_LIC_STATUS
+        description: The status of a healthcare provider's state license.
+        expr: HCP_T_STATE_LIC_STATUS
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - INACTIVE
+          - ACTIVE
+      - name: HCP_TITLE
+        description: Healthcare provider professional title or designation.
+        expr: HCP_TITLE
+        data_type: VARCHAR(16777216)
+      - name: KOL_IND
+        description: Key opinion leader indicator flag.
+        expr: KOL_IND
+        data_type: VARCHAR(16777216)
+      - name: NO_SEE_IND
+        description: A column holding data of type VARCHAR(16777216).
+        expr: NO_SEE_IND
+        data_type: VARCHAR(16777216)
+      - name: SAMPLEABILITY_IND
+        description: An indicator of whether the healthcare provider can be sampled.
+        expr: SAMPLEABILITY_IND
+        data_type: VARCHAR(16777216)
+    time_dimensions:
+      - name: HCP_BIRTH_DT
+        description: Healthcare provider birth dates.
+        expr: HCP_BIRTH_DT
+        data_type: DATE
+        sample_values:
+          - '1968-01-01'
+          - '1971-01-01'
+          - '1978-01-01'
+      - name: HCP_P_DEA_EXP_DT
+        description: The expiration date of the healthcare provider's Drug Enforcement Administration registration.
+        expr: HCP_P_DEA_EXP_DT
+        data_type: DATE
+        sample_values:
+          - '2028-01-31'
+          - '2028-05-31'
+          - '2027-02-28'
+      - name: HCP_P_STATE_LIC_EXP_DT
+        description: The expiration date of the healthcare provider's state license.
+        expr: HCP_P_STATE_LIC_EXP_DT
+        data_type: DATE
+        sample_values:
+          - '2027-08-31'
+          - '2028-08-31'
+          - '2025-11-30'
+      - name: HCP_P_STATE_LIC_ISSUE_DT
+        description: The date when the healthcare provider's state license was issued.
+        expr: HCP_P_STATE_LIC_ISSUE_DT
+        data_type: DATE
+        sample_values:
+          - '2022-07-01'
+          - '2020-02-13'
+          - '2024-06-23'
+      - name: HCP_PDRP_OPTOUT_DT
+        description: The date when a healthcare provider opted out of the Prescription Drug Reporting Program.
+        expr: HCP_PDRP_OPTOUT_DT
+        data_type: DATE
+        sample_values:
+          - '2008-12-04'
+          - '2008-11-27'
+      - name: HCP_S_DEA_EXP_DT
+        description: The expiration date of the healthcare provider's Drug Enforcement Administration registration.
+        expr: HCP_S_DEA_EXP_DT
+        data_type: DATE
+        sample_values:
+          - '2026-07-31'
+          - '2026-12-31'
+          - '2026-03-31'
+      - name: HCP_S_STATE_LIC_EXP_DT
+        description: The expiration date of the healthcare provider's state license.
+        expr: HCP_S_STATE_LIC_EXP_DT
+        data_type: DATE
+        sample_values:
+          - '2026-04-05'
+          - '2026-02-04'
+          - '2027-03-01'
+      - name: HCP_S_STATE_LIC_ISSUE_DT
+        description: The date when the healthcare provider's state license was issued.
+        expr: HCP_S_STATE_LIC_ISSUE_DT
+        data_type: DATE
+        sample_values:
+          - '2019-04-23'
+          - '2021-05-14'
+      - name: HCP_T_DEA_EXP_DT
+        description: The expiration date of the healthcare provider's Drug Enforcement Administration registration.
+        expr: HCP_T_DEA_EXP_DT
+        data_type: DATE
+        sample_values:
+          - '2028-04-30'
+          - '2026-08-31'
+          - '2027-10-31'
+      - name: HCP_T_STATE_LIC_EXP_DT
+        description: The expiration date of the healthcare provider's state license.
+        expr: HCP_T_STATE_LIC_EXP_DT
+        data_type: DATE
+        sample_values:
+          - '2026-10-31'
+          - '2025-12-31'
+          - '2026-09-30'
+      - name: HCP_T_STATE_LIC_ISSUE_DT
+        description: The date when the healthcare provider's state license was issued.
+        expr: HCP_T_STATE_LIC_ISSUE_DT
+        data_type: DATE
+        sample_values:
+          - '2002-05-08'
+          - '2022-02-18'
+      - name: SAMPLEABILITY_DT
+        description: The date when sampleability status was determined or last updated.
+        expr: SAMPLEABILITY_DT
+        data_type: DATE
+    facts:
+      - name: HCP_STATUS_KEY
+        description: Healthcare provider status identifier used as a foreign key reference.
+        expr: HCP_STATUS_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+      - name: HCP_SUBTYPE_KEY
+        description: Healthcare provider subtype identifier key.
+        expr: HCP_SUBTYPE_KEY
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        sample_values:
+          - '9'
+          - '10'
+          - '13'
+    primary_key:
+      columns:
+        - HCP_KEY
+  - name: TD_PROD_BRAND
+    description: The table contains records of product brand and categorization information used for sales performance reporting. Each record represents a product hierarchy structure that includes market segments, category groupings, individual categories, family groupings, and product families with their corresponding identifiers and descriptions.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TD_PROD_BRAND
+    dimensions:
+      - name: PROD_BRAND_CD
+        description: Product brand codes for pharmaceutical and medical products.
+        expr: PROD_BRAND_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - ANOLOR 300
+          - CHILDRENS Q-PAP
+          - TENCON
+      - name: PROD_BRAND_DESC
+        description: Brand names of pharmaceutical pain management products along with their associated market categories.
+        expr: PROD_BRAND_DESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - BUFFERED ASPIRIN EXTRA S BRAND (VERTEX ACUTE MARKET)
+          - LIDOPRIL XR BRAND (ACUTE HEOR MARKET)
+          - RA ORASOL BRAND (VERTEX ACUTE MARKET)
+      - name: PROD_BRAND_KEY
+        description: A unique identifier key for product brands.
+        expr: PROD_BRAND_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - a96f921f9adcf6357022ae1d77e0036e
+          - 77238a2664c2da30f3763020cc9f64a1
+          - a3013ea55958b130a8be56287a23ac84
+      - name: PROD_BRAND_SDESC
+        description: Product brand short description or name.
+        expr: PROD_BRAND_SDESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - RECTASMOOTHE
+          - LIDOVIX L
+          - NUVAKAAN-II
+      - name: PROD_BRAND_UCD
+        description: Brand names of pharmaceutical and over-the-counter medical products.
+        expr: PROD_BRAND_UCD
+        data_type: VARCHAR(256)
+        sample_values:
+          - CAPSAICIN TOPICAL PAIN P
+          - PAIN-EZE PLUS
+          - PRILO PATCH II
+      - name: PROD_CAT_CD
+        description: Pharmaceutical product category codes indicating the therapeutic classification of medical products.
+        expr: PROD_CAT_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
+          - LIDOCAINE - ANESTHETIC
+          - AMIDES
+      - name: PROD_CAT_DESC
+        description: Product category descriptions for pharmaceutical pain management treatments.
+        expr: PROD_CAT_DESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - ANALGESICS-SEDATIVE COMBINATION CATEGORY (ANY PAIN MARKET)
+          - LIDOCAINE - ANESTHETIC CATEGORY (VERTEX ACUTE MARKET)
+          - DENTAL LOCAL ANESTHETIC CATEGORY (ANY PAIN MARKET)
+      - name: PROD_CAT_KEY
+        description: A unique identifier key for product categories.
+        expr: PROD_CAT_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - 12bc423a463b94db26c110a7b5f35c2b
+          - 51d89477c08fab581269b5cd07cc9249
+          - 6cdf4a9156745f9ceab6a9d55493f62f
+      - name: PROD_CAT_SDESC
+        description: Product category short descriptions for pharmaceutical and medical products.
+        expr: PROD_CAT_SDESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - RHEUMATOID ARTHRITIS
+          - DERMATOLOGICAL TOPICAL ANESTHETIC
+          - SSRI
+      - name: PROD_CATGRP_CD
+        description: Product category group codes representing different pharmaceutical and medical product classifications.
+        expr: PROD_CATGRP_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - OSTEOARTHRITIS
+          - ANESTHETIC
+          - DENTALS
+      - name: PROD_CATGRP_DESC
+        description: Product category group descriptions for pharmaceutical products in acute care markets.
+        expr: PROD_CATGRP_DESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - OTHER CATEGORY GROUP (ANY PAIN MARKET)
+          - DERMATOLOGICAL CATEGORY GROUP (VERTEX ACUTE MARKET)
+          - NON-NARCOTIC ANALGESIC CATEGORY GROUP (VERTEX ACUTE MARKET)
+      - name: PROD_CATGRP_KEY
+        description: A unique identifier key for product category groups.
+        expr: PROD_CATGRP_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - ae4d74c1255ef3b525bf3ee4914ed273
+          - a9946aba572bb08c111e94c3c36c84f7
+          - d8cad3b14468ba5121e210028e133b00
+      - name: PROD_CATGRP_SDESC
+        description: Product category group short description indicating the therapeutic classification or type of pharmaceutical product.
+        expr: PROD_CATGRP_SDESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - ANESTHETIC
+          - DENTALS
+          - NON-NARCOTIC ANALGESIC
+      - name: PROD_FAM_CD
+        description: Product family codes used to categorize and group related products.
+        expr: PROD_FAM_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - HYCOGESIC
+          - PAMPRIN
+          - ENDOLOR
+      - name: PROD_FAM_DESC
+        description: Product family descriptions for pain relief medications and treatments.
+        expr: PROD_FAM_DESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - EFFEXOR XR FAMILY (ACUTE HEOR MARKET)
+          - ENDOLOR FAMILY (ANY PAIN MARKET)
+          - DYNAMIC FAMILY (ANY PAIN MARKET)
+      - name: PROD_FAM_KEY
+        description: A unique identifier key for product families.
+        expr: PROD_FAM_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - 10738f1513e6f471c10da189c7b6db7c
+          - 5e208a4effc1cd0786bed71851c6964f
+          - 1ab075c96c0468e9796a665631ad472e
+      - name: PROD_FAM_SDESC
+        description: Pharmaceutical product family short descriptions or names.
+        expr: PROD_FAM_SDESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - CHLORASEPTIC SR THRT
+          - CHILDRENS Q-PAP
+          - SYNOFLEX
+      - name: PROD_FAMGRP_CD
+        description: Active pharmaceutical ingredients or drug compounds used in pain management products.
+        expr: PROD_FAMGRP_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - CAPSAICIN-MENTHOL - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
+          - HYDROCODONE
+          - BENZOCAINE-ZINC CHLORIDE
+      - name: PROD_FAMGRP_DESC
+        description: Pharmaceutical product family group descriptions indicating drug types and their associated pain market categories.
+        expr: PROD_FAMGRP_DESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - CAPSAICIN FAMILY GROUP (ANY PAIN MARKET)
+          - BENZOCAINE-ZINC CHLORIDE FAMILY GROUP (ANY PAIN MARKET)
+          - OXYCODONE COMBINATIONS FAMILY GROUP (ACUTE HEOR MARKET)
+      - name: PROD_FAMGRP_KEY
+        description: A unique identifier key for product family groups represented as a hash value.
+        expr: PROD_FAMGRP_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - e86d9067df720cbe38d87f1d1e6ba4bb
+          - 2d8609830dfd91355e0f57b69a124265
+          - 2c25349bf27be50f2527bb0084f0f4d2
+      - name: PROD_FAMGRP_SDESC
+        description: Pharmaceutical product family group short descriptions indicating the active ingredient or drug category.
+        expr: PROD_FAMGRP_SDESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - DESIPRAMINE
+          - BENZOCAINE - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
+          - LIDOCAINE - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
+      - name: PROD_MKT_CD
+        description: Product marketing code identifying the specific marketing category or segment for the product brand.
+        expr: PROD_MKT_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - ACUTE HEOR
+          - ANY PAIN
+          - VERTEX ACUTE
+      - name: PROD_MKT_DESC
+        description: Product market description indicating the specific market segment or category for the product.
+        expr: PROD_MKT_DESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - VERTEX ACUTE MARKET
+          - ACUTE HEOR MARKET
+          - ANY PAIN MARKET
+      - name: PROD_MKT_KEY
+        description: A unique marketing key identifier for products.
+        expr: PROD_MKT_KEY
+        data_type: VARCHAR(32)
+        sample_values:
+          - da0dacac9831661226335a3eb0b04274
+          - 89cf3596760b4a79df67736f2272a1b7
+          - c8c606d1c69b2144eea5bbe3157289b6
+      - name: PROD_MKT_SDESC
+        description: Product marketing short description for pharmaceutical pain management brands.
+        expr: PROD_MKT_SDESC
+        data_type: VARCHAR(256)
+        sample_values:
+          - ACUTE HEOR
+          - ANY PAIN
+          - VERTEX ACUTE
+    primary_key:
+      columns:
+        - PROD_BRAND_KEY
+  - name: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    description: The table contains records of healthcare provider prescription activity in acute care settings, tracked on a weekly basis. Each record represents prescription exposure data for a specific healthcare provider and includes provider identifiers, specialty information, territorial assignments, and prescription metrics for acute care treatments.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: REPORTING
+      table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    dimensions:
+      - name: BRANDED_FLAG
+        description: A flag indicating whether the product is branded or not.
+        expr: BRANDED_FLAG
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - 'N'
+          - 'Y'
+      - name: GOLDEN_ID
+        description: A unique identifier used to link and track healthcare providers across different systems and databases.
+        expr: GOLDEN_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - GLD000600060001002101
+          - GLD999900180020002401
+          - GLD021402140287037101
+      - name: HCP_ID
+        description: Unique identifier for healthcare providers.
+        expr: HCP_ID
+        data_type: VARCHAR(32)
+        sample_values:
+          - b53fb88ce1b284c55206728afb2a9da6
+          - e32c570ee80606057196f62cf5b6e502
+          - 132c4377c0b6eee2172aefb7d046b30e
+      - name: HCP_SPECIALTY
+        description: Medical specialty or practice area of the healthcare provider.
+        expr: HCP_SPECIALTY
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ADULT RECONSTRUCTIVE ORTHOPEDICS
+          - EMERGENCY MEDICINE
+          - DENTIST
+      - name: HCP_SPECIALTY_GROUP
+        description: Healthcare provider specialty groups categorizing medical professionals by their area of practice.
+        expr: HCP_SPECIALTY_GROUP
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - MEDICINE
+          - PHYSICIAN EXTENDERS
+          - ORTHOPEDICS AND SPORTS MEDICINE
+      - name: NPI
+        description: National Provider Identifier numbers for healthcare providers.
+        expr: NPI
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '1194281006'
+          - '1659465573'
+          - '1396203352'
+      - name: ONEKEY_HCP_ID
+        description: Unique identifier for healthcare providers in the OneKey system.
+        expr: ONEKEY_HCP_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSD00201756
+          - WUSM00530772
+          - WUSM00311233
+      - name: PRODUCT_CATEGORY
+        description: Categories of pharmaceutical products used for pain management and treatment.
+        expr: PRODUCT_CATEGORY
+        data_type: VARCHAR(256)
+        sample_values:
+          - NSAID
+          - STRONG OPIOID AGONIST
+          - ANTICONVULSANTS MISC.
+      - name: PRODUCT_FAMILY_GROUP
+        description: Pharmaceutical product family groups categorizing related medications and therapeutic compounds.
+        expr: PRODUCT_FAMILY_GROUP
+        data_type: VARCHAR(256)
+        sample_values:
+          - LIDOCAINE - DERMATOLOGICAL LOCAL TOPICAL ANESTHETIC
+          - MELOXICAM
+          - HYDROCODONE COMBINATIONS
+      - name: PTAM_TERRITORY_ID
+        description: Unique identifier for a PTAM (Pain Territory Account Manager) territory.
+        expr: PTAM_TERRITORY_ID
+        data_type: VARCHAR(255)
+        sample_values:
+          - V1NAUSA-5733101
+          - V1NAUSA-5733602
+          - V1NAUSA-5733604
+      - name: ROA
+        description: Route of administration for pharmaceutical products.
+        expr: ROA
+        data_type: VARCHAR(256)
+        sample_values:
+          - ORAL
+          - TOPICAL
+          - TOPICAL-PATCH
+      - name: SAL_TERRITORY_ID
+        description: Sales territory identifier used to designate specific geographic or organizational sales regions.
+        expr: SAL_TERRITORY_ID
+        data_type: VARCHAR(255)
+        sample_values:
+          - V1NAUSA-5720008
+          - V1NAUSA-5720014
+      - name: SITE_OF_CARE_ZIP_CODE
+        description: ZIP codes for healthcare facility locations.
+        expr: SITE_OF_CARE_ZIP_CODE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '73118'
+          - '43228'
+          - '37027'
+      - name: VERTEX_ID
+        description: Unique identifier for a vertex in the healthcare provider network.
+        expr: VERTEX_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '15670811'
+          - '14499271'
+      - name: ZIP_CODE
+        description: Postal ZIP codes for geographic locations.
+        expr: ZIP_CODE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '20850'
+          - '33912'
+          - '90262'
+    time_dimensions:
+      - name: DATE_KEY
+        description: The date associated with each record in the healthcare provider acute market weekly exposure data.
+        expr: DATE_KEY
+        data_type: DATE
+        sample_values:
+          - '2024-05-17'
+          - '2024-12-06'
+          - '2025-02-07'
+    facts:
+      - name: ACUTE_NRX_XPO
+        description: Acute new prescription exposure index for healthcare providers in the market.
+        expr: ACUTE_NRX_XPO
+        data_type: NUMBER(38,10)
+        access_modifier: public_access
+        sample_values:
+          - '2.0320000000'
+          - '0.9650000000'
+          - '1.0420000000'
+      - name: ACUTE_TRX_XPO
+        description: Acute transaction exposure metric for healthcare providers in the market.
+        expr: ACUTE_TRX_XPO
+        data_type: NUMBER(38,10)
+        access_modifier: public_access
+        sample_values:
+          - '1.6080000000'
+          - '1.0300000000'
+          - '0.9630000000'
+      - name: ACUTE_TX_DAYS_XPO
+        description: The number of days of acute treatment exposure.
+        expr: ACUTE_TX_DAYS_XPO
+        data_type: NUMBER(38,10)
+        access_modifier: public_access
+        sample_values:
+          - '4.2033678514'
+          - '3.2592136056'
+          - '24.4437444312'
+      - name: ACUTE_UNITS_XPO
+        description: Acute care units exposure metric.
+        expr: ACUTE_UNITS_XPO
+        data_type: NUMBER(38,10)
+        access_modifier: public_access
+        sample_values:
+          - '61.1900000000'
+          - '160.0900000000'
+          - '30.0000000000'
+      - name: WEEK_DT
+        description: The date representing a specific week in the healthcare provider acute market reporting period.
+        expr: WEEK_DT
+        data_type: NUMBER(10,0)
+        access_modifier: public_access
+        sample_values:
+          - '20251024'
+          - '20241220'
+          - '20250321'
+relationships:
+  - name: LAAD_WEEKLY_TO_HCP
+    left_table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+    right_table: TD_HCP
+    relationship_columns:
+      - left_column: HCP_ID
+        right_column: HCP_KEY
+    relationship_type: many_to_one
+    join_type: left_outer
+  - name: HCO_TO_SUBTYPE
+    left_table: TD_HCO
+    right_table: TD_HCO_SUBTYPE
+    relationship_columns:
+      - left_column: HCO_SUBTYPE_KEY
+        right_column: HCO_SUBTYPE_KEY
+    relationship_type: many_to_one
+    join_type: left_outer
+  - name: XPO_WEEKLY_TO_HCP
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: TD_HCP
+    relationship_columns:
+      - left_column: HCP_ID
+        right_column: HCP_KEY
+    relationship_type: many_to_one
+    join_type: left_outer

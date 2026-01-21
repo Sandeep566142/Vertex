@@ -15188,3 +15188,16 @@ Target Model: DataAgentParsedOutput
 🛑 CHECKPOINT: RAW ACCUMULATED TEXT
 --------------------------------------------------
 ==================================================
+==================================================
+🛑 CHECKPOINT: API REQUEST (STRUCTURED)
+--------------------------------------------------
+Target Model: IntentClassification
+==================================================
+{
+	"message":	"input schema validation error: /properties/root_cause_query additional properties are not allowed, /properties/root_cause_query unevaluated properties are not allowed, /properties/clarification_question additional properties are not allowed, /properties/clarification_question unevaluated properties are not allowed, /properties/data_retrieval_query additional properties are not allowed, /properties/data_retrieval_query unevaluated properties are not allowed, /properties/direct_response additional properties are not allowed, /properties/direct_response unevaluated properties are not allowed",
+	"request_id":	"bd69e7bb-1529-4d5b-a13a-07ea7dcde6c4"
+}
+==================================================
+🛑 CHECKPOINT: RAW ACCUMULATED TEXT
+--------------------------------------------------
+==================================================

@@ -15680,4 +15680,31 @@ PROMPT_ROOT_CAUSE_RESPONSE = """
     
 </response_structure_prompt>
 """
+==================================================
+==================================================
+🛑 CHECKPOINT: START: GUARD
+--------------------------------------------------
+Why has the Orthopedic segment ceased to be the primary growth driver for our Tramadol brand, effectively handing the market over to generalists?
+==================================================
+--- INVOKING AGENT: Rephraser Agent ---
+--- AGENT Rephraser Agent COMPLETED ---
+Rephrased: What factors have caused the Orthopedic segment to decline as the primary growth driver for Tramadol brand, resulting in market share shift to generalist physicians?
+--- INVOKING AGENT: Intent Agent ---
+--- AGENT Intent Agent COMPLETED ---
+Intent: root_cause_analysis
+--- INVOKING AGENT: Root Cause Agent ---
+--- AGENT Root Cause Agent COMPLETED ---
+❌ Extraction/Validation Error: 2 validation errors for RootCauseParsedOutput
+clean_summary_text
+  Field required [type=missing, input_value={'nodes': [{'id': 'K5', '...0', 'strokeWidth': 2}}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.8/v/missing
+evaluation
+  Field required [type=missing, input_value={'nodes': [{'id': 'K5', '...0', 'strokeWidth': 2}}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.8/v/missing
+Databases
+Worksheets
+Data products
+Search objects
+7 more Databases
+Pinned (1)
 

@@ -1576,3 +1576,81 @@ def main(session: Session):
     _save_row(session, row_data)
     print("✅ Process Completed")
     return final_output
+
+
+
+# ==========================================
+# 7. MAIN EXECUTION
+# ==========================================
+
+def main(session: Session):
+    manager = AgentManager(session)
+    user_query = "show me healthcare providers in Arizona"
+    
+    row_data = {
+        "USER_QUERY": user_query, "REPHRASED_QUERY": None, "INTENT_TYPE": None, "INTENT_CONFIDENCE": None,
+        "DATA_SUMMARY": None, "DATA_SQL": None, "DATA_SQL_EXPLANATION": None, "DATA_CLARIFICATION": None,
+        "DATA_RESULT_SET": None, "DATA_EVAL_SCORE": None, "DATA_EVAL_REASONING": None,
+        "RC_SUMMARY": None, "RC_GRAPH_JSON": None, "RC_EVAL_SCORE": None, "RC_EVAL_REASONING": None,
+        "IS_BLOCKED": False, "FULL_RAW_JSON": None
+    }
+    
+    log_checkpoint("MAIN: START", {"query": user_query})
+
+    guard = check_input_guard(session, user_query)
+    if not guard.is_safe:
+        row_data["IS_BLOCKED"] = True
+        _save_row(session, row_data)
+        return {"status": "blocked", "message": guard.message}
+
+    rephrased = manager.run_rephraser(user_query, [])
+    print(rephrased)
+    intent = manager.run_intent_classifier(rephrased.refined_query or user_query)
+    print(intent)
+    row_data["REPHRASED_QUERY"] = rephrased.refined_query
+    row_data["INTENT_TYPE"] = intent.intent_type
+    row_data["INTENT_CONFIDENCE"] = intent.confidence
+
+    final_output = {"original": user_query, "processed": rephrased.refined_query, "intent": intent.model_dump(), "results": []}
+
+    if intent.direct_response:
+        final_output["results"].append({"type": "direct", "message": intent.direct_response})
+    else:
+        # DATA AGENT FLOW
+        if intent.intent_type in ["data_retrieval", "combined"] and intent.data_retrieval_query:
+            query_to_run = intent.data_retrieval_query or rephrased.refined_query
+            res = manager.run_data_agent(query_to_run)
+            
+            # Self-Healing
+            # if res.evaluation.score < 8:
+            #     print(f"⚠️ Low Score ({res.evaluation.score}). Initiating Healing...")
+            #     needed_tables = manager.identify_needed_tables(query_to_run)
+            #     if needed_tables:
+            #         optimized_query = manager.run_semantic_translator(query_to_run, needed_tables)
+            #         print(f"✨ Optimized Query: {optimized_query}")
+            #         res = manager.run_data_agent(optimized_query)
+            #         res.is_retry = True
+            
+            final_output["results"].append({"type": "data_analysis", "summary": res.answer_text, "tables": res.tables})
+            print(final_output)
+            row_data["DATA_SUMMARY"] = res.answer_text
+            row_data["DATA_SQL"] = res.sql_generated
+            row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
+            if res.tables: row_data["DATA_RESULT_SET"] = json.dumps(res.tables)
+            row_data["DATA_EVAL_SCORE"] = res.evaluation.score
+            row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+
+        # ROOT CAUSE FLOW
+        if intent.intent_type in ["root_cause_analysis", "combined"] and intent.root_cause_query:
+            query_to_run = intent.root_cause_query or rephrased.refined_query
+            res_rc = manager.run_root_cause_agent(query_to_run)
+            final_output["results"].append({"type": "root_cause", "summary": res_rc.summary_text, "graph": res_rc.react_flow_json})
+            row_data["RC_SUMMARY"] = res_rc.summary_text
+            if res_rc.react_flow_json: row_data["RC_GRAPH_JSON"] = json.dumps(res_rc.react_flow_json)
+            row_data["RC_EVAL_SCORE"] = res_rc.evaluation.score
+            row_data["RC_EVAL_REASONING"] = res_rc.evaluation.reasoning
+
+    row_data["FULL_RAW_JSON"] = json.dumps(final_output)
+    _save_row(session, row_data)
+    print("✅ Process Completed")
+    return final_output

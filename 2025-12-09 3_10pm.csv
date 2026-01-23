@@ -1654,3 +1654,74 @@ def main(session: Session):
     _save_row(session, row_data)
     print("✅ Process Completed")
     return final_output
+
+
+create or replace TABLE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DECISION_TREE_STORE_NEW (
+	TREE_ID VARCHAR(50) NOT NULL,
+	GRAPH_JSON VARIANT,
+	CREATED_AT TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+	primary key (TREE_ID)
+);
+
+{
+
+    "graph": {
+
+        "nodes": [
+
+            { "id": "K1", "metric": "Total Market Volume (TRX)" },
+
+            { "id": "K2", "metric": "Total New Starts (NRX)" },
+
+            { "id": "K3", "metric": "Opioid Category Volume" },
+
+            { "id": "K4", "metric": "NSAID Category Volume" },
+
+            { "id": "K5", "metric": "Tramadol Brand Volume" },
+
+            { "id": "K6", "metric": "Diclofenac Brand Volume" },
+
+            { "id": "K7", "metric": "Tramadol New Growth (NRX)" },
+
+            { "id": "K8", "metric": "Tramadol Retention (Refills)" },
+
+            { "id": "K9", "metric": "Diclofenac New Growth (NRX)" },
+
+            { "id": "K10", "metric": "Orthopedic Tramadol Starts" },
+
+            { "id": "K11", "metric": "PCP Tramadol Starts" },
+
+            { "id": "K12", "metric": "OPIOD Market Volume" },
+
+            { "id": "K13", "metric": "NSAID Market Volume" },
+
+            { "id": "K14", "metric": "High Volume Writers (>10)" }
+
+        ],
+
+        "edges": [
+
+            { "source": "K3", "target": "K1" }, 
+
+            { "source": "K4", "target": "K1" }, 
+
+            { "source": "K5", "target": "K3" }, 
+
+            { "source": "K6", "target": "K4" }, 
+
+            { "source": "K7", "target": "K5" }, 
+
+            { "source": "K8", "target": "K5" }, 
+
+            { "source": "K9", "target": "K6" }, 
+
+            { "source": "K10", "target": "K7" }, 
+
+            { "source": "K11", "target": "K7" }
+
+        ]
+
+    }
+
+}
+ 

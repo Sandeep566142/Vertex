@@ -16850,3 +16850,24 @@ def main(session: Session):
     _save_row(session, row_data)
     print("✅ Process Completed")
     return final_output
+
+
+
+--- INVOKING AGENT: Rephraser Agent ---
+--- INVOKING AGENT: Intent Agent ---
+🚀 Starting Data Agent Flows (Standard & Optimized)...
+--- INVOKING AGENT: Data Agent ---
+🔍 IDENTIFYING RELEVANT TABLES...
+📖 DESCRIBING SEMANTIC VIEW: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MASTERTABLE_V1...
+✅ Metadata Loaded from DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MASTERTABLE_V1
+✅ Selected: ['MASTER_TABLE_V1']
+🧠 REWRITING QUERY...
+✨ Optimized Query: Top 10 HCO_NAME in Arizona ranked by size, quality ratings, or market presence
+--- INVOKING AGENT: Data Agent (Optimized) ---
+📊 Standard Score: 0 | Optimized Score: 0
+🤝 Scores Low/Equal. Combining Summaries.
+❌ Save Message Failed: (1304): 01c20280-081a-368c-0075-0383fdb1d8da: 000904 (42000): 01c20280-081a-368c-0075-0383fdb1d8da: SQL compilation error: error line 1 at position 71
+invalid identifier 'SESSION_ID'
+❌ Audit Log Error: (1304): 01c20280-081a-368c-0075-0383fdb1d8f2: 002020 (21S01): 01c20280-081a-368c-0075-0383fdb1d8f2: SQL compilation error:
+Insert value list does not match column list expecting 19 but got 9
+✅ Process Completed

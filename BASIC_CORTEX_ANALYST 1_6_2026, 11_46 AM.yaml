@@ -15727,3 +15727,167 @@ relevant_table_names
   Field required [type=missing, input_value={}, input_type=dict]
     For further information visit https://errors.pydantic.dev/2.8/v/missing
 --- AGENT Data Agent COMPLETED ---
+
+
+
+{
+    "graph": {
+        "nodes": [
+            { "id": "K1", "metric": "Total Market Volume (TRX)" },
+            { "id": "K2", "metric": "Total New Starts (NRX)" },
+            { "id": "K3", "metric": "Opioid Category Volume" },
+            { "id": "K4", "metric": "NSAID Category Volume" },
+            { "id": "K5", "metric": "Tramadol Brand Volume" },
+            { "id": "K6", "metric": "Diclofenac Brand Volume" },
+            { "id": "K7", "metric": "Tramadol New Growth (NRX)" },
+            { "id": "K8", "metric": "Tramadol Retention (Refills)" },
+            { "id": "K9", "metric": "Diclofenac New Growth (NRX)" },
+            { "id": "K10", "metric": "Orthopedic Tramadol Starts" },
+            { "id": "K11", "metric": "PCP Tramadol Starts" },
+            { "id": "K12", "metric": "OPIOD Market Volume" },
+            { "id": "K13", "metric": "NSAID Market Volume" },
+            { "id": "K14", "metric": "High Volume Writers (>10)" }
+        ],
+        "edges": [
+            { "source": "K3", "target": "K1" }, 
+            { "source": "K4", "target": "K1" }, 
+            { "source": "K5", "target": "K3" }, 
+            { "source": "K6", "target": "K4" }, 
+            { "source": "K7", "target": "K5" }, 
+            { "source": "K8", "target": "K5" }, 
+            { "source": "K9", "target": "K6" }, 
+            { "source": "K10", "target": "K7" }, 
+            { "source": "K11", "target": "K7" }
+        ]
+    }
+}
+
+
+
+create or replace TABLE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DECISION_TREE_STORE_NEW (
+	TREE_ID VARCHAR(50) NOT NULL,
+	GRAPH_JSON VARIANT,
+	CREATED_AT TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+	primary key (TREE_ID)
+);
+
+
+
+INSERT INTO KPI_KNOWLEDGE_BASE_NEW (KPI_ID, METRIC_NAME, DESCRIPTION, SQL_QUERY, FEW_SHOT_EXAMPLES, KPI_EMBEDDING)
+
+-- LEVEL 1: Market & Totals
+SELECT 'K1', 'Total Market Volume (TRX)', 'Total volume of all acute prescriptions across the entire market.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Total Market Volume TRX all sales')
+
+UNION ALL
+SELECT 'K2', 'Total New Starts (NRX)', 'Total volume of new-to-therapy prescriptions, indicating market growth.', 
+'SELECT SUM(ACUTE_NRX_XPO) FROM MASTER_DB_SAMPLE_DATA', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Total New Starts NRX growth')
+
+-- LEVEL 2: Categories
+UNION ALL
+SELECT 'K3', 'Opioid Category Volume', 'Total prescriptions for the Opioid drug class (e.g., Tramadol).', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_CATEGORY = ''OPIOID''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Opioid Category Volume pain meds')
+
+UNION ALL
+SELECT 'K4', 'NSAID Category Volume', 'Total prescriptions for the NSAID drug class (e.g., Diclofenac).', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_CATEGORY = ''NSAID''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'NSAID Category Volume anti inflammatory')
+
+-- LEVEL 3: Products
+UNION ALL
+SELECT 'K5', 'Tramadol Brand Volume', 'Total prescriptions specifically for the Tramadol product family.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''TRAMADOL''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Tramadol Brand Volume product specific')
+
+UNION ALL
+SELECT 'K6', 'Diclofenac Brand Volume', 'Total prescriptions specifically for the Diclofenac product family.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''DICLOFENAC''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Diclofenac Brand Volume product specific')
+
+-- LEVEL 4: Product Performance Metrics (New vs Refill)
+UNION ALL
+SELECT 'K7', 'Tramadol New Growth (NRX)', 'New patient prescriptions for Tramadol. Key indicator of sales force effectiveness.', 
+'SELECT SUM(ACUTE_NRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''TRAMADOL''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Tramadol New Growth NRX new patients')
+
+UNION ALL
+SELECT 'K8', 'Tramadol Retention (Refills)', 'Volume of Tramadol refills (TRX minus NRX), indicating patient retention.', 
+'SELECT SUM(ACUTE_TRX_XPO) - SUM(ACUTE_NRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''TRAMADOL''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Tramadol Retention Refills loyal patients')
+
+UNION ALL
+SELECT 'K9', 'Diclofenac New Growth (NRX)', 'New patient prescriptions for Diclofenac.', 
+'SELECT SUM(ACUTE_NRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''DICLOFENAC''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Diclofenac New Growth NRX')
+
+-- LEVEL 5: Specialist & Geography Segments
+UNION ALL
+SELECT 'K10', 'Orthopedic Tramadol Starts', 'New Tramadol prescriptions written specifically by Orthopedic Surgeons.', 
+'SELECT SUM(ACUTE_NRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''TRAMADOL'' AND PRIMARY_SPECIALTY_METRIC LIKE ''%Orthopedic%''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'Orthopedic Tramadol Starts surgeon new rx')
+
+UNION ALL
+SELECT 'K11', 'PCP Tramadol Starts', 'New Tramadol prescriptions written by Primary Care/Internal Medicine.', 
+'SELECT SUM(ACUTE_NRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRODUCT_FAMILY_GROUP = ''TRAMADOL'' AND PRIMARY_SPECIALTY_METRIC IN (''Other PCP Specialties'', ''Internal Medicine'')', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'PCP Tramadol Starts primary care')
+
+UNION ALL
+SELECT 'K12', 'NC Market Volume', 'Total prescription volume in North Carolina, a key territory.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE HCP_STATE = ''NC''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'NC Market Volume north carolina state')
+
+UNION ALL
+SELECT 'K13', 'AR Market Volume', 'Total prescription volume in Arkansas.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE HCP_STATE = ''AR''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'AR Market Volume arkansas state')
+
+UNION ALL
+SELECT 'K14', 'High Volume Writers (>10)', 'Prescriptions coming from HCPs with more than 10 total scripts.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE ACUTE_TRX_XPO > 10', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'High Volume Writers top prescribers')
+
+UNION ALL
+SELECT 'K15', 'NP/PA Segment Contribution', 'Volume generated by Nurse Practitioners and Physician Assistants.', 
+'SELECT SUM(ACUTE_TRX_XPO) FROM MASTER_DB_SAMPLE_DATA WHERE PRIMARY_SPECIALTY_METRIC = ''NP/PA''', 
+PARSE_JSON('[]'), SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 'NP PA Segment Contribution nurse practitioner');
+
+
+INSERT INTO DECISION_TREE_STORE_NEW (TREE_ID, GRAPH_JSON) 
+SELECT 'Pharma_Master_v1', PARSE_JSON($$
+{
+    "graph": {
+        "nodes": [
+            { "id": "K1", "metric": "Total Market Volume (TRX)" },
+            { "id": "K2", "metric": "Total New Starts (NRX)" },
+            { "id": "K3", "metric": "Opioid Category Volume" },
+            { "id": "K4", "metric": "NSAID Category Volume" },
+            { "id": "K5", "metric": "Tramadol Brand Volume" },
+            { "id": "K6", "metric": "Diclofenac Brand Volume" },
+            { "id": "K7", "metric": "Tramadol New Growth (NRX)" },
+            { "id": "K8", "metric": "Tramadol Retention (Refills)" },
+            { "id": "K9", "metric": "Diclofenac New Growth (NRX)" },
+            { "id": "K10", "metric": "Orthopedic Tramadol Starts" },
+            { "id": "K11", "metric": "PCP Tramadol Starts" },
+            { "id": "K12", "metric": "NC Market Volume" },
+            { "id": "K13", "metric": "AR Market Volume" },
+            { "id": "K14", "metric": "High Volume Writers (>10)" },
+            { "id": "K15", "metric": "NP/PA Segment Contribution" }
+        ],
+        "edges": [
+            { "source": "K3", "target": "K1" }, 
+            { "source": "K4", "target": "K1" }, 
+            { "source": "K5", "target": "K3" }, 
+            { "source": "K6", "target": "K4" }, 
+            { "source": "K7", "target": "K5" }, 
+            { "source": "K8", "target": "K5" }, 
+            { "source": "K9", "target": "K6" }, 
+            { "source": "K10", "target": "K7" }, 
+            { "source": "K11", "target": "K7" }, 
+            { "source": "K15", "target": "K4" }
+        ]
+    }
+}
+$$);

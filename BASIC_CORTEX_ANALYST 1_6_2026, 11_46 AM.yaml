@@ -19627,3 +19627,495 @@ def handler(session: Session, session_id: str, user_query: str) -> str:
 if __name__ == "__main__":
     # For local testing
     pass
+
+
+
+
+name: MASTERTABLE_V1
+tables:
+  - name: MASTER_TABLE_V1
+    description: The table contains records of healthcare professionals and their prescribing activities. Each record represents a healthcare provider with their demographic information, specialty, affiliated organization, and prescription transaction metrics across various time periods for acute care products.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: AI_POC
+      table: MASTER_TABLE_V1
+    dimensions:
+      - name: HCO_NAME
+        synonyms:
+          - clinic_name
+          - facility_name
+          - health_system_name
+          - healthcare_organization_name
+          - hospital_name
+          - institution_name
+          - medical_center_name
+          - medical_facility_name
+          - organization_name
+          - provider_organization
+        description: Healthcare organization names.
+        expr: HCO_NAME
+        data_type: VARCHAR(16777216)
+        cortex_search_service:
+          database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+          schema: AI_POC
+          service: _CORTEX_ANALYST_MASTER_TABLE_V1_HCO_NAME_91EA1418_A291_4D58_BF65_75BF1AF28F6E
+        sample_values:
+          - BAPTIST HEALTHCARE SYSTEM, INC
+          - UPMC
+          - UNIVERSITY HOSPITALS
+      - name: HCP_FIRST_NAME
+        synonyms:
+          - clinician_first_name
+          - doctor_first_name
+          - first_name
+          - forename
+          - given_name
+          - personal_name
+          - physician_first_name
+          - practitioner_first_name
+          - provider_first_name
+        description: Healthcare provider first names.
+        expr: HCP_FIRST_NAME
+        data_type: VARCHAR(16777216)
+        cortex_search_service:
+          database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+          schema: AI_POC
+          service: _CORTEX_ANALYST_MASTER_TABLE_V1_HCP_FIRST_NAME_66D01364_C77D_45D4_B02D_D71CEBDFAA23
+        sample_values:
+          - TIMOTHY
+          - JASON
+          - KATLYN
+      - name: HCP_ID
+        description: Unique identifier for healthcare providers.
+        expr: HCP_ID
+        data_type: VARCHAR(32)
+        sample_values:
+          - 4817ce0a1104686405eb72f5db6d8849
+          - 6fa5a694bb142b049f8145f9ea5da727
+          - 8afa4f843217ce3439bddfceeaabb9d0
+      - name: HCP_LAST_NAME
+        synonyms:
+          - clinician_last_name
+          - doctor_last_name
+          - family_name
+          - healthcare_provider_surname
+          - last_name
+          - medical_professional_surname
+          - physician_surname
+          - practitioner_surname
+          - provider_surname
+          - surname
+        description: Last names of healthcare providers.
+        expr: HCP_LAST_NAME
+        data_type: VARCHAR(16777216)
+        cortex_search_service:
+          database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+          schema: AI_POC
+          service: _CORTEX_ANALYST_MASTER_TABLE_V1_HCP_LAST_NAME_134C0347_3EB8_4EC5_AEC7_F717EDF82B5E
+        sample_values:
+          - RIGONI
+          - ORAZULIKE
+          - HAILES
+      - name: HCP_SPECIALTY
+        synonyms:
+          - clinician_specialty
+          - doctor_specialty
+          - healthcare_provider_specialty
+          - medical_specialty
+          - physician_specialty
+          - practice_area
+          - practitioner_specialty
+          - provider_field
+        description: Medical specialties of healthcare providers.
+        expr: HCP_SPECIALTY
+        data_type: VARCHAR(16777216)
+        cortex_search_service:
+          database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+          schema: AI_POC
+          service: _CORTEX_ANALYST_MASTER_TABLE_V1_HCP_SPECIALTY_05580C7E_FBE4_46A0_B31B_13436B7062A4
+        sample_values:
+          - INTERNAL MEDICINE
+          - GENERAL SURGERY
+          - FAMILY MEDICINE
+      - name: ONEKEY_HCP_ID
+        synonyms:
+          - clinician_id
+          - doctor_id
+          - HCP_ID
+          - hcp_identifier
+          - healthcare_provider_id
+          - medical_provider_id
+          - physician_id
+          - practitioner_id
+          - provider_identifier
+          - provider_key
+        description: OneKey healthcare provider identifier.
+        expr: ONEKEY_HCP_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSM01326080
+          - WUSM03825060
+      - name: PROD_CAT_CD
+        synonyms:
+          - category_code
+          - item_category_code
+          - merchandise_category_code
+          - prod_category_cd
+          - product_cat_code
+          - product_category_code
+          - product_classification_code
+        description: Pharmaceutical product category codes indicating the therapeutic classification of pain management medications.
+        expr: PROD_CAT_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - NSAID
+          - MODERATE OPIOID COMBINATIONS
+      - name: PROD_FAMGRP_CD
+        synonyms:
+          - product_family_code
+          - product_family_group_code
+          - product_family_id
+          - product_group_code
+        description: Pharmaceutical product family group codes representing categories of pain management medications.
+        expr: PROD_FAMGRP_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - MELOXICAM
+          - ETODOLAC
+          - NAPROXEN
+      - name: PTAM_TERRITORY_ID
+        synonyms:
+          - territory_code
+          - territory_id
+          - zone_id
+        description: PTAM territory identifier used for sales performance tracking and analytics.
+        expr: PTAM_TERRITORY_ID
+        data_type: VARCHAR(255)
+        sample_values:
+          - V1NAUSA-5731503
+      - name: ZIP_CODE
+        synonyms:
+          - address_code
+          - area_code
+          - location_code
+          - postal_code
+          - postcode
+          - zip
+          - zipcode
+        description: Postal ZIP codes for geographic locations.
+        expr: ZIP_CODE
+        data_type: VARCHAR(16777216)
+        cortex_search_service:
+          database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+          schema: AI_POC
+          service: _CORTEX_ANALYST_MASTER_TABLE_V1_ZIP_CODE_09836730_2BEB_48E9_A65B_C2D9268AC769
+        sample_values:
+          - '29715'
+          - '29201'
+    facts:
+      - name: ACUTE_NRX_XPO_12M
+        synonyms:
+          - acute_new_prescriptions_12m
+          - acute_new_prescriptions_exposure_12_months
+          - acute_new_rx_annual_exposure
+          - acute_new_rx_xpo_annual
+          - acute_nrx_exposure_yearly
+          - acute_nrx_yearly_exposure
+          - new_acute_prescriptions_12_months
+          - nrx_acute_exposure_12m
+        description: Twelve-month exposure metric for acute new prescriptions.
+        expr: ACUTE_NRX_XPO_12M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        default_aggregation: 0
+        sample_values:
+          - '1.22'
+          - '106.73'
+      - name: ACUTE_NRX_XPO_1M
+        description: Acute new prescription exposure over a one-month period.
+        expr: ACUTE_NRX_XPO_1M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '7.27'
+          - '1.33'
+          - '6.36'
+      - name: ACUTE_NRX_XPO_1W
+        description: Acute new prescription exposure over a one-week period.
+        expr: ACUTE_NRX_XPO_1W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '7.61'
+          - '4.80'
+          - '11.78'
+      - name: ACUTE_NRX_XPO_2W
+        description: Acute new prescription exposure over a two-week period.
+        expr: ACUTE_NRX_XPO_2W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '13.81'
+          - '1.06'
+          - '2.17'
+      - name: ACUTE_NRX_XPO_3M
+        description: Acute new prescription exposure over a three-month period.
+        expr: ACUTE_NRX_XPO_3M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '6.05'
+          - '0.99'
+          - '3.79'
+      - name: ACUTE_NRX_XPO_3W
+        description: Acute new prescription exposure over a three-week period.
+        expr: ACUTE_NRX_XPO_3W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '5.26'
+          - '16.13'
+          - '11.11'
+      - name: ACUTE_NRX_XPO_6M
+        description: Acute new prescription exposure over a six-month period.
+        expr: ACUTE_NRX_XPO_6M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '26.70'
+          - '3.91'
+          - '7.30'
+      - name: ACUTE_TRX_LAAD_12M
+        description: The number of acute transactions with left anterior descending artery involvement in the past 12 months.
+        expr: ACUTE_TRX_LAAD_12M
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '52'
+          - '48'
+          - '98'
+      - name: ACUTE_TRX_LAAD_1M
+        description: The number of acute transactions for left anterior descending artery procedures within a one-month period.
+        expr: ACUTE_TRX_LAAD_1M
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '0'
+          - '1'
+          - '7'
+      - name: ACUTE_TRX_LAAD_1W
+        description: The number of acute transactions with a one-week look-ahead period.
+        expr: ACUTE_TRX_LAAD_1W
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '2'
+          - '1'
+          - '0'
+      - name: ACUTE_TRX_LAAD_2W
+        description: The number of acute transactions for left anterior descending artery procedures within a two-week period.
+        expr: ACUTE_TRX_LAAD_2W
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+          - '0'
+          - '16'
+      - name: ACUTE_TRX_LAAD_3M
+        description: The number of acute transactions with left anterior descending artery involvement within a three-month period.
+        expr: ACUTE_TRX_LAAD_3M
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '1'
+          - '44'
+          - '11'
+      - name: ACUTE_TRX_LAAD_3W
+        description: The number of acute transactions with left anterior descending artery disease within a 3-week period.
+        expr: ACUTE_TRX_LAAD_3W
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '2'
+          - '14'
+          - '6'
+      - name: ACUTE_TRX_LAAD_6M
+        description: The number of acute transactions with left anterior descending artery involvement within a six-month period.
+        expr: ACUTE_TRX_LAAD_6M
+        data_type: NUMBER(30,0)
+        access_modifier: public_access
+        sample_values:
+          - '0'
+          - '1'
+          - '16'
+      - name: ACUTE_TRX_XPO_12M
+        description: Acute transaction exposure over a 12-month period.
+        expr: ACUTE_TRX_XPO_12M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '106.73'
+          - '5.96'
+          - '7.97'
+      - name: ACUTE_TRX_XPO_1M
+        description: Acute transaction exposure over a one-month period.
+        expr: ACUTE_TRX_XPO_1M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '0.00'
+          - '9.15'
+          - '1.06'
+      - name: ACUTE_TRX_XPO_1W
+        description: Acute transaction exposure over a one-week period.
+        expr: ACUTE_TRX_XPO_1W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '8.98'
+          - '5.46'
+          - '11.30'
+      - name: ACUTE_TRX_XPO_2W
+        description: Acute transaction exposure over a two-week period.
+        expr: ACUTE_TRX_XPO_2W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '16.50'
+          - '31.73'
+          - '2.12'
+      - name: ACUTE_TRX_XPO_3M
+        description: Acute transaction exposure over a three-month period.
+        expr: ACUTE_TRX_XPO_3M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '2.01'
+          - '4.10'
+          - '10.10'
+      - name: ACUTE_TRX_XPO_3W
+        description: Acute transaction exposure over a three-week period.
+        expr: ACUTE_TRX_XPO_3W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '3.22'
+          - '38.05'
+          - '9.22'
+      - name: ACUTE_TRX_XPO_6M
+        description: Acute transaction exposure over a six-month period.
+        expr: ACUTE_TRX_XPO_6M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '4.89'
+          - '1.22'
+          - '26.70'
+verified_queries:
+  - name: '"Can you show me my top 5 prescribers in my territiory id  V1NAUSA-5731503 for last 6 months consider total prescriptions "'
+    sql: |-
+      SELECT
+        hcp_first_name,
+        hcp_last_name,
+        hcp_id,
+        hcp_specialty,
+        SUM(acute_trx_xpo_6m) AS total_prescriptions_6m
+      FROM
+        master_table_v1
+      WHERE
+        ptam_territory_id = 'V1NAUSA-5731503'
+      GROUP BY
+        hcp_first_name,
+        hcp_last_name,
+        hcp_id,
+        hcp_specialty
+      ORDER BY
+        total_prescriptions_6m DESC NULLS LAST
+      LIMIT
+        5
+        /* Generated by Cortex Analyst (request_id: d96f3a06-ebe8-4853-bda3-0005c7093f31) */
+    question: 'Can you show me my top 5 prescribers in my territiory id  V1NAUSA-5731503 for last 6 months consider total prescriptions '
+    verified_at: 1769064648
+    verified_by: Rakesh Nadukuda
+    use_as_onboarding_question: false
+  - name: '"Which zip codes are outperforming the nation under total prescriptions  for last 3 months "'
+    sql: |-
+      WITH zip_totals AS (
+        SELECT
+          zip_code,
+          SUM(acute_nrx_xpo_3m + acute_trx_xpo_3m) AS total_prescriptions_3m
+        FROM
+          master_table_v1
+        GROUP BY
+          zip_code
+      ),
+      national_avg AS (
+        SELECT
+          AVG(total_prescriptions_3m) AS nat_avg_prescriptions_3m
+        FROM
+          zip_totals
+      )
+      SELECT
+        zt.zip_code,
+        zt.total_prescriptions_3m,
+        na.nat_avg_prescriptions_3m
+      FROM
+        zip_totals AS zt
+        CROSS JOIN national_avg AS na
+      WHERE
+        zt.total_prescriptions_3m > na.nat_avg_prescriptions_3m
+      ORDER BY
+        zt.total_prescriptions_3m DESC NULLS LAST
+        /* Generated by Cortex Analyst (request_id: 01710a90-c307-4b13-a8ee-5ff6213161ca) */
+    question: 'Which zip codes are outperforming the nation under total prescriptions  for last 3 months '
+    verified_at: 1769065286
+    verified_by: Rakesh Nadukuda
+    use_as_onboarding_question: false
+  - name: '"Show me providers who are underperforming compared to their specialty peers in the same zipcode."'
+    sql: |-
+      WITH specialty_zip_avg AS (
+        SELECT
+          hcp_specialty,
+          zip_code,
+          AVG(acute_nrx_xpo_12m + acute_trx_xpo_12m) AS avg_prescriptions
+        FROM
+          master_table_v1
+        GROUP BY
+          hcp_specialty,
+          zip_code
+      ),
+      provider_performance AS (
+        SELECT
+          mt.hcp_id,
+          mt.hcp_first_name,
+          mt.hcp_last_name,
+          mt.hcp_specialty,
+          mt.zip_code,
+          (mt.acute_nrx_xpo_12m + mt.acute_trx_xpo_12m) AS total_prescriptions,
+          sza.avg_prescriptions AS specialty_zip_avg
+        FROM
+          master_table_v1 AS mt
+          JOIN specialty_zip_avg AS sza ON mt.hcp_specialty = sza.hcp_specialty
+          AND mt.zip_code = sza.zip_code
+      )
+      SELECT
+        hcp_id,
+        hcp_first_name,
+        hcp_last_name,
+        hcp_specialty,
+        zip_code,
+        total_prescriptions,
+        specialty_zip_avg
+      FROM
+        provider_performance
+      WHERE
+        total_prescriptions < specialty_zip_avg
+      ORDER BY
+        hcp_specialty,
+        zip_code,
+        total_prescriptions DESC NULLS LAST
+        /* Generated by Cortex Analyst (request_id: 18f10eaf-1b9e-43b9-8e83-7fd1d5d9be46) */
+    question: Show me providers who are underperforming compared to their specialty peers in the same zipcode.
+    verified_at: 1769067279
+    verified_by: Rakesh Nadukuda
+    use_as_onboarding_question: false

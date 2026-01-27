@@ -22864,3 +22864,233 @@ clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=E
 ✅ Audit log saved for session 11343.
 ✅ Process Completed
 ⏱️  Total Execution Time: 273141ms
+
+
+
+
+
+Skip to main content
+Skip to editor
+Skip to results
+Site
+
+
+Work with data
+
+Projects
+Ingestion
+Transformation
+AI & ML
+Monitoring
+Marketplace
+Horizon Catalog
+
+Catalog
+Data sharing
+Governance & security
+Manage
+
+Compute
+Postgres
+Admin
+Worksheets
+678
+679
+680
+681
+682
+683
+684
+685
+686
+687
+688
+689
+690
+691
+692
+693
+694
+695
+696
+697
+698
+699
+700
+701
+702
+703
+704
+705
+706
+707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720
+721
+722
+723
+724
+725
+726
+727
+728
+729
+730
+731
+732
+733
+734
+735
+736
+737
+738
+739
+740
+741
+742
+743
+744
+745
+746
+747
+748
+749
+750
+751
+752
+753
+import json
+                print('response.tool_result.analyts.delt')
+                print(delta)
+                delta = data.get('delta', {})
+                if delta.get('sql'): extracted["sql_generated"] = delta.get('sql')
+                if delta.get('sql_explanation'): extracted["sql_explanation"] = delta.get('sql_explanation')
+                if delta.get('result_set'): extracted["tables"].append(delta.get('result_set'))
+            elif evt == 'response.tool_result':
+                for item in data.get('content', []):
+                    if item.get('type') == 'json':
+                        json_p = item.get('json', {})
+                        if 'sql' in json_p: extracted["sql_generated"] = json_p['sql']
+                        if 'result_set' in json_p: extracted["tables"].append(json_p['result_set'])
+
+        if isinstance(parsed, list):
+            for item in parsed: process_event(item.get('event'), item.get('data', {}))
+        
+        return extracted
+    except Exception as e: return {"error": str(e)}
+
+def extract_pydantic_from_text(text: str, model_class: type[BaseModel]) -> BaseModel:
+    """Robust JSON extraction."""
+    if not text: return model_class()
+    def try_parse(json_str):
+        try: return json.loads(json_str)
+        except: 
+            try: return json.loads(json_str, strict=False)
+            except: return None
+
+    match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if match:
+        data = try_parse(match.group(1))
+        if data: 
+            try: return model_class(**data)
+            except: pass 
+
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1:
+        data = try_parse(text[start:end+1])
+        if data: 
+            try: return model_class(**data)
+            except: pass
+
+    if model_class == RephraserOutput:
+        return RephraserOutput(refined_query=text.strip())
+
+    return model_class()
+
+def check_input_guard(session: Session, user_input: str) -> GuardResult:
+    try:
+        safe_input = user_input.replace("'", "''")
+        res = session.sql(f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{CONFIG.model}', [{{'role': 'user', 'content': '{safe_input}'}}], {{'guardrails': true}}) as r").collect()
+        if not res: return GuardResult(is_safe=True)
+        is_unsafe = "Response filtered" in json.loads(res[0]['R'])['choices'][0]['messages']
+        return GuardResult(is_safe=not is_unsafe, message="Blocked." if is_unsafe else None)
+    except: return GuardResult(is_safe=True)
+
+class PayloadFactory:
+    @staticmethod
+    def create(query: str, instructions: Any, tools: List = None, resources: Dict = None, history: List = None) -> Dict:
+        messages = (history if history else []) + [{"role": "user", "content": [{"type": "text", "text": query}]}]
+        inst_payload = instructions if isinstance(instructions, dict) else {"system": instructions}
+        return {
+            "messages": messages,
+            "models": {"orchestration": CONFIG.model},
+            "instructions": inst_payload,
+            "tools": tools or [],
+            "tool_resources": resources or {}
+        }
+
+def _save_audit_row(session: Session, data: dict, session_id: str):
+    """Saves detailed execution logs using a staged approach for complex VARIANT data."""
+    try:
+        import uuid
+        # Prepare the complete record
+        # UPDATED: Matches AGENT_DETAILED_HISTORY_V2 structure exactly.
+    pass
+        "type": "default",
+        "data": { "label": "Tramadol Retention (Refills)\n36,370.24 units" },
+        "position": { "x": 200, "y": 120 },
+        "style": { "background": "#FFCDD2", "width": 220, "color": "#333", "border": "2px solid #c62828", "borderRadius": "8px", "fontSize": "13px" }
+      },
+      {
+        "id": "K13",
+        "type": "default",
+        "data": { "label": "NSAID Market Volume\n551,076.76 units\n(Growing)" },
+        "position": { "x": 480, "y": 0 },
+        "style": { "background": "#C8E6C9", "width": 200, "color": "#333", "border": "2px solid #388e3c", "borderRadius": "8px", "fontSize": "13px" }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-K8-K5",
+        "source": "K8",
+        "target": "K5",
+        "label": "drives decline",
+        "animated": true,
+        "style": { "stroke": "#d32f2f", "strokeWidth": 3 },
+        "labelStyle": { "fill": "#d32f2f", "fontWeight": "bold" }
+      }
+    ]
+  },
+  "evaluation": {
+    "score": 9,
+    "reasoning": "Successfully identified the leaf-level root cause (K8: Tramadol Retention) through systematic drilling. The causal chain is mathematically sound: poor retention directly drives lower brand volume. Explored both phenomena (NSAID increase and Tramadol decrease) as requested. Drilling confirmed K8 is a true leaf node with no further decomposition available. The only limitation is that the tree structure doesn't provide deeper segmentation of retention factors (e.g., by physician, patient demographics, or specific reasons for discontinuation), but this appears to be a data availability constraint rather than analytical oversight."
+  }
+}
+```
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+✅ Audit log saved for session 11343.
+✅ Process Completed
+⏱️  Total Execution Time: 273141ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+Sorted by Viewed descending

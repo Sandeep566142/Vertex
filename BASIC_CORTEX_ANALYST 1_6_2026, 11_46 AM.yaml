@@ -16871,3 +16871,31 @@ invalid identifier 'SESSION_ID'
 ❌ Audit Log Error: (1304): 01c20280-081a-368c-0075-0383fdb1d8f2: 002020 (21S01): 01c20280-081a-368c-0075-0383fdb1d8f2: SQL compilation error:
 Insert value list does not match column list expecting 19 but got 9
 ✅ Process Completed
+
+
+
+📊 Standard Score: 0 | Optimized Score: 9
+🚀 Switched to Optimized Result (Score: 9)
+/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/pydantic/main.py:364: UserWarning: Pydantic serializer warnings:
+  Expected `dict[any, any]` but got `str` - serialized value may not be as expected
+  Expected `dict[any, any]` but got `str` - serialized value may not be as expected
+  return self.__pydantic_serializer__.to_python(
+❌ Audit Log Error: (1304): 01c202c1-081a-386d-0075-0383fdb88492: 002023 (22000): 01c202c1-081a-386d-0075-0383fdb88492: SQL compilation error:
+Expression type does not match column data type, expecting VARIANT but got VARCHAR(134217728) for column FULL_RAW_JSON
+✅ Process Completed
+
+
+
+create or replace TABLE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MESSAGES (
+	ID VARCHAR(16777216) DEFAULT UUID_STRING(),
+	CONVERSATION_ID VARCHAR(16777216) NOT NULL,
+	SOURCE_MSG_ID VARCHAR(16777216),
+	MESSAGE VARCHAR(16777216) NOT NULL,
+	SENDER_TYPE VARCHAR(16777216) NOT NULL,
+	METADATA VARIANT,
+	FEEDBACK_REACTION VARCHAR(16777216),
+	CREATED_BY VARCHAR(16777216),
+	UPDATED_BY VARCHAR(16777216),
+	CREATED_AT TIMESTAMP_LTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+	UPDATED_AT TIMESTAMP_LTZ(9) DEFAULT CURRENT_TIMESTAMP()
+);

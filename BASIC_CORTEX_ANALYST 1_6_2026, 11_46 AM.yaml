@@ -18056,5 +18056,133 @@ Data products
 Try nested folders in Workspaces
 
 In Workspaces, organize your files by putting folders in folders.
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+✅ Process Completed
+⏱️  Total Execution Time: 113726ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+✅ Process Completed
+⏱️  Total Execution Time: 113726ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+✅ Process Completed
+⏱️  Total Execution Time: 113726ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+✅ Process Completed
+⏱️  Total Execution Time: 113726ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+✅ Process Completed
+⏱️  Total Execution Time: 113726ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
 
 Search

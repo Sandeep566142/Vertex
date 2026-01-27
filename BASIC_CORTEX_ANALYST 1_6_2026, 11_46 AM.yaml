@@ -18291,3 +18291,57 @@ Try nested folders in Workspaces
 In Workspaces, organize your files by putting folders in folders.
 
 Search
+
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'give me the top 10 prescribers from arizona', 'session': '1111'}
+==================================================
+📜 Retrieved 0 past messages for Session 1111
+❌ Save Message Failed: (1304): 01c20318-081a-3683-0075-0383fdc5cc5a: 002020 (21S01): 01c20318-081a-3683-0075-0383fdc5cc5a: SQL compilation error:
+Insert value list does not match column list expecting 7 but got 5
+💾 Saved user message via SQL fallback.
+--- INVOKING AGENT: Rephraser Agent ---
+--- INVOKING AGENT: Intent Agent ---
+🚀 Starting Data Agent Flows (Standard & Optimized)...
+--- INVOKING AGENT: Data Agent ---
+🔍 IDENTIFYING RELEVANT TABLES...
+📖 DESCRIBING SEMANTIC VIEW: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MASTERTABLE_V1...
+✅ Metadata Loaded from DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MASTERTABLE_V1
+✅ Selected: ['MASTER_TABLE_V1']
+🧠 REWRITING QUERY...
+✨ Optimized Query: Show me the top 10 HCP_ID ranked by ACUTE_TRX_LAAD_12M where ZIP_CODE is in Arizona
+--- INVOKING AGENT: Data Agent (Optimized) ---
+['{"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "title": "Top 10 HCP_ID ranked by total ACUTE_TRX_LAAD over the last 12 months in Arizona", "transform": [{"window": [{"op": "rank", "as": "rank"}], "sort": [{"field": "TOTAL_ACUTE_TRX_LAAD", "order": "descending"}]}, {"filter": "datum.rank <= 10"}], "mark": "bar", "encoding": {"x": {"field": "TOTAL_ACUTE_TRX_LAAD", "title": "Total ACUTE TRX LAAD", "type": "quantitative", "sort": null}, "y": {"field": "HCP_ID", "title": "HCP ID", "type": "nominal", "sort": null}, "tooltip": [{"field": "TOTAL_ACUTE_TRX_LAAD", "type": "quantitative", "title": "Total ACUTE TRX LAAD", "format": ",.6~f"}, {"field": "HCP_ID", "type": "nominal", "title": "HCP ID"}]}, "data": {"values": [{"HCP_ID": "0bf82f40f6b804c9df0d8aa6fe6f74bf", "TOTAL_ACUTE_TRX_LAAD": 3132.0}, {"HCP_ID": "ab0584c6fba654da008e10302186feb3", "TOTAL_ACUTE_TRX_LAAD": 2517.0}, {"HCP_ID": "6faf1b18ab6e6fa39503feddec59ed80", "TOTAL_ACUTE_TRX_LAAD": 2448.0}, {"HCP_ID": "893ea63d5966cd84231f8d7547a2ed12", "TOTAL_ACUTE_TRX_LAAD": 1963.0}, {"HCP_ID": "d6795edda2b6ea887378cace5c91f4d4", "TOTAL_ACUTE_TRX_LAAD": 1904.0}, {"HCP_ID": "a38c69fd62b809e1d9ffa22239882138", "TOTAL_ACUTE_TRX_LAAD": 1872.0}, {"HCP_ID": "742751ad30971a025e2387eeec778e11", "TOTAL_ACUTE_TRX_LAAD": 1757.0}, {"HCP_ID": "7b421e990acf702c8150d25adb805681", "TOTAL_ACUTE_TRX_LAAD": 1725.0}, {"HCP_ID": "0ce8797c130fea656290cefe5654c6e3", "TOTAL_ACUTE_TRX_LAAD": 1715.0}, {"HCP_ID": "ae5842733a7f735d6feafbeaf8301eef", "TOTAL_ACUTE_TRX_LAAD": 1605.0}]}}']
+['{"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "title": "Top 10 HCP_ID ranked by total ACUTE_TRX_LAAD over the last 12 months in Arizona", "transform": [{"window": [{"op": "rank", "as": "rank"}], "sort": [{"field": "TOTAL_ACUTE_TRX_LAAD", "order": "descending"}]}, {"filter": "datum.rank <= 10"}], "mark": "bar", "encoding": {"x": {"field": "TOTAL_ACUTE_TRX_LAAD", "title": "Total ACUTE TRX LAAD", "type": "quantitative", "sort": null}, "y": {"field": "HCP_ID", "title": "HCP ID", "type": "nominal", "sort": null}, "tooltip": [{"field": "TOTAL_ACUTE_TRX_LAAD", "type": "quantitative", "title": "Total ACUTE TRX LAAD", "format": ",.6~f"}, {"field": "HCP_ID", "type": "nominal", "title": "HCP ID"}]}, "data": {"values": [{"HCP_ID": "0bf82f40f6b804c9df0d8aa6fe6f74bf", "TOTAL_ACUTE_TRX_LAAD": 3132.0}, {"HCP_ID": "ab0584c6fba654da008e10302186feb3", "TOTAL_ACUTE_TRX_LAAD": 2517.0}, {"HCP_ID": "6faf1b18ab6e6fa39503feddec59ed80", "TOTAL_ACUTE_TRX_LAAD": 2448.0}, {"HCP_ID": "893ea63d5966cd84231f8d7547a2ed12", "TOTAL_ACUTE_TRX_LAAD": 1963.0}, {"HCP_ID": "d6795edda2b6ea887378cace5c91f4d4", "TOTAL_ACUTE_TRX_LAAD": 1904.0}, {"HCP_ID": "a38c69fd62b809e1d9ffa22239882138", "TOTAL_ACUTE_TRX_LAAD": 1872.0}, {"HCP_ID": "742751ad30971a025e2387eeec778e11", "TOTAL_ACUTE_TRX_LAAD": 1757.0}, {"HCP_ID": "7b421e990acf702c8150d25adb805681", "TOTAL_ACUTE_TRX_LAAD": 1725.0}, {"HCP_ID": "0ce8797c130fea656290cefe5654c6e3", "TOTAL_ACUTE_TRX_LAAD": 1715.0}, {"HCP_ID": "ae5842733a7f735d6feafbeaf8301eef", "TOTAL_ACUTE_TRX_LAAD": 1605.0}]}}', '{"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "title": "Top 10 HCP_ID ranked by total ACUTE_TRX_LAAD over the last 12 months in Arizona", "transform": [{"window": [{"op": "rank", "as": "rank"}], "sort": [{"field": "TOTAL_ACUTE_TRX_LAAD", "order": "descending"}]}, {"filter": "datum.rank <= 10"}], "mark": "bar", "encoding": {"x": {"field": "TOTAL_ACUTE_TRX_LAAD", "title": "Total ACUTE TRX LAAD", "type": "quantitative", "sort": null}, "y": {"field": "HCP_ID", "title": "HCP ID", "type": "nominal", "sort": null}, "tooltip": [{"field": "TOTAL_ACUTE_TRX_LAAD", "type": "quantitative", "title": "Total ACUTE TRX LAAD", "format": ",.6~f"}, {"field": "HCP_ID", "type": "nominal", "title": "HCP ID"}]}, "data": {"values": [{"HCP_ID": "0bf82f40f6b804c9df0d8aa6fe6f74bf", "TOTAL_ACUTE_TRX_LAAD": 3132.0}, {"HCP_ID": "ab0584c6fba654da008e10302186feb3", "TOTAL_ACUTE_TRX_LAAD": 2517.0}, {"HCP_ID": "6faf1b18ab6e6fa39503feddec59ed80", "TOTAL_ACUTE_TRX_LAAD": 2448.0}, {"HCP_ID": "893ea63d5966cd84231f8d7547a2ed12", "TOTAL_ACUTE_TRX_LAAD": 1963.0}, {"HCP_ID": "d6795edda2b6ea887378cace5c91f4d4", "TOTAL_ACUTE_TRX_LAAD": 1904.0}, {"HCP_ID": "a38c69fd62b809e1d9ffa22239882138", "TOTAL_ACUTE_TRX_LAAD": 1872.0}, {"HCP_ID": "742751ad30971a025e2387eeec778e11", "TOTAL_ACUTE_TRX_LAAD": 1757.0}, {"HCP_ID": "7b421e990acf702c8150d25adb805681", "TOTAL_ACUTE_TRX_LAAD": 1725.0}, {"HCP_ID": "0ce8797c130fea656290cefe5654c6e3", "TOTAL_ACUTE_TRX_LAAD": 1715.0}, {"HCP_ID": "ae5842733a7f735d6feafbeaf8301eef", "TOTAL_ACUTE_TRX_LAAD": 1605.0}]}}']
+📊 Standard Score: 8 | Optimized Score: 9
+❌ Save Message Failed: (1304): 01c2031a-081a-3683-0075-0383fdc61cc6: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cc6: SQL compilation error:
+Insert value list does not match column list expecting 7 but got 5
+💾 Saved assistant message via SQL fallback.
+❌ Audit Log Error: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+Traceback (most recent call last):
+  File "_udf_code.py", line 1640, in _save_audit_row
+    df.write.mode("append").save_as_table(CONFIG.audit_log_table)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/telemetry.py", line 333, in wrap
+    result = func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/utils.py", line 1148, in call_wrapper
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/dataframe_writer.py", line 570, in save_as_table
+    result = session._conn.execute(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 648, in execute
+    result_set, result_meta = self.get_result_set(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/analyzer/snowflake_plan.py", line 426, in wrap
+    raise ne.with_traceback(tb) from None
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/analyzer/snowflake_plan.py", line 179, in wrap
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 770, in get_result_set
+    result = self.run_query(
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search

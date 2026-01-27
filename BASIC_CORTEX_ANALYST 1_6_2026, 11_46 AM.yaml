@@ -22826,3 +22826,41 @@ def handler(session: Session, session_id: str, user_query: str) -> str:
 if __name__ == "__main__":
     # For local testing
     pass
+
+
+        "type": "default",
+        "data": { "label": "Tramadol Retention (Refills)\n36,370.24 units" },
+        "position": { "x": 200, "y": 120 },
+        "style": { "background": "#FFCDD2", "width": 220, "color": "#333", "border": "2px solid #c62828", "borderRadius": "8px", "fontSize": "13px" }
+      },
+      {
+        "id": "K13",
+        "type": "default",
+        "data": { "label": "NSAID Market Volume\n551,076.76 units\n(Growing)" },
+        "position": { "x": 480, "y": 0 },
+        "style": { "background": "#C8E6C9", "width": 200, "color": "#333", "border": "2px solid #388e3c", "borderRadius": "8px", "fontSize": "13px" }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-K8-K5",
+        "source": "K8",
+        "target": "K5",
+        "label": "drives decline",
+        "animated": true,
+        "style": { "stroke": "#d32f2f", "strokeWidth": 3 },
+        "labelStyle": { "fill": "#d32f2f", "fontWeight": "bold" }
+      }
+    ]
+  },
+  "evaluation": {
+    "score": 9,
+    "reasoning": "Successfully identified the leaf-level root cause (K8: Tramadol Retention) through systematic drilling. The causal chain is mathematically sound: poor retention directly drives lower brand volume. Explored both phenomena (NSAID increase and Tramadol decrease) as requested. Drilling confirmed K8 is a true leaf node with no further decomposition available. The only limitation is that the tree structure doesn't provide deeper segmentation of retention factors (e.g., by physician, patient demographics, or specific reasons for discontinuation), but this appears to be a data availability constraint rather than analytical oversight."
+  }
+}
+```
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+✅ Audit log saved for session 11343.
+✅ Process Completed
+⏱️  Total Execution Time: 273141ms

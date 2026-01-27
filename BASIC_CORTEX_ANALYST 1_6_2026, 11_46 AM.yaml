@@ -23094,3 +23094,281 @@ In Workspaces, organize your files by putting folders in folders.
 Search
 
 Sorted by Viewed descending
+
+
+
+      },
+      {
+        "id": "K13",
+        "type": "default",
+        "data": { "label": "NSAID Market Volume\n551,076.76 units\n(Growing)" },
+        "position": { "x": 480, "y": 0 },
+        "style": { "background": "#C8E6C9", "width": 200, "color": "#333", "border": "2px solid #388e3c", "borderRadius": "8px", "fontSize": "13px" }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-K8-K5",
+        "source": "K8",
+        "target": "K5",
+        "label": "drives decline",
+        "animated": true,
+        "style": { "stroke": "#d32f2f", "strokeWidth": 3 },
+        "labelStyle": { "fill": "#d32f2f", "fontWeight": "bold" }
+      }
+    ]
+  },
+  "evaluation": {
+    "score": 9,
+    "reasoning": "Successfully identified the leaf-level root cause (K8: Tramadol Retention) through systematic drilling. The causal chain is mathematically sound: poor retention directly drives lower brand volume. Explored both phenomena (NSAID increase and Tramadol decrease) as requested. Drilling confirmed K8 is a true leaf node with no further decomposition available. The only limitation is that the tree structure doesn't provide deeper segmentation of retention factors (e.g., by physician, patient demographics, or specific reasons for discontinuation), but this appears to be a data availability constraint rather than analytical oversight."
+  }
+}
+```
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+✅ Audit log saved for session 11343.
+✅ Process Completed
+⏱️  Total Execution Time: 273141ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+
+
+
+
+        "style": { "background": "#FFCDD2", "width": 220, "color": "#333", "border": "2px solid #c62828", "borderRadius": "8px", "fontSize": "13px" }
+      },
+      {
+        "id": "K13",
+        "type": "default",
+        "data": { "label": "NSAID Market Volume\n551,076.76 units\n(Growing)" },
+        "position": { "x": 480, "y": 0 },
+        "style": { "background": "#C8E6C9", "width": 200, "color": "#333", "border": "2px solid #388e3c", "borderRadius": "8px", "fontSize": "13px" }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-K8-K5",
+        "source": "K8",
+        "target": "K5",
+        "label": "drives decline",
+        "animated": true,
+        "style": { "stroke": "#d32f2f", "strokeWidth": 3 },
+        "labelStyle": { "fill": "#d32f2f", "fontWeight": "bold" }
+      }
+    ]
+  },
+  "evaluation": {
+    "score": 9,
+    "reasoning": "Successfully identified the leaf-level root cause (K8: Tramadol Retention) through systematic drilling. The causal chain is mathematically sound: poor retention directly drives lower brand volume. Explored both phenomena (NSAID increase and Tramadol decrease) as requested. Drilling confirmed K8 is a true leaf node with no further decomposition available. The only limitation is that the tree structure doesn't provide deeper segmentation of retention factors (e.g., by physician, patient demographics, or specific reasons for discontinuation), but this appears to be a data availability constraint rather than analytical oversight."
+  }
+}
+```
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+✅ Audit log saved for session 11343.
+✅ Process Completed
+⏱️  Total Execution Time: 273141ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+
+      },
+      {
+        "id": "K13",
+        "type": "default",
+        "data": { "label": "NSAID Market Volume\n551,076.76 units\n(Growing)" },
+        "position": { "x": 480, "y": 0 },
+        "style": { "background": "#C8E6C9", "width": 200, "color": "#333", "border": "2px solid #388e3c", "borderRadius": "8px", "fontSize": "13px" }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-K8-K5",
+        "source": "K8",
+        "target": "K5",
+        "label": "drives decline",
+        "animated": true,
+        "style": { "stroke": "#d32f2f", "strokeWidth": 3 },
+        "labelStyle": { "fill": "#d32f2f", "fontWeight": "bold" }
+      }
+    ]
+  },
+  "evaluation": {
+    "score": 9,
+    "reasoning": "Successfully identified the leaf-level root cause (K8: Tramadol Retention) through systematic drilling. The causal chain is mathematically sound: poor retention directly drives lower brand volume. Explored both phenomena (NSAID increase and Tramadol decrease) as requested. Drilling confirmed K8 is a true leaf node with no further decomposition available. The only limitation is that the tree structure doesn't provide deeper segmentation of retention factors (e.g., by physician, patient demographics, or specific reasons for discontinuation), but this appears to be a data availability constraint rather than analytical oversight."
+  }
+}
+```
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+✅ Audit log saved for session 11343.
+✅ Process Completed
+⏱️  Total Execution Time: 273141ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+
+
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'Why is the NSAID Market Volume rising in Internal Medicine while '
+          'Tramadol Brand Volume is falling in the same specialty(root cause '
+          'query)?',
+ 'session': '11343'}
+==================================================
+📜 Retrieved 6 past messages for Session 11343
+💾 Saved user message to history.
+--- INVOKING AGENT: Rephraser Agent ---
+--- INVOKING AGENT: Intent Agent ---
+--- INVOKING AGENT: Root Cause Agent ---
+## SECTION 1: Diagnostic Executive Summary
+**Root Cause: Poor Tramadol Patient Retention (Refills)**
+Within the Internal Medicine specialty, the decrease in Tramadol brand volume is primarily driven by **low retention rates** - specifically, refill prescriptions totaling only 36,370.24 units. While the NSAID market overall is experiencing growth (551,076.76 units), Tramadol is struggling to retain patients who have been prescribed the medication initially.
+**The Narrative:**
+Patients in Internal Medicine who are prescribed Tramadol are not returning for refills at sufficient rates. This retention problem is the isolated root cause of declining Tramadol brand volume. Meanwhile, the NSAID market is growing, suggesting potential competitive pressure or physician preference shifts toward NSAIDs over opioid-based pain management like Tramadol.
+**Actionable Insight:**
+Investigate patient adherence barriers and physician prescribing patterns. Consider:
+- Patient education programs to improve treatment compliance
+- Understanding why patients discontinue Tramadol therapy
+- Analyzing whether physicians are switching patients from Tramadol to NSAIDs mid-treatment
+- Reviewing competitive NSAID messaging in the Internal Medicine channel
+---
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'Why is the NSAID Market Volume rising in Internal Medicine while '
+          'Tramadol Brand Volume is falling in the same specialty(root cause '
+          'query)?',
+ 'session': '11343'}
+==================================================
+📜 Retrieved 6 past messages for Session 11343
+💾 Saved user message to history.
+--- INVOKING AGENT: Rephraser Agent ---
+--- INVOKING AGENT: Intent Agent ---
+--- INVOKING AGENT: Root Cause Agent ---
+## SECTION 1: Diagnostic Executive Summary
+**Root Cause: Poor Tramadol Patient Retention (Refills)**
+Within the Internal Medicine specialty, the decrease in Tramadol brand volume is primarily driven by **low retention rates** - specifically, refill prescriptions totaling only 36,370.24 units. While the NSAID market overall is experiencing growth (551,076.76 units), Tramadol is struggling to retain patients who have been prescribed the medication initially.
+**The Narrative:**
+Patients in Internal Medicine who are prescribed Tramadol are not returning for refills at sufficient rates. This retention problem is the isolated root cause of declining Tramadol brand volume. Meanwhile, the NSAID market is growing, suggesting potential competitive pressure or physician preference shifts toward NSAIDs over opioid-based pain management like Tramadol.
+**Actionable Insight:**
+Investigate patient adherence barriers and physician prescribing patterns. Consider:
+- Patient education programs to improve treatment compliance
+- Understanding why patients discontinue Tramadol therapy
+- Analyzing whether physicians are switching patients from Tramadol to NSAIDs mid-treatment
+- Reviewing competitive NSAID messaging in the Internal Medicine channel
+---
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+
+
+        "target": "N2",
+        "label": "driven by",
+        "animated": true,
+        "style": { "stroke": "#C41E3A", "strokeWidth": 2 }
+      },
+      {
+        "id": "e-N1-N3",
+        "source": "N1",
+        "target": "N3",
+        "label": "shift to",
+        "animated": false,
+        "style": { "stroke": "#555", "strokeWidth": 1.5, "strokeDasharray": "5,5" }
+      }
+    ]
+  },
+  "evaluation": {
+    "score": 7,
+    "reasoning": "The analysis successfully identified two leaf-node root causes (declining new prescriptions and reduced retention) driving Tramadol brand volume decline in Internal Medicine, and confirmed the concurrent NSAID market growth. However, the tool's limited granularity prevented deeper exploration of the specific factors requested by the user (regulatory changes, generic competition rates, formulary positioning, prescriber-level behavioral data). The causal chain is mathematically sound, but completeness is constrained by available tree depth. Score: 7/10 due to leaf node identification but limited visibility into underlying mechanism drivers."
+  }
+}
+```
+🔍 Attempting to extract DiagnosticResult from text...
+📝 Text length: 6695 characters
+🔄 Strategy 1: Trying markdown ```json block...
+✅ Strategy 1 succeeded with pattern: ```json\s*\n(.*?)\n```
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+clean_summary_text='' clarifying_question=None react_flow_json=None evaluation=EvaluationResult(score=0, reasoning='No evaluation provided.')
+✅ Audit log saved for session 11343.
+✅ Process Completed
+⏱️  Total Execution Time: 283506ms
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search
+
+
+
+
+==================================================
+🛑 CHECKPOINT: MAIN: START
+--------------------------------------------------
+{'query': 'Why is the NSAID Market Volume rising in Internal Medicine while '
+          'Tramadol Brand Volume is falling in the same specialty(root cause '
+          'query)?',
+ 'session': '11343'}
+==================================================
+📜 Retrieved 8 past messages for Session 11343
+💾 Saved user message to history.
+--- INVOKING AGENT: Rephraser Agent ---
+🔍 Attempting to extract RephraserOutput from text...
+📝 Text length: 1847 characters
+🔄 Strategy 1: Trying markdown ```json block...
+✅ Strategy 1 succeeded with pattern: ```json\s*\n(.*?)\n```
+--- INVOKING AGENT: Intent Agent ---
+🔍 Attempting to extract IntentClassification from text...
+📝 Text length: 2060 characters
+🔄 Strategy 1: Trying markdown ```json block...
+✅ Strategy 1 succeeded with pattern: ```json\s*\n(.*?)\n```
+--- INVOKING AGENT: Root Cause Agent ---
+## Section 1: Diagnostic Executive Summary
+**Root Cause:** The decrease in Tramadol brand volume within Internal Medicine is driven by two primary factors: **declining new prescription starts** (10,304.64 TRx) and **reduced patient retention/refills** (36,370.24 TRx). Simultaneously, the NSAID market is experiencing volume growth (551,076.76 TRx), indicating a prescriber preference shift away from Tramadol toward NSAIDs within this specialty.
+**The Narrative:** Internal Medicine practitioners are initiating fewer new Tramadol prescriptions, and existing patients are not refilling at previous rates. This dual decline in acquisition and retention is causing overall brand volume contraction. Concurrently, NSAIDs are gaining market share, suggesting that prescribers are choosing non-opioid alternatives for pain management—likely influenced by heightened regulatory scrutiny of opioid prescribing, evolving clinical guidelines favoring non-opioid first-line therapy, potential formulary restrictions on opioids, and growing awareness of opioid-related risks.
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search

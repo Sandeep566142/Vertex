@@ -21429,3 +21429,12 @@ def handler(session: Session, session_id: str, user_query: str) -> str:
 if __name__ == "__main__":
     # For local testing
     pass
+
+
+
+❌ Audit Log Error (DataFrame approach): (1304): 01c203ab-081a-3d3b-0075-0383fddaa48e: 002020 (21S01): 01c203ab-081a-3d3b-0075-0383fddaa48e: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+🔄 Attempting simplified insert without VARIANT fields...
+⚠️ Audit log saved with simplified data (VARIANT fields skipped).
+✅ Process Completed
+⏱️  Total Execution Time: 129731ms

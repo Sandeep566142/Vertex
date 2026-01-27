@@ -18036,3 +18036,25 @@ def main(session: Session):
 
 if __name__ == "__main__":
     pass
+
+
+
+🚀 Switched to Optimized Result (Score: 9)
+/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/pydantic/main.py:364: UserWarning: Pydantic serializer warnings:
+  Expected `dict[any, any]` but got `str` - serialized value may not be as expected
+  Expected `dict[any, any]` but got `str` - serialized value may not be as expected
+  return self.__pydantic_serializer__.to_python(
+❌ Save Message Failed: (1304): 01c202ff-081a-368c-0075-0383fdc1d4ba: 001003 (42000): 01c202ff-081a-368c-0075-0383fdc1d4ba: SQL compilation error:
+syntax error line 4 at position 30 unexpected '%'.
+syntax error line 4 at position 29 unexpected '('.
+❌ Audit Log Error: (1304): 01c202ff-081a-368c-0075-0383fdc1d4ce: 002023 (22000): 01c202ff-081a-368c-0075-0383fdc1d4ce: SQL compilation error:
+Expression type does not match column data type, expecting VARIANT but got VARCHAR(134217728) for column FULL_RAW_JSON
+✅ Process Completed
+Databases
+Worksheets
+Data products
+Try nested folders in Workspaces
+
+In Workspaces, organize your files by putting folders in folders.
+
+Search

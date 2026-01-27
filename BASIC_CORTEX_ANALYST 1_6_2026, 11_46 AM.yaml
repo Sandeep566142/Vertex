@@ -18345,3 +18345,38 @@ Try nested folders in Workspaces
 In Workspaces, organize your files by putting folders in folders.
 
 Search
+
+
+    return self._session._conn.execute(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 648, in execute
+    result_set, result_meta = self.get_result_set(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/analyzer/snowflake_plan.py", line 426, in wrap
+    raise ne.with_traceback(tb) from None
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/analyzer/snowflake_plan.py", line 179, in wrap
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 770, in get_result_set
+    result = self.run_query(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 137, in wrap
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 131, in wrap
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 544, in run_query
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 529, in run_query
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2032b-081a-3683-0075-0383fdc7cc92: 002014 (22000): 01c2032b-081a-3683-0075-0383fdc7cc92: SQL compilation error:
+Invalid expression [PARSE_JSON('[{"data": [["9d2874e648c48c41632a3fc164312154", "83397", "2025-01-31", "2025-10-03", "36547", "1"], ["0bf82f40f6b804c9df0d8aa6fe6f74bf", "3132", "2025-01-31", "2025-10-03", "2210", "1"], ["ab0584c6fba654da008e10302186feb3", "2517", "2025-01-31", "2025-10-03", "1773", "1"], ["6faf1b18ab6e6fa39503feddec59ed80", "2448", "2025-01-31", "2025-10-03", "1789", "1"], ["f14713e706849122cdcf2ffd9b4e9841", "2242", "2025-01-31", "2025-10-03", "914", "1"], ["4888edd38d18efd284d7473e81e70b21", "2174", "2025-01-31", "2025-10-03", "746", "1"], ["26cc431b3390379f937b09518e139782", "2150", "2025-01-31", "2025-10-03", "1043", "1"], ["c6e6c5a2a9e93f8c4bc1f965242b40d3", "2129", "2025-01-31", "2025-10-03", "605", "1"], ["10889a1b4265e0a7d140a831c83b4663", "2086", "2025-01-31", "2025-10-03", "1637", "1"], ["8c7b26e9e607829e09d38491aede7722", "1995", "2025-01-31", "2025-10-03", "1575", "1"]], "resultSetMetaData": {"format": "jsonv2", "numRows": 10, "partition": 0, "partitionInfo": [{"rowCount": 10, "uncompressedSize": 828}], "rowType": [{"length": 32, "name": "HCP_ID", "nullable": false, "precision": 0, "scale": 0, "type": "text"}, {"length": 0, "name": "TOTAL_ACUTE_TRX_LAAD_12M", "nullable": true, "precision": 30, "scale": 0, "type": "fixed"}, {"length": 0, "name": "MIN_DATE", "nullable": true, "precision": 0, "scale": 0, "type": "date"}, {"length": 0, "name": "MAX_DATE", "nullable": true, "precision": 0, "scale": 0, "type": "date"}, {"length": 0, "name": "RECORD_COUNT", "nullable": false, "precision": 18, "scale": 0, "type": "fixed"}, {"length": 0, "name": "UNIQUE_ZIP_CODES", "nullable": false, "precision": 18, "scale": 0, "type": "fixed"}]}, "statementHandle": "01c2032a-081a-3683-0075-0383fdc7c6f6"}]')] in VALUES clause
+✅ Process Completed
+⏱️  Total Execution Time: 111581ms

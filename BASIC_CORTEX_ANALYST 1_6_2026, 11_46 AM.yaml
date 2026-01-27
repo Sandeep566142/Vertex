@@ -21438,3 +21438,12 @@ Insert value list does not match column list expecting 22 but got 21
 ⚠️ Audit log saved with simplified data (VARIANT fields skipped).
 ✅ Process Completed
 ⏱️  Total Execution Time: 129731ms
+
+
+
+❌ Audit Log Error (DataFrame approach): (1304): 01c203b6-081a-3ea7-0075-0383fddb88b6: 002023 (22000): 01c203b6-081a-3ea7-0075-0383fddb88b6: SQL compilation error:
+Expression type does not match column data type, expecting VARIANT but got TIMESTAMP_NTZ(9) for column FULL_RAW_JSON
+🔄 Attempting simplified insert without VARIANT fields...
+⚠️ Audit log saved with simplified data (VARIANT fields skipped).
+✅ Process Completed
+⏱️  Total Execution Time: 115055ms

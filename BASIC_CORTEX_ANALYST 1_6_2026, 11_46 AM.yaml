@@ -15891,3 +15891,962 @@ SELECT 'Pharma_Master_v1', PARSE_JSON($$
     }
 }
 $$);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import json
+import logging
+import pprint
+import re
+import _snowflake # Native Snowflake module for internal API calls
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict, Any, Optional, Literal, Tuple
+from pydantic import BaseModel, Field, field_validator
+from snowflake.snowpark import Session
+from snowflake.snowpark.functions import lit, parse_json
+from collections import defaultdict
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+
+class AgentConfig(BaseModel):
+    """Configuration for the agent execution"""
+    # LLM Models
+    model: str = "claude-sonnet-4-5"            
+    
+    # Snowflake Objects
+    cortex_analyst_object_master: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MASTERTABLE_V1"
+    cortex_analyst_object_ards: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING.BASIC_CORTEX_ANALYST"
+    warehouse: str = "DEV_PAIN_SALES_PERFORMANCE_B_WH"
+    messages_table: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MESSAGES"
+    diagnostic_udf: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DIAGNOSTIC_TOOL"
+    
+    enable_semantic_parsing: bool = True
+
+CONFIG = AgentConfig()
+
+# ==========================================
+# 2. PYDANTIC MODELS (Structure Only)
+# ==========================================
+
+class EvaluationResult(BaseModel):
+    score: int = Field(..., description="Score 1-10.")
+    reasoning: str = Field(..., description="Justification.")
+
+class IntentClassification(BaseModel):
+    intent_type: str = Field(..., description="greeting, data_retrieval, root_cause_analysis, clarification_needed, general_question, off_topic, combined")
+    data_retrieval_query: Optional[str] = None
+    root_cause_query: Optional[str] = None
+    direct_response: Optional[str] = None
+    clarification_question: Optional[str] = None
+    confidence: str = Field(..., description="high, medium, low")
+    reasoning: str = Field(..., description="Reasoning")
+
+class RephraserOutput(BaseModel):
+    refined_query: str = Field(..., description="The fully contextualized query.")
+
+class TableSelection(BaseModel):
+    relevant_table_names: List[str] = Field(..., description="List of table names.")
+
+class GuardResult(BaseModel):
+    is_safe: bool = Field(...)
+    message: Optional[str] = Field(None)
+
+class DataAgentParsedOutput(BaseModel):
+    clean_answer_text: str = Field(...)
+    clarifying_question: Optional[str] = None
+    evaluation: EvaluationResult = Field(...)
+
+class RootCauseParsedOutput(BaseModel):
+    clean_summary_text: str = Field(...)
+    react_flow_json: Optional[Dict] = None
+    evaluation: EvaluationResult = Field(...)
+
+class SqlResult(BaseModel):
+    answer_text: str
+    clarifying_question: Optional[str] = None
+    tables: List[Any] = Field(default_factory=list)
+    charts: List[Dict] = Field(default_factory=list)
+    sql_generated: Optional[str] = None
+    sql_explanation: Optional[str] = None
+    is_verified_query: bool = False
+    evaluation: EvaluationResult
+    is_retry: bool = False
+
+    @field_validator('charts', mode='before')
+    @classmethod
+    def parse_charts(cls, v):
+        if not v: return []
+        parsed = []
+        for item in v:
+            if isinstance(item, dict): parsed.append(item)
+            elif isinstance(item, str):
+                try: parsed.append(json.loads(item))
+                except: continue 
+        return parsed
+
+class DiagnosticResult(BaseModel):
+    summary_text: str
+    react_flow_json: Optional[Dict] = None
+    evaluation: EvaluationResult
+
+# ==========================================
+# 3. PROMPTS (Separated Logic & Response)
+# ==========================================
+
+# --- REPHRASER ---
+PROMPT_REPHRASER_SYSTEM = "You are a sophisticated Query Refinement Engine."
+
+PROMPT_REPHRASER_ORCHESTRATION = """
+<query_refinement_instructions>
+<objective>
+Transform the user's input into a standalone, context-complete query that can be understood without prior conversation history.
+</objective>
+
+<core_rules>
+<rule id="1">Resolve all pronouns (it, they, that, this, those) to their specific referents</rule>
+<rule id="2">Preserve ALL metrics, entity names, IDs, and numerical values EXACTLY as stated</rule>
+<rule id="3">Maintain the original intent and scope - do not expand or narrow the question</rule>
+<rule id="4">Keep technical terminology and domain-specific language intact</rule>
+<rule id="5">Ensure the output is grammatically correct and reads naturally</rule>
+</core_rules>
+
+<transformation_examples>
+<example>
+<input>What about Arizona?</input>
+<context>Previous discussion about sales performance in Texas</context>
+<output>What is the sales performance in Arizona?</output>
+</example>
+
+<example>
+<input>Why is it down?</input>
+<context>Previous mention of Q4 revenue</context>
+<output>Why is Q4 revenue down?</output>
+</example>
+</transformation_examples>
+</query_refinement_instructions>
+"""
+
+PROMPT_REPHRASER_RESPONSE = """
+<output_format>
+At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in below format: 
+Example: { "refined_query": "What is the sales performance in Arizona?" }
+Do not include any other text or markdown outside the JSON object.
+</output_format>
+"""
+
+# --- INTENT ---
+PROMPT_INTENT_SYSTEM = "You are an Expert Intent Classification System."
+
+PROMPT_INTENT_ORCHESTRATION = """
+<intent_classification_instructions>
+
+<mission>
+Your ONLY job is to identify the user's INTENT. Do NOT retrieve data, do NOT answer questions, do NOT perform analysis.
+Classify the intent type and route accordingly. If you can answer directly (like greetings), provide direct_response.
+</mission>
+
+<intent_categories>
+
+<intent name="greeting">
+<description>User is greeting, saying hello, or engaging in pleasantries</description>
+<indicators>hi, hello, hey, good morning, how are you, thanks, thank you, goodbye, bye</indicators>
+<action>Set direct_response with a friendly greeting. No other fields needed.</action>
+</intent>
+
+<intent name="data_retrieval">
+<description>User wants to see/get/retrieve DATA - numbers, lists, metrics, tables</description>
+<indicators>show, list, get, display, find, what is the value, how many, count, total, give me</indicators>
+<action>Extract the data request to data_retrieval_query. Keep as natural language. Add "and generate a table and a visual".</action>
+**CRITICAL VISUALIZATION LOGIC:**
+Analyze the data request. If it implies trends (over time), comparisons (by region/product), or distributions, you MUST automatically append "and generate a table and a visual" to the query string, even if the user did not explicitly ask for a chart.
+</intent>
+
+<intent name="root_cause_analysis">
+<description>User wants to understand WHY, CAUSES, DRIVERS, REASONS, EXPLANATIONS</description>
+<indicators>why, explain, what is driving, what is causing, what's behind, reason for, root cause, how come, what factors</indicators>
+<action>Extract the causal question to root_cause_query. Keep VERBATIM - exact text from user.</action>
+</intent>
+
+<intent name="combined">
+<description>User wants BOTH data AND causal analysis in one request</description>
+<indicators>Contains both data keywords AND causal keywords</indicators>
+<action>Split into data_retrieval_query AND root_cause_query. Keep both portions.</action>
+</intent>
+
+<intent name="clarification_needed">
+<description>User's intent is unclear, vague, or ambiguous - you cannot determine what they want</description>
+<indicators>Very short/vague input, unclear pronouns without context, incomplete thoughts</indicators>
+<action>Set clarification_question asking user to be more specific.</action>
+</intent>
+
+<intent name="general_question">
+<description>General questions about the system, capabilities, how to use features - not data or analysis requests</description>
+<indicators>how do I, can you, what can you do, help me understand, how does this work</indicators>
+<action>Set direct_response with helpful information about capabilities.</action>
+</intent>
+
+<intent name="off_topic">
+<description>User is asking about unrelated topics not connected to data, analytics, or business questions</description>
+<indicators>Questions about weather, sports, entertainment, personal topics unrelated to business/data</indicators>
+<action>Set direct_response politely redirecting to business/data topics.</action>
+</intent>
+
+</intent_categories>
+
+<CRITICAL_CLASSIFICATION_RULES>
+
+⚠️ RULE 1: NEVER DO THE WORK - ONLY CLASSIFY
+You are NOT a data analyst. You are NOT an answering agent. You ONLY identify intent type.
+Do NOT retrieve data. Do NOT answer analytical questions. ONLY classify and route.
+
+⚠️ RULE 2: CAUSAL KEYWORD DETECTION
+These ALWAYS indicate root_cause_analysis intent:
+- "what is driving"
+- "what is causing"
+- "what's driving"  
+- "what's causing"
+- "why is/are"
+- "explain why"
+- "reason for"
+- "root cause"
+- "what factors"
+- "what's behind"
+- "how come"
+
+⚠️ RULE 3: DATA KEYWORD DETECTION  
+These ALWAYS indicate data_retrieval intent:
+- "show me"
+- "list"
+- "get"
+- "display"
+- "find all"
+- "what is the value/total/count of"
+- "how many"
+
+⚠️ RULE 4: DIRECT RESPONSE ONLY FOR SIMPLE CASES
+Use direct_response ONLY for:
+- Greetings (hi, hello, thanks)
+- General system questions (what can you do)
+- Off-topic redirects
+
+Do NOT use direct_response for data or analytical questions - those need agent processing.
+
+⚠️ RULE 5: VERBATIM PRESERVATION FOR ROOT CAUSE
+For root_cause_query: Copy EXACT text from user. No paraphrasing, no summarizing.
+
+⚠️ RULE 6: NO SQL CODE GENERATION
+NEVER write SELECT/FROM/WHERE statements. Keep everything as natural language.
+
+⚠️ RULE 7: CONFIDENCE SCORING
+- high: Intent is crystal clear
+- medium: Intent is likely but has some ambiguity
+- low: Intent is very unclear, might need clarification
+
+</CRITICAL_CLASSIFICATION_RULES>
+</intent_classification_instructions>
+"""
+
+PROMPT_INTENT_RESPONSE = """
+<output_format>
+At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in below format:
+{
+  "intent_type": "data_retrieval",
+  "data_retrieval_query": "Show me sales...",
+  "root_cause_query": null,
+  "direct_response": null,
+  "clarification_question": null,
+  "confidence": "high",
+  "reasoning": "User used 'show me' keyword"
+}
+</output_format>
+"""
+
+# --- DATA AGENT ---
+PROMPT_DATA_AGENT_SYSTEM = "You are an expert Data Analyst."
+
+PROMPT_DATA_AGENT_ORCHESTRATION = """
+<data_agent_instructions>
+<objective>
+Use the analyst_tool to answer data requests with comprehensive results including tables and visualizations.
+</objective>
+<execution_rules>
+<rule id="1">ALWAYS generate a table (Result Set) for data requests</rule>
+<rule id="2">Generate appropriate visualizations when data is suitable for charts</rule>
+<rule id="3">Provide clear, concise summaries of the data findings</rule>
+<rule id="4">Handle errors gracefully and explain any data limitations</rule>
+</execution_rules>
+
+<self_evaluation_instructions>
+You MUST perform a rigorous self-critique of your SQL and data analysis.
+1. **Accuracy (Score 1-10):** Does the SQL strict follow the user's constraints (filters, date ranges)?
+2. **Data Integrity:** Are the results logical? (e.g., no negative counts where impossible).
+3. **Clarity:** Is the summary accessible to a non-technical user?
+</self_evaluation_instructions>
+</data_agent_instructions>
+"""
+
+PROMPT_DATA_AGENT_RESPONSE = """
+<output_format>
+At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in below format:
+```json
+{
+  "clean_answer_text": "Summary of findings...",
+  "clarifying_question": null,
+  "evaluation": {
+    "score": 8,
+    "reasoning": "Data matches request."
+  }
+}
+```
+</output_format>
+"""
+
+# --- ROOT CAUSE ---
+PROMPT_ROOT_CAUSE_SYSTEM = "You are an Autonomous Root Cause Analysis Agent."
+
+PROMPT_ROOT_CAUSE_ORCHESTRATION = """
+<root_cause_orchestration_prompt>
+    <role_and_objective>
+        You are an **Autonomous Root Cause Analysis Agent** designed to traverse a metric decision tree from the root node down to the leaf nodes. Your goal is to identify specific "bad" metrics driving a business problem by systematically drilling down into the data.
+        
+        ALWAYS USE tree_id as Pharma_Master_v1.
+    </role_and_objective>
+
+    <operational_procedure>
+        You must strictly follow this recursive logic for every user request:
+
+        **Step 1: Initialization (Find the Root)**
+        * If this is the start of the conversation, call `Diagnostic_tool` in **Search Mode**.
+        * **Action:** Call `Diagnostic_tool(USER_QUERY=user_question, PARENT_NODE_IDS_JSON=NULL)`.
+        * **Next:** Proceed to Step 2 with the results.
+
+        **Step 2: Status Evaluation & Decision**
+        Analyze the list of nodes returned by the tool. Focus **only** on nodes where `"status": "bad"`.
+
+        * **Check:** For every "bad" node, do you see its children in the current list?
+        * **Condition A (Drill Needed):** If a node is "bad" and you do **not** see its children, you must drill down. Collect these Node IDs.
+        * **Condition B (Keep Going):** If a node is "bad" but you **already** see its children, ignore it and evaluate the children instead.
+        * **Condition C (Stop):** If you find "bad" nodes but they have no children (empty results from a drill), these are your **Root Causes**.
+
+        **Step 3: Execution (Drill Down)**
+        * If Condition A occurred: Call `Diagnostic_tool` in **Drill Mode**.
+        * **Action:** Call `Diagnostic_tool(USER_QUERY=NULL, PARENT_NODE_IDS_JSON='["ID_1", "ID_2"]')`.
+        * **Next:** Recursively repeat Step 2 with the new output.
+        * If Condition C occurred: Present the final root causes to the user.
+    </operational_procedure>
+
+    <constraints>
+        * **Never** guess the status of a metric; always use the tool.
+        * **Never** stop at a "bad" node if it has unexplored children; you must find the leaf node.
+        * Output your reasoning briefly before calling the tool.
+    </constraints>
+
+    <self_evaluation_instructions>
+    You MUST perform a rigorous self-critique of your root cause logic.
+    1. **Logic (Score 1-10):** Is the causal chain (Root -> Leaf) mathematically sound?
+    2. **Driver Isolation:** Did we truly find the leaf node, or did we stop too early?
+    3. **Completeness:** Did we explore all "bad" branches?
+    **CRITICAL:** Append this evaluation at the end of your response in the following format:
+    ### SELF-EVALUATION
+    Score: [1-10]
+    Reasoning: [Detailed analysis]
+    </self_evaluation_instructions>
+</root_cause_orchestration_prompt>
+"""
+
+PROMPT_ROOT_CAUSE_RESPONSE = """
+<response_structure_prompt>
+    <instruction>
+        You must output exactly two sections in the following order. Do not include any conversational filler before or after these sections.
+    </instruction>
+
+    <section_1_executive_summary>
+        #### **SECTION 1: Diagnostic Executive Summary**
+        * **Tone:** Professional, constructive, and polite.
+        * **Headline:** State the Root Cause clearly.
+        * **The Narrative:** Briefly explain the chain of events in simple English.
+        * **Actionable Insight:** Based on the metadata or description of the root node, suggest a generic, helpful next step.
+    </section_1_executive_summary>
+
+    <section_2_react_flow_json>
+        #### **SECTION 2: React Flow JSON Artifact**
+        You must generate a valid JSON object inside a Markdown code block (json ...).
+        
+        **4. JSON Schema (Must Follow Exactly):**
+        {
+          "nodes": [
+            {
+              "id": "N0",
+              "type": "default",
+              "data": { "label": "Metric Name: Value" },
+              "position": { "x": 0, "y": 0 },
+              "style": { "background": "#FFE2E5", "width": 180, "color": "#333", "border": "1px solid #777", "borderRadius": "8px" }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-N0-N1",
+              "source": "N0",
+              "target": "N1",
+              "label": "driven by",
+              "animated": true,
+              "style": { "stroke": "#555", "strokeWidth": 2 }
+            }
+          ]
+        }
+    </section_2_react_flow_json>
+    
+    <section_3_final_json>
+        CRITICAL: Provide the final JSON block for the parser here as defined in the system prompt evaluation section.
+    </section_3_final_json>
+    
+    **CRITICAL** : YOU MUST ONLY EXECUTE ATMOST 8 TOOL CALLS.
+    
+    <output_format>
+    At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in below format:
+    ```json
+    {
+      "clean_summary_text": "Executive summary...",
+      "react_flow_json": { "nodes": [], "edges": [] },
+      "evaluation": { "score": 9, "reasoning": "Found root cause." }
+    }
+    ```
+    </output_format>
+</response_structure_prompt>
+"""
+
+# --- TABLE SELECTION ---
+PROMPT_TABLE_SELECTION = """
+<instruction>
+You are an expert Database Architect and Schema Analyzer.
+Your goal is to identify the subset of tables from the provided list that are strictly relevant to answering the user's query.
+
+<rules>
+1. **Analyze the Query**: Carefully understand the business entities, metrics, and dimensions requested.
+2. **Review Summaries**: Check the Table Name and Description for each table provided.
+3. **Strict Selection**: Select ONLY tables that contain the data needed. Do NOT include tables "just in case".
+4. **Keyword Matching**: 
+   - If the query mentions "sales" or "revenue", look for Fact tables with those metrics.
+   - If the query mentions "location", "city", or "state", look for Geography Dimension tables.
+   - If the query mentions "products", look for Product Dimension tables.
+5. **Empty Return**: If no tables seem relevant, return an empty list.
+</rules>
+
+<output_format>
+Output ONLY a valid JSON object with the following structure. Do not output markdown code blocks.
+{
+  "relevant_table_names": ["Table_A", "Table_B"]
+}
+</output_format>
+</instruction>
+"""
+
+# --- SEMANTIC TRANSLATOR ---
+PROMPT_SEMANTIC_TRANSLATOR = """
+<instruction>
+You are a Semantic Query Optimizer and SQL Expert.
+Your goal is to rewrite the User's Natural Language Query so that it aligns perfectly with the provided Database Schema Context.
+
+<rules>
+1. **Vocabulary Mapping:** Replace generic business terms in the user query with the EXACT column names found in the Schema Context.
+   - Example: If user says "revenue" and context has "TOTAL_SALES_AMT", use "TOTAL_SALES_AMT".
+   - Example: If user says "doctors" and context has "HCP_ID", use "HCP_ID".
+2. **Filter Alignment:** Check 'sample_values' in the context.
+   - Example: If user says "in NY", and sample values for 'STATE_CD' are 'New York', rewrite to "STATE_CD is 'New York'".
+3. **Disambiguation:** If a term matches multiple columns, use the column descriptions to pick the most relevant one.
+4. **Preservation:** Do not change the user's core intent (e.g., ranking, aggregation, filtering). Just swap the terminology.
+5. **Output**: Return ONLY the rewritten natural language query string. Do not output SQL. Do not output JSON.
+</rules>
+</instruction>
+"""
+
+# ==========================================
+# 4. HELPER FUNCTIONS
+# ==========================================
+
+def log_checkpoint(step: str, details: Any):
+    print(f"\n{'='*50}\n🛑 CHECKPOINT: {step}\n{'-'*50}")
+    if isinstance(details, BaseModel): pprint.pprint(details.model_dump())
+    elif isinstance(details, (dict, list)): pprint.pprint(details)
+    else: print(str(details))
+    print(f"{'='*50}\n")
+
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """Invokes 'agent:run' for tools (Analyst/Diagnostic/Generic)."""
+    ENDPOINT = "/api/v2/cortex/agent:run"
+    print(f"--- INVOKING AGENT: {agent_name} ---")
+
+    try:
+        resp = _snowflake.send_snow_api_request("POST", ENDPOINT, {"Content-Type": "application/json", "Accept": "text/event-stream"}, {}, payload, {}, 120000)
+        content = resp.get("content")
+        # print(content) # Debugging raw stream
+        if not content: return {"error": "Empty"}
+        
+        extracted = {"text": "", "tables": [], "charts": [], "sql_generated": None, "sql_explanation": None}
+        try: parsed = json.loads(content)
+        except: parsed = [json.loads(line) for line in content.splitlines() if line.strip()]
+        
+        def process_event(evt, data):
+            if evt == 'response.text.delta': 
+                extracted["text"] += data.get('text', '')
+            elif evt == 'response.chart': 
+                extracted["charts"].append(data.get('chart') or data.get('chart_spec'))
+            elif evt == 'response.table':
+                rs = data.get('result_set', [])
+                extracted["tables"].append(rs) 
+            elif evt == 'response.tool_result.analyst.delta':
+                delta = data.get('delta', {})
+                if delta.get('sql'): extracted["sql_generated"] = delta.get('sql')
+                if delta.get('sql_explanation'): extracted["sql_explanation"] = delta.get('sql_explanation')
+                if delta.get('result_set'): extracted["tables"].append(delta.get('result_set'))
+            elif evt == 'response.tool_result':
+                for item in data.get('content', []):
+                    if item.get('type') == 'json':
+                        json_p = item.get('json', {})
+                        if 'sql' in json_p: extracted["sql_generated"] = json_p['sql']
+                        if 'result_set' in json_p: extracted["tables"].append(json_p['result_set'])
+
+        if isinstance(parsed, list):
+            for item in parsed: process_event(item.get('event'), item.get('data', {}))
+        
+        print(f"--- AGENT {agent_name} COMPLETED ---")
+        return extracted
+    except Exception as e: return {"error": str(e)}
+
+def extract_pydantic_from_text(text: str, model_class: type[BaseModel]) -> BaseModel:
+    """
+    Robustly finds JSON in text (Markdown blocks or raw) and parses it.
+    Returns a default model instance on failure instead of raising exceptions.
+    """
+    if not text:
+        return model_class() # Return default model
+
+    def try_parse(json_str):
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            try: return json.loads(json_str, strict=False)
+            except: return None
+
+    # Strategy 1: Find JSON code block ```json ... ```
+    match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if match:
+        data = try_parse(match.group(1))
+        if data: return model_class(**data)
+
+    # Strategy 2: Find raw outermost braces { ... }
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        candidate = text[start:end+1]
+        data = try_parse(candidate)
+        if data: return model_class(**data)
+    
+    # Special Handling: Rephraser might output raw text
+    if model_class == RephraserOutput:
+        print(f"⚠️ JSON Parse Failed for Rephraser. Using raw text.")
+        return RephraserOutput(refined_query=text.strip())
+
+    print(f"❌ JSON Parse Failed for {model_class.__name__}.")
+    return model_class()
+
+def check_input_guard(session: Session, user_input: str) -> GuardResult:
+    log_checkpoint("START: GUARD", user_input)
+    try:
+        safe_input = user_input.replace("'", "''")
+        res = session.sql(f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{CONFIG.model}', [{{'role': 'user', 'content': '{safe_input}'}}], {{'guardrails': true}}) as r").collect()
+        if not res: return GuardResult(is_safe=True)
+        is_unsafe = "Response filtered" in json.loads(res[0]['R'])['choices'][0]['messages']
+        print(is_unsafe)
+        return GuardResult(is_safe=not is_unsafe, message="Blocked." if is_unsafe else None)
+    except: return GuardResult(is_safe=True)
+
+class PayloadFactory:
+    @staticmethod
+    def create(query: str, instructions: Any, tools: List = None, resources: Dict = None, history: List = None) -> Dict:
+        messages = (history if history else []) + [{"role": "user", "content": [{"type": "text", "text": query}]}]
+        inst_payload = instructions if isinstance(instructions, dict) else {"system": instructions}
+        return {
+            "messages": messages,
+            "models": {"orchestration": CONFIG.model},
+            "instructions": inst_payload,
+            "tools": tools or [],
+            "tool_resources": resources or {}
+        }
+
+def _save_row(session: Session, data: dict, table_name: str = "AGENT_DETAILED_HISTORY"):
+    try:
+        df = session.create_dataframe([data])
+        df.create_or_replace_temp_view("TEMP_AGENT_LOG_STAGING")
+        sql = f"""
+        INSERT INTO {table_name} (
+            USER_QUERY, REPHRASED_QUERY, INTENT_TYPE, INTENT_CONFIDENCE,
+            DATA_SUMMARY, DATA_SQL, DATA_SQL_EXPLANATION, DATA_CLARIFICATION,
+            DATA_EVAL_SCORE, DATA_EVAL_REASONING, 
+            DATA_RESULT_SET, RC_SUMMARY, RC_GRAPH_JSON,
+            RC_EVAL_SCORE, RC_EVAL_REASONING, IS_BLOCKED, FULL_RAW_JSON
+        )
+        SELECT 
+            USER_QUERY, REPHRASED_QUERY, INTENT_TYPE, INTENT_CONFIDENCE,
+            DATA_SUMMARY, DATA_SQL, DATA_SQL_EXPLANATION, DATA_CLARIFICATION,
+            DATA_EVAL_SCORE, DATA_EVAL_REASONING, 
+            PARSE_JSON(DATA_RESULT_SET), RC_SUMMARY, PARSE_JSON(RC_GRAPH_JSON),
+            RC_EVAL_SCORE, RC_EVAL_REASONING, IS_BLOCKED, PARSE_JSON(FULL_RAW_JSON)
+        FROM TEMP_AGENT_LOG_STAGING
+        """
+        session.sql(sql).collect()
+        print(f"✅ Row saved to {table_name}")
+    except Exception as e: print(f"❌ Save Error: {e}")
+
+def get_cortex_completion(session: Session, prompt: str) -> str:
+    try:
+        safe_prompt = prompt.replace("'", "''")
+        cmd = f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{CONFIG.model}', '{safe_prompt}') as R"
+        return session.sql(cmd).collect()[0]['R']
+    except Exception as e: return ""
+
+# ==========================================
+# 5. SEMANTIC VIEW PARSER
+# ==========================================
+
+class SemanticViewParser:
+    def __init__(self, session: Session, view_name: str):
+        self.ca_json = {"tables": [], "relationships": []}
+        self.table_comments = {} 
+        self.column_metadata = defaultdict(lambda: defaultdict(dict)) 
+        self.rel_metadata = defaultdict(dict) 
+        if CONFIG.enable_semantic_parsing:
+            self._fetch_and_parse(session, view_name)
+
+    def _fetch_and_parse(self, session: Session, view_name: str):
+        print(f"📖 DESCRIBING SEMANTIC VIEW: {view_name}...")
+        try:
+            rows = session.sql(f"DESCRIBE SEMANTIC VIEW {view_name}").collect()
+            data = [row.as_dict() for row in rows]
+            
+            ca_row = next((r for r in data if r.get('object_kind') == 'EXTENSION' and r.get('object_name') == 'CA'), None)
+            if ca_row:
+                try: self.ca_json = json.loads(ca_row['property_value'])
+                except: pass
+
+            for r in data:
+                kind = r.get('object_kind')
+                name = r.get('object_name')
+                prop = r.get('property')
+                val = r.get('property_value')
+                
+                if kind == 'TABLE' and prop == 'COMMENT':
+                    self.table_comments[name.split('.')[-1]] = val
+                elif kind in ['DIMENSION', 'FACT', 'COLUMN']:
+                    t_name = r.get('parent_entity', '').split('.')[-1]
+                    if t_name:
+                        if prop == 'COMMENT': self.column_metadata[t_name][name]['description'] = val
+                        elif prop == 'DATA_TYPE': self.column_metadata[t_name][name]['data_type'] = val
+                elif kind == 'RELATIONSHIP':
+                    if prop == 'TABLE': self.rel_metadata[name]['source_table'] = val.split('.')[-1]
+                    elif prop == 'REF_TABLE': self.rel_metadata[name]['target_table'] = val.split('.')[-1]
+                    elif prop == 'FOREIGN_KEY': self.rel_metadata[name]['keys'] = val
+
+            print(f"✅ Metadata Loaded: {len(self.ca_json.get('tables', []))} tables enriched.")
+        except Exception as e:
+            print(f"⚠️ Metadata Parse Failed: {e}")
+
+    def get_table_summaries(self) -> str:
+        summary_list = []
+        for t in self.ca_json.get('tables', []):
+            t_name = t.get('name')
+            desc = self.table_comments.get(t_name, "No description.")
+            summary_list.append(f"- Table: {t_name}\n  Description: {desc}")
+        return "\n".join(summary_list) if summary_list else ""
+
+    def get_pruned_context(self, selected_tables: List[str]) -> str:
+        pruned = {"tables": [], "relationships": []}
+        for t in self.ca_json.get('tables', []):
+            t_name = t['name']
+            if t_name in selected_tables:
+                table_copy = t.copy()
+                table_copy['description'] = self.table_comments.get(t_name, "")
+                for category in ['dimensions', 'facts', 'time_dimensions']:
+                    if category in table_copy:
+                        enriched_cols = []
+                        for col in table_copy[category]:
+                            col_copy = col.copy()
+                            meta = self.column_metadata[t_name].get(col['name'], {})
+                            if 'description' in meta: col_copy['description'] = meta['description']
+                            if 'data_type' in meta: col_copy['data_type'] = meta['data_type']
+                            enriched_cols.append(col_copy)
+                        table_copy[category] = enriched_cols
+                pruned['tables'].append(table_copy)
+        
+        if 'relationships' in self.ca_json:
+            for rel in self.ca_json['relationships']:
+                r_name = rel.get('name')
+                source = self.rel_metadata.get(r_name, {}).get('source_table')
+                if source in selected_tables:
+                    pruned['relationships'].append(rel)
+        return json.dumps(pruned, indent=2)
+
+# ==========================================
+# 6. AGENT MANAGER
+# ==========================================
+
+class AgentManager:
+    def __init__(self, session: Session):
+        self.session = session
+        self.parser = SemanticViewParser(session, CONFIG.cortex_analyst_object_ards)
+
+    def identify_needed_tables(self, query: str) -> List[str]:
+        print("🔍 IDENTIFYING RELEVANT TABLES...")
+        if not self.parser.ca_json.get('tables'): return []
+        summaries = self.parser.get_table_summaries()
+        prompt = f"{PROMPT_TABLE_SELECTION}\n\nUser Query: {query}\n\nTable Summaries:\n{summaries}"
+        res_text = get_cortex_completion(self.session, prompt)
+        print(res_text)
+        result = extract_pydantic_from_text(res_text, TableSelection)
+        print(f"✅ Selected: {result.relevant_table_names}")
+        return result.relevant_table_names
+
+    def run_semantic_translator(self, query: str, relevant_tables: List[str]) -> str:
+        print(f"🧠 REWRITING QUERY...")
+        pruned_json = self.parser.get_pruned_context(relevant_tables)
+        print(pruned_json)
+        prompt = f"{PROMPT_SEMANTIC_TRANSLATOR}\n\nSchema Context:\n{pruned_json}\n\nUser Query: {query}"
+        return get_cortex_completion(self.session, prompt).strip()
+
+    def run_rephraser(self, query: str, history: List[Dict]) -> RephraserOutput:
+        inst = {
+            "system": PROMPT_REPHRASER_SYSTEM,
+            "orchestration": PROMPT_REPHRASER_ORCHESTRATION,
+            "response": PROMPT_REPHRASER_RESPONSE
+        }
+        payload = PayloadFactory.create(query, inst, history=history)
+        resp = invoke_cortex_agent(self.session, payload, "Rephraser Agent")
+        return extract_pydantic_from_text(resp.get("text", ""), RephraserOutput)
+
+    def run_intent_classifier(self, query: str) -> IntentClassification:
+        inst = {
+            "system": PROMPT_INTENT_SYSTEM, 
+            "orchestration": PROMPT_INTENT_ORCHESTRATION,
+            "response": PROMPT_INTENT_RESPONSE
+        }
+        payload = PayloadFactory.create(query, inst)
+        resp = invoke_cortex_agent(self.session, payload, "Intent Agent")
+        return extract_pydantic_from_text(resp.get("text", ""), IntentClassification)
+
+    def run_data_agent(self, query: str, is_optimized: bool = False) -> SqlResult:
+        # Select the correct Cortex Analyst object based on optimization flag
+        target_view = CONFIG.cortex_analyst_object_ards if is_optimized else CONFIG.cortex_analyst_object_master
+        
+        tools = [{"tool_spec": {"type": "cortex_analyst_text_to_sql", "name": "analyst_tool"}}]
+        res_def = {
+            "analyst_tool": {
+                "type": "cortex_analyst_text_to_sql",
+                "semantic_view": target_view,
+                "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse}
+            }
+        }
+        inst = {
+            "system": PROMPT_DATA_AGENT_SYSTEM, 
+            "orchestration": PROMPT_DATA_AGENT_ORCHESTRATION,
+            "response": PROMPT_DATA_AGENT_RESPONSE
+        }
+        payload = PayloadFactory.create(query, inst, tools, res_def)
+        resp = invoke_cortex_agent(self.session, payload, "Data Agent" + (" (Optimized)" if is_optimized else ""))
+        print(resp)
+        raw_text = resp.get('text', '')
+        parsed = extract_pydantic_from_text(raw_text, DataAgentParsedOutput)
+        
+        return SqlResult(
+            answer_text=parsed.clean_answer_text,
+            clarifying_question=parsed.clarifying_question,
+            tables=resp.get('tables', []),
+            sql_generated=resp.get('sql_generated'),
+            sql_explanation=resp.get('sql_explanation'),
+            evaluation=parsed.evaluation
+        )
+
+    def run_root_cause_agent(self, query: str) -> DiagnosticResult:
+        tools = [{"tool_spec": {"type": "generic", "name": "Diagnostic_tool", "input_schema": {"type": "object", "properties": {"USER_QUERY": {"type": "string"}, "PARENT_NODE_IDS_JSON": {"type": "string"}, "TREE_ID": {"type": "string"}}, "required": ["USER_QUERY", "PARENT_NODE_IDS_JSON", "TREE_ID"]}}}]
+        res_def = {"Diagnostic_tool": {"type": "procedure", "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse}, "identifier": CONFIG.diagnostic_udf}}
+        
+        inst = {
+            "system": PROMPT_ROOT_CAUSE_SYSTEM, 
+            "orchestration": PROMPT_ROOT_CAUSE_ORCHESTRATION,
+            "response": PROMPT_ROOT_CAUSE_RESPONSE
+        }
+        payload = PayloadFactory.create(query, inst, tools, res_def)
+        resp = invoke_cortex_agent(self.session, payload, "Root Cause Agent")
+        
+        raw_text = resp.get('text', '')
+        parsed = extract_pydantic_from_text(raw_text, RootCauseParsedOutput)
+
+        return DiagnosticResult(
+            summary_text=parsed.clean_summary_text,
+            react_flow_json=parsed.react_flow_json,
+            evaluation=parsed.evaluation
+        )
+
+    def run_data_flow_orchestrator(self, query: str) -> SqlResult:
+        """Handles standard execution vs optimized self-healing execution via parallelism."""
+        
+        # Helper to run optimization sequence
+        def run_optimization_sequence():
+            try:
+                needed_tables = self.identify_needed_tables(query)
+                if needed_tables:
+                    optimized_q = self.run_semantic_translator(query, needed_tables)
+                    print(f"✨ Optimized Query: {optimized_q}")
+                    return self.run_data_agent(optimized_q, is_optimized=True)
+            except Exception as e:
+                print(f"Optimization failed: {e}")
+            return SqlResult(answer_text="Optimization Failed", evaluation=EvaluationResult(score=0))
+
+        # Helper to run standard sequence
+        def run_standard_sequence():
+            return self.run_data_agent(query, is_optimized=False)
+
+        # Execute Parallel
+        print("🚀 Starting Data Agent Flows (Standard & Optimized)...")
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_std = executor.submit(run_standard_sequence)
+            future_opt = executor.submit(run_optimization_sequence)
+            res_std = future_std.result()
+            res_opt = future_opt.result()
+
+        # Decision Logic (Score & Fallback)
+        final_res = res_std
+        print(f"📊 Standard Score: {res_std.evaluation.score} | Optimized Score: {res_opt.evaluation.score}")
+        
+        # If standard is high quality, keep it
+        if res_std.evaluation.score >= 8:
+            pass
+            
+        # If BOTH are low OR scores are equal (and >0), combine insights
+        elif (res_std.evaluation.score < 8 and res_opt.evaluation.score < 8) or \
+             (res_std.evaluation.score == res_opt.evaluation.score and res_std.evaluation.score > 0):
+             
+             print("🤝 Scores Low/Equal. Combining Summaries.")
+             base = res_opt if res_opt.evaluation.score > 0 else res_std
+             
+             combined_text = (
+                 f"**Standard Analysis:**\n{res_std.answer_text}\n\n"
+                 f"**Deep Context Analysis:**\n{res_opt.answer_text}"
+             )
+             
+             final_res = SqlResult(
+                 answer_text=combined_text,
+                 tables=base.tables,
+                 charts=base.charts,
+                 sql_generated=base.sql_generated, 
+                 sql_explanation=base.sql_explanation,
+                 evaluation=base.evaluation,
+                 is_retry=True
+             )
+
+        # If Optimized is strictly better, use it
+        elif res_opt.evaluation.score > res_std.evaluation.score:
+            print(f"🚀 Switched to Optimized Result (Score: {res_opt.evaluation.score})")
+            final_res = res_opt
+            final_res.is_retry = True
+            
+        return final_res
+
+# ==========================================
+# 7. MAIN EXECUTION (PARALLEL LOGIC)
+# ==========================================
+
+def main(session: Session):
+    manager = AgentManager(session)
+    user_query = "Show me the top 10 healthcare providers by acute transaction exposure, including their specialty and location."
+    
+    row_data = {
+        "USER_QUERY": user_query, "REPHRASED_QUERY": None, "INTENT_TYPE": None, "INTENT_CONFIDENCE": None,
+        "DATA_SUMMARY": None, "DATA_SQL": None, "DATA_SQL_EXPLANATION": None, "DATA_CLARIFICATION": None,
+        "DATA_RESULT_SET": None, "DATA_EVAL_SCORE": None, "DATA_EVAL_REASONING": None,
+        "RC_SUMMARY": None, "RC_GRAPH_JSON": None, "RC_EVAL_SCORE": None, "RC_EVAL_REASONING": None,
+        "IS_BLOCKED": False, "FULL_RAW_JSON": None
+    }
+    
+    log_checkpoint("MAIN: START", {"query": user_query})
+
+    guard = check_input_guard(session, user_query)
+    if not guard.is_safe:
+        row_data["IS_BLOCKED"] = True
+        _save_row(session, row_data)
+        return {"status": "blocked", "message": guard.message}
+
+    rephrased = manager.run_rephraser(user_query, [])
+    intent = manager.run_intent_classifier(rephrased.refined_query or user_query)
+    
+    row_data["REPHRASED_QUERY"] = rephrased.refined_query
+    row_data["INTENT_TYPE"] = intent.intent_type
+    row_data["INTENT_CONFIDENCE"] = intent.confidence
+
+    final_output = {"original": user_query, "processed": rephrased.refined_query, "intent": intent.model_dump(), "results": []}
+
+    if intent.direct_response:
+        final_output["results"].append({"type": "direct", "message": intent.direct_response})
+    else:
+        futures = {}
+        # Launch Data and Root Cause Flows in PARALLEL if intent allows
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            
+            # 1. Data Agent Flow (Standard vs Optimized inside orchestrator)
+            if intent.intent_type in ["data_retrieval", "combined"] and intent.data_retrieval_query:
+                q = intent.data_retrieval_query
+                futures["data"] = executor.submit(manager.run_data_flow_orchestrator, q)
+            
+            # 2. Root Cause Flow
+            if intent.intent_type in ["root_cause_analysis", "combined"] and intent.root_cause_query:
+                q = intent.root_cause_query or rephrased.refined_query
+                futures["rc"] = executor.submit(manager.run_root_cause_agent, q)
+
+        # Collect Results
+        if "data" in futures:
+            res = futures["data"].result()
+            final_output["results"].append({"type": "data_analysis", "summary": res.answer_text, "tables": res.tables})
+            row_data["DATA_SUMMARY"] = res.answer_text
+            row_data["DATA_SQL"] = res.sql_generated
+            row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
+            if res.tables: row_data["DATA_RESULT_SET"] = json.dumps(res.tables)
+            row_data["DATA_EVAL_SCORE"] = res.evaluation.score
+            row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+
+        if "rc" in futures:
+            res_rc = futures["rc"].result()
+            final_output["results"].append({"type": "root_cause", "summary": res_rc.summary_text, "graph": res_rc.react_flow_json})
+            row_data["RC_SUMMARY"] = res_rc.summary_text
+            if res_rc.react_flow_json: row_data["RC_GRAPH_JSON"] = json.dumps(res_rc.react_flow_json)
+            row_data["RC_EVAL_SCORE"] = res_rc.evaluation.score
+            row_data["RC_EVAL_REASONING"] = res_rc.evaluation.reasoning
+
+    row_data["FULL_RAW_JSON"] = json.dumps(final_output)
+    _save_row(session, row_data)
+    print("✅ Process Completed")
+    return final_output

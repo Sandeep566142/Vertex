@@ -18186,3 +18186,51 @@ Search
 
 
 Search
+
+
+
+
+
+❌ Audit Log Error: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+Traceback (most recent call last):
+  File "_udf_code.py", line 1640, in _save_audit_row
+    df.write.mode("append").save_as_table(CONFIG.audit_log_table)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/telemetry.py", line 333, in wrap
+    result = func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/utils.py", line 1148, in call_wrapper
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/dataframe_writer.py", line 570, in save_as_table
+    result = session._conn.execute(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 648, in execute
+    result_set, result_meta = self.get_result_set(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/analyzer/snowflake_plan.py", line 426, in wrap
+    raise ne.with_traceback(tb) from None
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/analyzer/snowflake_plan.py", line 179, in wrap
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 770, in get_result_set
+    result = self.run_query(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 137, in wrap
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 131, in wrap
+    return func(*args, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 544, in run_query
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 529, in run_query
+    results_cursor = self.execute_and_notify_query_listener(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/6663554fb95721a9f4065a5cde67480069f1a73f0215d55614d1058297a86474/lib/python3.10/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c2031a-081a-3683-0075-0383fdc61cfa: 002020 (21S01): 01c2031a-081a-3683-0075-0383fdc61cfa: SQL compilation error:
+Insert value list does not match column list expecting 22 but got 21
+✅ Process Completed
+⏱️  Total Execution Time: 113726ms

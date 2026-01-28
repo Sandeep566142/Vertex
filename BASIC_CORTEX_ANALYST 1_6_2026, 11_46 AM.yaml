@@ -24436,3 +24436,13 @@ Output:
 </CRITICAL_CLASSIFICATION_RULES>
 </intent_classification_instructions>
 """
+
+
+
+{'original': 'Why is the NSAID Market Volume rising in Internal Medicine while Tramadol Brand Volume is falling in the same specialty? ', 'processed': 'Compare NSAID Category and Tramadol Brand prescription volume trends in Internal Medicine specialty over the last 12 months, including new starts, refills, number of prescribers, and year-over-year growth rates', 'intent': {'intent_type': 'data_retrieval', 'data_retrieval_query': 'Compare NSAID Category and Tramadol Brand prescription volume trends in Internal Medicine specialty over the last 12 months, including new starts, refills, number of prescribers, and year-over-year growth rates', 'root_cause_query': None, 'direct_response': None, 'clarification_question': None, 'confidence': 'high', 'reasoning': 'User is requesting a comparative trend analysis of prescription data for two specific medication types (NSAID Category vs Tramadol Brand) within a defined specialty (Internal Medicine) over a specific time period (last 12 months) with multiple specific metrics (new starts, refills, prescriber counts, YoY growth rates). This is a clear data retrieval request requiring prescription analytics.'}, 'results': []}
+Databases
+Worksheets
+Data products
+Search objects
+7 more Databases
+Pinned (1)

@@ -23733,3 +23733,409 @@ def main(session: Session, user_query: str, parent_node_ids_json: str, tree_id: 
         log_debug(session, "MAIN_CRASH", str(e))
         return json.dumps({"error": "Critical Procedure Error", "details": str(e), "trace": traceback.format_exc()})
 ';
+
+
+
+
+DROP PROCEDURE DIAGNOSTIC_TOOL(VARCHAR, VARCHAR, VARCHAR);
+CREATE OR REPLACE PROCEDURE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DIAGNOSTIC_TOOL("USER_QUERY" VARCHAR, "PARENT_NODE_IDS_JSON" VARCHAR, "TREE_ID" VARCHAR)
+RETURNS VARCHAR
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.10'
+PACKAGES = ('snowflake-snowpark-python','pandas','simplejson','pydantic')
+HANDLER = 'main'
+EXECUTE AS OWNER
+AS '
+import simplejson as json
+import concurrent.futures
+import traceback
+from pydantic import BaseModel, Field
+from snowflake.snowpark import Session
+
+# ==========================================
+# 1. DATA MODELS
+# ==========================================
+class SqlGenerationResponse(BaseModel):
+    sql_query: str = Field(description="The executable Snowflake SQL query")
+    filters_applied: list[str] = Field(description="List of specific filters applied from the user request")
+
+class StatusCheckResponse(BaseModel):
+    is_bad: bool = Field(description="True if the metric value indicates a negative business outcome")
+    reason: str = Field(description="Concise business reason (max 10 words)")
+
+SCHEMA_CONTEXT = """
+TABLE: MASTER_TABLE_V1
+DESCRIPTION: Healthcare provider prescribing data with demographic and transaction metrics.
+
+COLUMNS (DIMENSIONS):
+- HCO_NAME (VARCHAR): Health Organization Name (e.g., BAPTIST HEALTHCARE)
+- HCP_FIRST_NAME (VARCHAR): Provider First Name
+- HCP_LAST_NAME (VARCHAR): Provider Last Name
+- HCP_ID (VARCHAR): Internal Unique Provider ID
+- ONEKEY_HCP_ID (VARCHAR): External OneKey ID
+- HCP_SPECIALTY (VARCHAR): Medical Specialty (e.g., INTERNAL MEDICINE, ORTHOPEDIC SURGERY)
+- PROD_CAT_CD (VARCHAR): Product Category (e.g., OPIOID, NSAID)
+- PROD_FAMGRP_CD (VARCHAR): Product Family (e.g., TRAMADOL, DICLOFENAC)
+- PTAM_TERRITORY_ID (VARCHAR): Sales Territory ID
+- ZIP_CODE (VARCHAR): Provider Postal Code
+
+COLUMNS (METRICS - NEW PRESCRIPTIONS / NRX):
+- ACUTE_NRX_XPO_1W (NUMBER): New Prescriptions (1 Week)
+- ACUTE_NRX_XPO_2W (NUMBER): New Prescriptions (2 Weeks)
+- ACUTE_NRX_XPO_3W (NUMBER): New Prescriptions (3 Weeks)
+- ACUTE_NRX_XPO_1M (NUMBER): New Prescriptions (1 Month)
+- ACUTE_NRX_XPO_3M (NUMBER): New Prescriptions (3 Months)
+- ACUTE_NRX_XPO_6M (NUMBER): New Prescriptions (6 Months)
+- ACUTE_NRX_XPO_12M (NUMBER): New Prescriptions (12 Months)
+
+COLUMNS (METRICS - TOTAL PRESCRIPTIONS / TRX):
+- ACUTE_TRX_XPO_1W (NUMBER): Total Prescriptions (1 Week)
+- ACUTE_TRX_XPO_2W (NUMBER): Total Prescriptions (2 Weeks)
+- ACUTE_TRX_XPO_3W (NUMBER): Total Prescriptions (3 Weeks)
+- ACUTE_TRX_XPO_1M (NUMBER): Total Prescriptions (1 Month)
+- ACUTE_TRX_XPO_3M (NUMBER): Total Prescriptions (3 Months)
+- ACUTE_TRX_XPO_6M (NUMBER): Total Prescriptions (6 Months)
+- ACUTE_TRX_XPO_12M (NUMBER): Total Prescriptions (12 Months)
+
+COLUMNS (METRICS - LEAD / LAAD):
+- ACUTE_TRX_LAAD_1W (NUMBER): Left Anterior Descending Artery Transactions (1 Week)
+- ACUTE_TRX_LAAD_2W (NUMBER): Left Anterior Descending Artery Transactions (2 Weeks)
+- ACUTE_TRX_LAAD_3W (NUMBER): Left Anterior Descending Artery Transactions (3 Weeks)
+- ACUTE_TRX_LAAD_1M (NUMBER): Left Anterior Descending Artery Transactions (1 Month)
+- ACUTE_TRX_LAAD_3M (NUMBER): Left Anterior Descending Artery Transactions (3 Months)
+- ACUTE_TRX_LAAD_6M (NUMBER): Left Anterior Descending Artery Transactions (6 Months)
+- ACUTE_TRX_LAAD_12M (NUMBER): Left Anterior Descending Artery Transactions (12 Months)
+"""
+# ==========================================
+# 2. HELPER FUNCTIONS
+# ==========================================
+def log_debug(session: Session, step_name: str, message: str):
+    """Logs debug information to the database securely using Dollar Quoting."""
+    try:
+        DQ = "$" + "$"
+        safe_msg = str(message)[:100000]
+        safe_step = str(step_name)[:50]
+        query = (
+            "INSERT INTO DEBUG_LOGS_NEW "
+            "(STEP_NAME, LOG_MESSAGE) VALUES (" + DQ + safe_step + DQ + ", " + DQ + safe_msg + DQ + ")"
+        )
+        session.sql(query).collect()
+    except Exception:
+        pass # Fail silently to strictly avoid interrupting main flow
+
+# ==========================================
+# 3. CORE LOGIC: PROCESS SINGLE NODE
+# ==========================================
+def process_node(session: Session, node: dict, user_query: str, meta_map: dict) -> dict:
+    metric_name = node[''metric'']
+    node_id = node[''id'']
+    polarity = node.get(''polarity'', 0)
+    DQ = "$" + "$"
+
+    # --- Step 0: Validation ---
+    log_debug(session, f"NODE_START_{node_id}", f"Processing Metric: {metric_name}")
+    
+    meta = meta_map.get(metric_name)
+    if not meta:
+        error_msg = f"Metadata missing for metric: {metric_name}"
+        log_debug(session, f"NODE_ERROR_{node_id}", error_msg)
+        return {"id": node_id, "status": "error", "error": error_msg}
+
+    static_query = meta[''SQL_QUERY'']
+    final_query = static_query
+    query_type = "static"
+    executed_sql = static_query
+
+    # --- Step 1: Dynamic SQL Generation (Claude Sonnet 4.5) ---
+    if user_query and len(user_query) > 5:
+        try:
+            log_debug(session, f"GEN_SQL_START_{node_id}", "Initiating prompt construction...")
+            
+            # Build Few-Shot Examples
+            examples_text = ""
+            ex_json = meta.get(''FEW_SHOT_EXAMPLES'')
+            if ex_json:
+                ex_list = json.loads(ex_json) if isinstance(ex_json, str) else ex_json
+                for i, ex in enumerate(ex_list):
+                    examples_text += "\\nExample {}: User Request=''{}'' -> SQL=''{}''".format(i+1, ex[''question''], ex[''sql''])
+
+            # Expert Prompt Engineering
+            prompt_content = """
+            You are an expert Snowflake SQL Architect. 
+            Your goal is to adapt a Standard SQL Logic to answer a specific User Request.
+
+            **Schema Context (STRICTLY USE THESE COLUMNS ONLY):**
+            {}
+
+            **Task Context:**
+            - Metric Name: {}
+            - Standard Logic: {}
+            - User Request: "{}"
+
+            **Guidelines:**
+            1. Keep the base logic of the Standard Logic (tables, joins, core calculations).
+            2. Apply filters (WHERE clauses) based on the User Request using ONLY the columns listed in Schema Context.
+            3. Ensure the syntax is valid Snowflake SQL.
+            4. If the User Request is irrelevant to this metric, return the Standard Logic unchanged.
+
+            **Reference Examples:**
+            {}
+            """.format(SCHEMA_CONTEXT, metric_name, static_query, user_query, examples_text)
+
+            # Sanitize Prompt
+            safe_prompt = prompt_content.replace(DQ, "")
+            
+            # Define Output Schema
+            options_str = json.dumps({
+                "type": "json",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "sql_query": { "type": "string" },
+                        "filters_applied": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["sql_query", "filters_applied"],
+                    "additionalProperties": False 
+                }
+            })
+
+            # Call Cortex (claude-sonnet-4-5)
+            cmd = (
+                "SELECT AI_COMPLETE("
+                "model => ''claude-sonnet-4-5'', "
+                "prompt => " + DQ + safe_prompt + DQ + ", "
+                "response_format => PARSE_JSON(" + DQ + options_str + DQ + ")"
+                ")"
+            )
+            
+            resp = session.sql(cmd).collect()
+            raw_result = resp[0][0]
+            log_debug(session, f"GEN_SQL_RESPONSE_{node_id}", str(raw_result))
+
+            # Parse Response
+            if isinstance(raw_result, str):
+                parsed = SqlGenerationResponse.model_validate_json(raw_result)
+            else:
+                parsed = SqlGenerationResponse.model_validate(raw_result)
+                
+            final_query = parsed.sql_query
+            query_type = "dynamic"
+            
+        except Exception as e:
+            log_debug(session, f"GEN_SQL_FAIL_{node_id}", f"Error: {str(e)}. Fallback to static.")
+            final_query = static_query
+            query_type = "static_fallback"
+
+    # --- Step 2: Query Execution ---
+    val = "No Data"
+    executed_sql = final_query
+    
+    try:
+        log_debug(session, f"EXEC_START_{node_id}", f"Running SQL: {final_query}")
+        df = session.sql(final_query).to_pandas()
+        val = df.iloc[0,0] if not df.empty else "No Data"
+        log_debug(session, f"EXEC_SUCCESS_{node_id}", f"Result Value: {val}")
+        
+    except Exception as e:
+        log_debug(session, f"EXEC_FAIL_{node_id}", f"Primary SQL failed. Attempting recovery with static query. Error: {str(e)}")
+        try:
+            df = session.sql(static_query).to_pandas()
+            val = df.iloc[0,0] if not df.empty else "No Data"
+            executed_sql = static_query
+            query_type = "static_recovery"
+            log_debug(session, f"EXEC_RECOVERY_{node_id}", f"Recovery Value: {val}")
+        except Exception as e2:
+            return {"id": node_id, "status": "error", "error": f"Execution failed: {str(e2)}"}
+
+    # --- Step 3: Status Analysis (openai-gpt-4.1) ---
+    try:
+        pol_txt = "Higher is BAD" if polarity == -1 else "Lower is BAD" if polarity == 1 else "Context dependent"
+        
+        status_prompt = """
+        You are a Business Intelligence Analyst.
+        Analyze the following metric result to determine if it represents a negative business outcome (''Bad'').
+
+        - Metric: {}
+        - Value: {}
+        - Business Rule: {}
+        - User Context: "{}"
+
+        Determine if this is ''Bad'' for the business. Provide a concise reason.
+        """.format(metric_name, val, pol_txt, user_query)
+
+        safe_status_prompt = status_prompt.replace(DQ, "")
+        
+        status_options_str = json.dumps({
+            "type": "json",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "is_bad": { "type": "boolean" },
+                    "reason": { "type": "string" }
+                },
+                "required": ["is_bad", "reason"],
+                "additionalProperties": False  # <--- ADD THIS LINE
+            }
+        })
+
+        cmd = (
+            "SELECT AI_COMPLETE("
+            "model => ''openai-gpt-4.1'', "
+            "prompt => " + DQ + safe_status_prompt + DQ + ", "
+            "response_format => PARSE_JSON(" + DQ + status_options_str + DQ + ")"
+            ")"
+        )
+        
+        resp = session.sql(cmd).collect()
+        raw_result = resp[0][0]
+        
+        if isinstance(raw_result, str):
+            status_obj = StatusCheckResponse.model_validate_json(raw_result)
+        else:
+            status_obj = StatusCheckResponse.model_validate(raw_result)
+            
+        status = "bad" if status_obj.is_bad else "good"
+        
+        return {
+            "id": node_id,
+            "name": metric_name,
+            "value": str(val),
+            "status": status,
+            "reason": status_obj.reason,
+            "query_type": query_type,
+            "executed_sql": executed_sql
+        }
+        
+    except Exception as e:
+        log_debug(session, f"STATUS_FAIL_{node_id}", str(e))
+        return {
+            "id": node_id, 
+            "name": metric_name, 
+            "value": str(val), 
+            "status": "unknown", 
+            "error": "Status check failed",
+            "query_type": query_type,
+            "executed_sql": executed_sql
+        }
+
+# ==========================================
+# 4. BATCH EXECUTOR
+# ==========================================
+def execute_batch(session: Session, nodes_list: list, user_query: str) -> list:
+    if not nodes_list: 
+        return []
+    
+    log_debug(session, "BATCH_START", f"Processing batch of {len(nodes_list)} nodes")
+    
+    # Efficient Metadata Loading
+    DQ = "$" + "$"
+    safe_names = [f"{DQ}{n[''metric'']}{DQ}" for n in nodes_list]
+    names_str = ",".join(safe_names)
+    
+    meta_sql = f"SELECT METRIC_NAME, SQL_QUERY, FEW_SHOT_EXAMPLES FROM KPI_KNOWLEDGE_BASE_NEW WHERE METRIC_NAME IN ({names_str})"
+    meta_df = session.sql(meta_sql).to_pandas()
+    meta_map = {row[''METRIC_NAME'']: row.to_dict() for _, row in meta_df.iterrows()}
+    
+    results = []
+    # Parallel Processing
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        futures = [executor.submit(process_node, session, n, user_query, meta_map) for n in nodes_list]
+        for f in concurrent.futures.as_completed(futures):
+            results.append(f.result())
+            
+    return results
+
+# ==========================================
+# 5. MAIN ENTRY POINT
+# ==========================================
+def main(session: Session, user_query: str, parent_node_ids_json: str, tree_id: str):
+    try:
+        log_debug(session, "MAIN_ENTRY", f"TreeID: {tree_id}, Query: {user_query}")
+
+        # 1. Load Decision Tree Structure
+        tree_row = session.sql("SELECT GRAPH_JSON FROM DECISION_TREE_STORE_NEW WHERE TREE_ID = ?", params=[tree_id]).collect()
+        
+        if not tree_row: 
+            return json.dumps({"error": f"Tree ID not found: {tree_id}"})
+        
+        full_json = json.loads(tree_row[0][''GRAPH_JSON''])
+        graph = full_json.get(''graph'', full_json)
+        
+        # Build Lookup Maps
+        all_nodes_map = {n[''id'']: n for n in graph.get(''nodes'', [])}
+        name_to_node_map = {n[''metric'']: n for n in graph.get(''nodes'', [])}
+        all_edges = graph.get(''edges'', [])
+
+        # 2. Determine Strategy (Search vs Drill)
+        targets_phase_1 = []
+        
+        # Robust Null Check
+        is_drill_mode = (
+            parent_node_ids_json is not None and 
+            parent_node_ids_json != '''' and 
+            parent_node_ids_json.upper() != ''NULL'' and 
+            parent_node_ids_json != ''[]''
+        )
+
+        if not is_drill_mode and user_query:
+            log_debug(session, "STRATEGY", "Vector Search (No parent IDs provided)")
+            # Vector Search for Entry Point
+            vec_sql = """
+            SELECT METRIC_NAME FROM KPI_KNOWLEDGE_BASE_NEW 
+            ORDER BY VECTOR_L2_DISTANCE(SNOWFLAKE.CORTEX.EMBED_TEXT_768(''snowflake-arctic-embed-m-v1.5'', ?), KPI_EMBEDDING) ASC 
+            LIMIT 1
+            """
+            kb_row = session.sql(vec_sql, params=[user_query]).collect()
+            if kb_row and kb_row[0][''METRIC_NAME''] in name_to_node_map:
+                found_metric = kb_row[0][''METRIC_NAME'']
+                targets_phase_1.append(name_to_node_map[found_metric])
+                log_debug(session, "ANCHOR_FOUND", f"Matched: {found_metric}")
+
+        elif is_drill_mode:
+            log_debug(session, "STRATEGY", "Drill Down (Parent IDs provided)")
+            try:
+                p_ids = json.loads(parent_node_ids_json)
+                if not isinstance(p_ids, list): p_ids = [p_ids]
+                parent_set = set(p_ids)
+                
+                # Find children of provided parents
+                for edge in all_edges:
+                    if edge[''source''] in all_nodes_map and edge[''target''] in parent_set:
+                         # Note: Depending on edge direction (source->target), adjust accordingly.
+                         # Assuming Source=Parent, Target=Child? Or Source=Metric, Target=Root?
+                         # Usually standard DAG is Parent -> Child. 
+                         # If input is ''Parent Nodes'', we want their children.
+                         # CHECK: Your previous code checked ''target'' in parent_set. 
+                         # If Edge is Source(Parent)->Target(Child), then Target in ParentSet means we are looking for parents?
+                         # Let''s assume the previous logic was correct: "Find nodes connected to these parents"
+                         if edge[''target''] in parent_set:
+                             targets_phase_1.append(all_nodes_map[edge[''source'']])
+            except Exception as e:
+                log_debug(session, "DRILL_ERROR", str(e))
+
+        # 3. Execute Phase 1 (Entry Nodes)
+        results_phase_1 = execute_batch(session, targets_phase_1, user_query)
+
+        # 4. Execute Phase 2 (Greedy Traversal of "Bad" Nodes)
+        bad_ids = {r[''id''] for r in results_phase_1 if r.get(''status'') == ''bad''}
+        targets_phase_2 = []
+        
+        if bad_ids:
+            log_debug(session, "PHASE_2", f"Expanding bad nodes: {list(bad_ids)}")
+            for edge in all_edges:
+                # If a node was bad, check its relationships
+                if edge[''target''] in bad_ids and edge[''source''] in all_nodes_map:
+                    targets_phase_2.append(all_nodes_map[edge[''source'']])
+        
+        results_phase_2 = execute_batch(session, targets_phase_2, user_query)
+
+        # 5. Final Output
+        return json.dumps({
+            "nodes_analyzed": results_phase_1 + results_phase_2,
+            "edges_traversed": [e for e in all_edges if e[''target''] in bad_ids or e[''source''] in bad_ids]
+        })
+
+    except Exception as e:
+        log_debug(session, "MAIN_CRASH", str(e))
+        return json.dumps({"error": "Critical Procedure Error", "details": str(e), "trace": traceback.format_exc()})
+';

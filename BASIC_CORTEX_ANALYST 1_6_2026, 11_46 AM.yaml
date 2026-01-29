@@ -24661,3 +24661,381 @@ Files found in vl_convert: ['__init__.py', '__init__.pyi', 'py.typed', 'vl_conve
 
 
 CRITICAL FAILURE: No module named 'vl_convert.vl_convert'. The Warehouse is blocking the binary.
+
+
+
+
+
+
+CREATE OR REPLACE PROCEDURE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DIAGNOSTIC_TOOL_V2(
+    "USER_QUERY" VARCHAR, 
+    "TARGET_NODES_JSON" VARCHAR, 
+    "TREE_ID" VARCHAR
+)
+RETURNS VARCHAR
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.10'
+PACKAGES = ('snowflake-snowpark-python','pandas','simplejson','pydantic')
+HANDLER = 'main'
+EXECUTE AS OWNER
+AS $$
+import simplejson as json
+import concurrent.futures
+import traceback
+from pydantic import BaseModel, Field
+from snowflake.snowpark import Session
+
+# ==========================================
+# 0. SCHEMA CONTEXT (COMPLETE)
+# ==========================================
+SCHEMA_CONTEXT = """
+<schema_context>
+    <table_name>MASTER_TABLE_V1</table_name>
+    <description>Healthcare provider prescribing data with demographic and transaction metrics.</description>
+    <columns>
+        <!-- DIMENSIONS -->
+        <dimension>HCO_NAME (VARCHAR): Health Organization Name (e.g., BAPTIST HEALTHCARE)</dimension>
+        <dimension>HCP_FIRST_NAME (VARCHAR): Provider First Name</dimension>
+        <dimension>HCP_LAST_NAME (VARCHAR): Provider Last Name</dimension>
+        <dimension>HCP_ID (VARCHAR): Internal Unique Provider ID</dimension>
+        <dimension>ONEKEY_HCP_ID (VARCHAR): External OneKey ID</dimension>
+        <dimension>HCP_SPECIALTY (VARCHAR): e.g., INTERNAL MEDICINE, ORTHOPEDIC SURGERY, NURSE PRACTITIONER</dimension>
+        <dimension>PROD_CAT_CD (VARCHAR): Product Category (e.g., OPIOID, NSAID)</dimension>
+        <dimension>PROD_FAMGRP_CD (VARCHAR): Product Family (e.g., TRAMADOL, DICLOFENAC)</dimension>
+        <dimension>PTAM_TERRITORY_ID (VARCHAR): Sales Territory ID</dimension>
+        <dimension>ZIP_CODE (VARCHAR): Provider Postal Code</dimension>
+        <dimension>HCP_STATE (VARCHAR): Provider State (e.g., AZ, NY)</dimension>
+        <dimension>HCP_CITY (VARCHAR): Provider City</dimension>
+
+        <!-- METRICS: NEW PRESCRIPTIONS (NRX) -->
+        <metric>ACUTE_NRX_XPO_1W (NUMBER): New Prescriptions (1 Week)</metric>
+        <metric>ACUTE_NRX_XPO_2W (NUMBER): New Prescriptions (2 Weeks)</metric>
+        <metric>ACUTE_NRX_XPO_3W (NUMBER): New Prescriptions (3 Weeks)</metric>
+        <metric>ACUTE_NRX_XPO_1M (NUMBER): New Prescriptions (1 Month)</metric>
+        <metric>ACUTE_NRX_XPO_3M (NUMBER): New Prescriptions (3 Months)</metric>
+        <metric>ACUTE_NRX_XPO_6M (NUMBER): New Prescriptions (6 Months)</metric>
+        <metric>ACUTE_NRX_XPO_12M (NUMBER): New Prescriptions (12 Months - Annual)</metric>
+
+        <!-- METRICS: TOTAL PRESCRIPTIONS (TRX) -->
+        <metric>ACUTE_TRX_XPO_1W (NUMBER): Total Prescriptions (1 Week)</metric>
+        <metric>ACUTE_TRX_XPO_2W (NUMBER): Total Prescriptions (2 Weeks)</metric>
+        <metric>ACUTE_TRX_XPO_3W (NUMBER): Total Prescriptions (3 Weeks)</metric>
+        <metric>ACUTE_TRX_XPO_1M (NUMBER): Total Prescriptions (1 Month)</metric>
+        <metric>ACUTE_TRX_XPO_3M (NUMBER): Total Prescriptions (3 Months)</metric>
+        <metric>ACUTE_TRX_XPO_6M (NUMBER): Total Prescriptions (6 Months)</metric>
+        <metric>ACUTE_TRX_XPO_12M (NUMBER): Total Prescriptions (12 Months - Annual)</metric>
+
+        <!-- METRICS: LEFT ANTERIOR DESCENDING ARTERY TRANSACTIONS (LAAD) -->
+        <metric>ACUTE_TRX_LAAD_1W (NUMBER): LAAD Transactions (1 Week)</metric>
+        <metric>ACUTE_TRX_LAAD_2W (NUMBER): LAAD Transactions (2 Weeks)</metric>
+        <metric>ACUTE_TRX_LAAD_3W (NUMBER): LAAD Transactions (3 Weeks)</metric>
+        <metric>ACUTE_TRX_LAAD_1M (NUMBER): LAAD Transactions (1 Month)</metric>
+        <metric>ACUTE_TRX_LAAD_3M (NUMBER): LAAD Transactions (3 Months)</metric>
+        <metric>ACUTE_TRX_LAAD_6M (NUMBER): LAAD Transactions (6 Months)</metric>
+        <metric>ACUTE_TRX_LAAD_12M (NUMBER): LAAD Transactions (12 Months)</metric>
+    </columns>
+</schema_context>
+"""
+
+# ==========================================
+# 1. DATA MODELS
+# ==========================================
+class SqlGenerationResponse(BaseModel):
+    sql_query: str = Field(description="The executable Snowflake SQL query")
+    filters_applied: list[str] = Field(description="List of specific filters applied from the user request")
+
+class StatusCheckResponse(BaseModel):
+    is_bad: bool = Field(description="True if the metric value indicates a negative business outcome")
+    reason: str = Field(description="Concise business reason (max 10 words)")
+
+# ==========================================
+# 2. HELPER FUNCTIONS
+# ==========================================
+def log_debug(session: Session, step_name: str, message: str):
+    """Logs debug information to the database securely using Dollar Quoting."""
+    try:
+        DQ = "$" + "$"
+        safe_msg = str(message)[:100000]
+        safe_step = str(step_name)[:50]
+        # Using string formatting for safer SQL injection in logging
+        query = f"INSERT INTO DEBUG_LOGS_NEW (STEP_NAME, LOG_MESSAGE) VALUES ({DQ}{safe_step}{DQ}, {DQ}{safe_msg}{DQ})"
+        session.sql(query).collect()
+    except Exception:
+        pass 
+
+# ==========================================
+# 3. WORKER LOGIC
+# ==========================================
+def process_node(session: Session, node: dict, specific_question: str, meta_map: dict) -> dict:
+    metric_name = node['metric']
+    node_id = node['id']
+    polarity = node.get('polarity', 0)
+    DQ = "$" + "$"
+
+    # Validation
+    meta = meta_map.get(metric_name)
+    if not meta: return {"id": node_id, "status": "error", "error": f"Metadata missing for: {metric_name}"}
+
+    static_query = meta['SQL_QUERY']
+    final_query = static_query
+    query_type = "static"
+
+    # --- Dynamic SQL Generation ---
+    if specific_question and len(specific_question) > 5:
+        try:
+            # Build Few-Shot Examples
+            examples_text = ""
+            ex_json = meta.get('FEW_SHOT_EXAMPLES')
+            if ex_json:
+                ex_list = json.loads(ex_json) if isinstance(ex_json, str) else ex_json
+                for i, ex in enumerate(ex_list):
+                    examples_text += f"\n<example_{i+1}>\n<user_request>{ex['question']}</user_request>\n<sql>{ex['sql']}</sql>\n</example_{i+1}>"
+
+            prompt_content = f"""
+<sql_generation_prompt>
+    <role>You are an expert Snowflake SQL Architect.</role>
+    <goal>Adapt a Standard SQL Logic to answer a specific User Request.</goal>
+    
+    {SCHEMA_CONTEXT}
+
+    <task_context>
+        <metric_name>{metric_name}</metric_name>
+        <standard_logic>{static_query}</standard_logic>
+        <user_request>{specific_question}</user_request>
+    </task_context>
+
+    <guidelines>
+        <rule>Apply filters from the User Request (Region, Time, Product, Specialty) to the Standard Logic.</rule>
+        <rule>Use ONLY columns from Schema Context.</rule>
+        <rule>If the User Request implies a specific time window (e.g. 'last 3 months'), REPLACE the default metric column with the correct time-windowed column (e.g. use ACUTE_TRX_XPO_3M instead of ACUTE_TRX_XPO_12M).</rule>
+        <rule>Ensure string literals in WHERE clauses are correct (e.g., proper casing for states 'AZ', 'NY').</rule>
+        <rule>Do not hallucinate columns. If a dimension is not in Schema Context, do not filter by it.</rule>
+    </guidelines>
+
+    <reference_examples>
+        {examples_text}
+    </reference_examples>
+</sql_generation_prompt>
+"""
+            safe_prompt = prompt_content.replace(DQ, "")
+            options_str = json.dumps({
+                "type": "json",
+                "schema": SqlGenerationResponse.model_json_schema()
+            })
+
+            cmd = (
+                "SELECT AI_COMPLETE("
+                "model => 'claude-sonnet-4-5', "
+                "prompt => " + DQ + safe_prompt + DQ + ", "
+                "response_format => PARSE_JSON(" + DQ + options_str + DQ + ")"
+                ")"
+            )
+            
+            resp = session.sql(cmd).collect()
+            parsed = SqlGenerationResponse.model_validate_json(resp[0][0])
+            final_query = parsed.sql_query
+            query_type = "dynamic"
+            
+        except Exception as e:
+            final_query = static_query
+            query_type = "static_fallback"
+
+    # --- Execution ---
+    val = "No Data"
+    try:
+        df = session.sql(final_query).to_pandas()
+        val = df.iloc[0,0] if not df.empty else "No Data"
+    except:
+        try:
+            df = session.sql(static_query).to_pandas()
+            val = df.iloc[0,0] if not df.empty else "No Data"
+            query_type = "static_recovery"
+        except Exception as e2:
+            return {"id": node_id, "status": "error", "error": f"Execution failed: {str(e2)}"}
+
+    # --- Status Analysis ---
+    try:
+        pol_txt = "Higher is BAD" if polarity == -1 else "Lower is BAD" if polarity == 1 else "Context dependent"
+        
+        status_prompt = f"""
+<status_check_prompt>
+    <task>Analyze Metric Status to identify if it contributes to the user's reported issue.</task>
+    <metric>{metric_name}</metric>
+    <value>{val}</value>
+    <default_polarity>{pol_txt}</default_polarity>
+    <user_context>{specific_question}</user_context>
+    <logic>
+        Determine if this node is 'Bad' (contributing to the problem).
+        CRITICAL: Align 'Bad' with the direction implied in the User Context.
+        
+        <rules>
+        1. If User asks "Why did X drop?", then a DROP in this metric is 'Bad' (True).
+        2. If User asks "Why did Y rise?", then a RISE in this metric is 'Bad' (True).
+        3. If the metric is a "Cost" or "Expense" and User asks about "Profit drop", then HIGH value is 'Bad'.
+        4. If the metric is "Revenue" or "Volume" and User asks about "Profit drop", then LOW value is 'Bad'.
+        5. If the value is "No Data" or 0, consider if that represents a failure (Bad) or just absence (Good/Neutral). Usually 0 volume is Bad.
+        </rules>
+
+        <examples>
+        - User: "Why Tramadol dropped?" | Metric: "Tramadol Volume" | Value: "Down 5%" -> Bad (Driver)
+        - User: "Why Tramadol dropped?" | Metric: "Tramadol Price" | Value: "Stable" -> Good (Not Driver)
+        - User: "Why Costs are high?" | Metric: "Shipping Cost" | Value: "High" -> Bad (Driver)
+        </examples>
+    </logic>
+    <question>Is this result 'Bad' / a driver of the issue?</question>
+</status_check_prompt>
+"""
+        safe_status = status_prompt.replace(DQ, "")
+        status_opts = json.dumps({"type": "json", "schema": StatusCheckResponse.model_json_schema()})
+
+        cmd = (
+            "SELECT AI_COMPLETE("
+            "model => 'claude-sonnet-4-5', "
+            "prompt => " + DQ + safe_status + DQ + ", "
+            "response_format => PARSE_JSON(" + DQ + status_opts + DQ + ")"
+            ")"
+        )
+        
+        resp = session.sql(cmd).collect()
+        status_obj = StatusCheckResponse.model_validate_json(resp[0][0])
+        status = "bad" if status_obj.is_bad else "good"
+        
+        return {
+            "id": node_id, "name": metric_name, "value": str(val), "status": status,
+            "reason": status_obj.reason, "query_type": query_type, "executed_sql": final_query
+        }
+    except Exception as e:
+        return {"id": node_id, "status": "error", "error": f"Status check failed: {str(e)}"}
+
+# ==========================================
+# 4. BATCH EXECUTOR
+# ==========================================
+def execute_batch_with_context(session: Session, execution_list: list) -> list:
+    if not execution_list: return []
+    
+    metrics = [item['node']['metric'] for item in execution_list]
+    DQ = "$" + "$"
+    safe_names = [f"{DQ}{m}{DQ}" for m in metrics]
+    names_str = ",".join(safe_names)
+    
+    meta_sql = f"SELECT METRIC_NAME, SQL_QUERY, FEW_SHOT_EXAMPLES FROM KPI_KNOWLEDGE_BASE_NEW WHERE METRIC_NAME IN ({names_str})"
+    meta_df = session.sql(meta_sql).to_pandas()
+    meta_map = {row['METRIC_NAME']: row.to_dict() for _, row in meta_df.iterrows()}
+    
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        futures = [
+            executor.submit(process_node, session, item['node'], item['query'], meta_map) 
+            for item in execution_list
+        ]
+        for f in concurrent.futures.as_completed(futures):
+            results.append(f.result())
+            
+    return results
+
+# ==========================================
+# 5. MAIN ENTRY POINT
+# ==========================================
+def main(session: Session, user_query: str, target_nodes_json: str, tree_id: str):
+    try:
+        log_debug(session, "MAIN_ENTRY", f"Tree: {tree_id}, Query: {user_query}, Targets: {target_nodes_json}")
+
+        # 1. Load Tree
+        tree_row = session.sql("SELECT GRAPH_JSON FROM DECISION_TREE_STORE_NEW WHERE TREE_ID = ?", params=[tree_id]).collect()
+        if not tree_row: return json.dumps({"error": f"Tree ID not found: {tree_id}"})
+        
+        full_json = json.loads(tree_row[0]['GRAPH_JSON'])
+        graph = full_json.get('graph', full_json)
+        name_to_node = {n['metric']: n for n in graph.get('nodes', [])}
+        all_nodes_map = {n['id']: n for n in graph.get('nodes', [])}
+        
+        execution_list = [] 
+
+        # 2. Determine Strategy
+        has_targets = (target_nodes_json and target_nodes_json != '[]' and target_nodes_json != 'NULL')
+
+        if has_targets:
+            # --- DRILL MODE ---
+            try:
+                targets = json.loads(target_nodes_json)
+                for t in targets:
+                    if t.get('id') in all_nodes_map:
+                        execution_list.append({
+                            "node": all_nodes_map[t.get('id')],
+                            "query": t.get('question') 
+                        })
+            except: pass
+        
+        elif user_query:
+            # --- SEARCH MODE ---
+            vec_sql = """
+            SELECT METRIC_NAME FROM KPI_KNOWLEDGE_BASE_NEW 
+            ORDER BY VECTOR_L2_DISTANCE(SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m-v1.5', ?), KPI_EMBEDDING) ASC 
+            LIMIT 1
+            """
+            kb_row = session.sql(vec_sql, params=[user_query]).collect()
+            if kb_row and kb_row[0]['METRIC_NAME'] in name_to_node:
+                execution_list.append({
+                    "node": name_to_node[kb_row[0]['METRIC_NAME']],
+                    "query": user_query 
+                })
+
+        # 3. Execute
+        results = execute_batch_with_context(session, execution_list)
+
+        return json.dumps({
+            "nodes_analyzed": results,
+            "edges_traversed": [] 
+        })
+
+    except Exception as e:
+        return json.dumps({"error": str(e), "trace": traceback.format_exc()})
+$$;
+
+
+
+
+
+
+
+-- 1. Remove any existing entries for this ID to avoid duplicates/confusion
+DELETE FROM DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DECISION_TREE_STORE_NEW 
+WHERE TREE_ID = 'Pharma_Master_v4';
+
+-- 2. Insert the Cleaned Tree (K1-K14 Only)
+INSERT INTO DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DECISION_TREE_STORE_NEW (TREE_ID, GRAPH_JSON)
+SELECT 
+    'Pharma_Master_v4',
+    PARSE_JSON($$
+    {
+        "graph": {
+            "nodes": [
+                { "id": "K1", "metric": "Total Market Volume (TRX)", "polarity": 1 },
+                { "id": "K2", "metric": "Total New Starts (NRX)", "polarity": 1 },
+                { "id": "K3", "metric": "Opioid Category Volume", "polarity": 1 },
+                { "id": "K4", "metric": "NSAID Category Volume", "polarity": 1 },
+                { "id": "K5", "metric": "Tramadol Brand Volume", "polarity": 1 },
+                { "id": "K6", "metric": "Diclofenac Brand Volume", "polarity": 1 },
+                { "id": "K7", "metric": "Tramadol New Growth (NRX)", "polarity": 1 },
+                { "id": "K8", "metric": "Tramadol Retention (Refills)", "polarity": 1 },
+                { "id": "K9", "metric": "Diclofenac New Growth (NRX)", "polarity": 1 },
+                { "id": "K10", "metric": "Orthopedic Tramadol Starts", "polarity": 1 },
+                { "id": "K11", "metric": "PCP Tramadol Starts", "polarity": 1 },
+                { "id": "K12", "metric": "Opioid Market Volume", "polarity": 1 },
+                { "id": "K13", "metric": "NSAID Market Volume", "polarity": 1 },
+                { "id": "K14", "metric": "High Volume Writers (>10)", "polarity": 1 }
+            ],
+            "edges": [
+                { "source": "K3", "target": "K1" }, 
+                { "source": "K4", "target": "K1" }, 
+                { "source": "K5", "target": "K3" }, 
+                { "source": "K6", "target": "K4" }, 
+                { "source": "K7", "target": "K5" }, 
+                { "source": "K8", "target": "K5" }, 
+                { "source": "K9", "target": "K6" }, 
+                { "source": "K10", "target": "K7" }, 
+                { "source": "K11", "target": "K7" }
+            ]
+        }
+    }
+    $$);

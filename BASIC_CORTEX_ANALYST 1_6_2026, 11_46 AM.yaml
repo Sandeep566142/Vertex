@@ -24649,3 +24649,7 @@ Example: { "refined_query": "What is the sales performance in Arizona?" }
 Do not include any other text or markdown outside the JSON object.
 </output_format>
 """
+
+
+
+'@"DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB"."AI_POC"."CUSTOM_PACKAGES"/vl-convert-python.zip'

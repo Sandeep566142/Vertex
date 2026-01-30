@@ -27841,3 +27841,94 @@ We found that Revenue is stable and performing well, which is great news. Howeve
 }
 
 ```
+
+
+PROMPT_ROOT_CAUSE_RESPONSE = """
+<response_structure_instructions>
+<output_format>
+        **CRITICAL** YOU MUST STRICTLY ALWAYS generate a JSON block in below format as final answer:
+        
+        ```json
+        {
+          "clean_summary_text": "Executive summary string...",
+          "clarifying_question": "all the clarification or followup questions  in detail with suggestions as is to scope out the original user question. ",
+          "react_flow_json": { "nodes": [...], "edges": [...] },
+          "evaluation": { "score": 9, "reasoning": "Found root cause." }
+        }
+        ```
+    </output_format>
+
+        <section_1_diagnostic_summary>
+            <instruction>
+                Provide a comprehensive, professional, and objective executive summary.
+                Tone: Constructive and data-driven. Avoid alarmist language (e.g., use "Performance Deviation" instead of "Failure").
+            </instruction>
+            <elements>
+                <headline>
+                    Format: "Root Cause Identified: [Deepest Bad Metric Name]"
+                </headline>
+                <narrative_analysis>
+                    Explain the investigation path in a logical chain of events:
+                    1. Start at the Top Node (User's Query).
+                    2. Trace the "Bad" (Driver) path downwards, explaining *why* each step was chosen.
+                    3. Explicitly rule out "Stable" or "Performing" branches (Pruned Paths).
+                    4. Synthesize the findings (e.g., "While Total Volume is down 5% [K5], New Starts are down 12% [K7], identifying Acquisition as the primary drag, while Retention [K8] remains stable").
+                </narrative_analysis>
+                <actionable_insight>
+                    Provide one specific, commercially relevant recommendation based on the Root Cause (e.g., "Review Orthopedic Surgeon training materials for Tramadol").
+                </actionable_insight>
+            </elements>
+        </section_1_diagnostic_summary>
+
+        <section_2_react_flow_json>
+            <instruction>
+                Generate a VALID JSON object inside a Markdown code block (```json). You are the layout engine.
+            </instruction>
+            <layout_logic>
+                - **Root Node (Level 0):** `x: 0, y: 0`
+                - **Children (Level 1):** `y: 150`. Spread `x` widely (e.g., -300 and +300).
+                - **Grandchildren (Level 2):** `y: 300`. Spread `x` relative to their parent (e.g., parent_x - 100).
+                - **General Rule:** Maintain clear visual hierarchy.
+            </layout_logic>
+            <style_logic>
+                - **RED (#FFE2E5):** Status is "bad", "high", "error", "driver", "validated".
+                - **GREEN (#CDE8E6):** Status is "good", "normal", "stable", "performing", "premise_mismatch".
+                - **ORANGE (#FFCCBC):** The Root Cause (Deepest bad node in the chain).
+                - **WHITE (#FFFFFF):** Neutral / Unexplored.
+            </style_logic>
+            <edge_logic>
+                - If Parent=Bad & Child=Bad -> Label: "contributes to impact"
+                - If Parent=Bad & Child=Good -> Label: "stable factor"
+            </edge_logic>
+            <json_structure_template>
+                {
+                  "nodes": [ 
+                    { 
+                      "id": "N0", 
+                      "type": "default", 
+                      "data": { "label": "Metric Name: Value" }, 
+                      "position": { "x": 0, "y": 0 }, 
+                      "style": { 
+                        "background": "#FFE2E5", 
+                        "width": 180, 
+                        "color": "#333",
+                        "border": "1px solid #777", 
+                        "borderRadius": "8px" 
+                      } 
+                    } 
+                  ],
+                  "edges": [ 
+                    { 
+                      "id": "e1-N0-N1", 
+                      "source": "N0", 
+                      "target": "N1", 
+                      "label": "driven by", 
+                      "animated": true, 
+                      "style": { "stroke": "#555", "strokeWidth": 2 } 
+                    } 
+                  ]
+                }
+            </json_structure_template>
+        </section_2_react_flow_json>
+</response_structure_instructions>
+"""

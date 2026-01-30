@@ -26586,3 +26586,215 @@ def handler(session: Session, session_id: str, user_query: str) -> str:
 if __name__ == "__main__":
     # For local testing
     pass
+
+
+
+
+create or replace semantic view DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.BASIC_TABLE_V
+	tables (
+		DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.BASIC_TABLE comment='The table contains records of healthcare professionals and their associated transaction data. Each record represents a healthcare provider with personal and professional details, geographic information, and product-related transaction metrics within assigned sales territories.'
+	)
+	facts (
+		BASIC_TABLE.ACUTE_NRX_XPO_12M as ACUTE_NRX_XPO_12M with synonyms=('acute_new_prescriptions_12_months','acute_new_rx_12_month','acute_new_rx_yearly','acute_nrx_12_month_exposure','annual_new_prescription_exposure','new_prescription_exposure_annual','new_rx_12m_acute','new_rx_exposure_12m') comment='Twelve-month acute new prescription exposure values.',
+		BASIC_TABLE.ACUTE_NRX_XPO_1M as ACUTE_NRX_XPO_1M with synonyms=('acute_new_prescriptions_1_month','acute_new_rx_1_month','acute_nrx_1_month_exposure','first_rx_acute_1m','first_time_prescriptions_1m','initial_prescriptions_acute_1m','new_prescription_count_1m','new_rx_exposure_1m') comment='Acute new prescription exposure over a one-month period.',
+		BASIC_TABLE.ACUTE_NRX_XPO_1W as ACUTE_NRX_XPO_1W with synonyms=('acute_new_prescriptions_1_week','acute_new_scripts_1w','acute_nrx_weekly','acute_weekly_new_prescriptions','new_rx_acute_weekly','nrx_acute_1_week','one_week_acute_new_prescriptions','weekly_acute_new_rx') comment='Acute new prescription exposure over a one-week period.',
+		BASIC_TABLE.ACUTE_NRX_XPO_2W as ACUTE_NRX_XPO_2W with synonyms=('acute_new_prescriptions_2w_exposure','acute_new_prescriptions_exposure_2_weeks','acute_new_rx_2week_xpo','acute_new_rx_xpo_2w','acute_nrx_14day_exposure','acute_nrx_2week_exposure','acute_nrx_exposure_2w') comment='Acute new prescription exposure over a two-week period.',
+		BASIC_TABLE.ACUTE_NRX_XPO_3M as ACUTE_NRX_XPO_3M comment='Acute new prescription exposure over a three-month period.',
+		BASIC_TABLE.ACUTE_NRX_XPO_3W as ACUTE_NRX_XPO_3W comment='Acute new prescription exposure over a three-week period.',
+		BASIC_TABLE.ACUTE_NRX_XPO_6M as ACUTE_NRX_XPO_6M comment='Acute new prescription exposure over a six-month period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_12M as ACUTE_TRX_XPO_12M with synonyms=('acute_medication_exposure_yearly','acute_prescription_exposure_12m','acute_rx_exposure_12_months','acute_transactions_exposure_12_months','acute_trx_exposure_yearly','annual_acute_prescription_data','annual_acute_transactions_exposure','twelve_month_acute_trx_exposure','yearly_acute_drug_exposure','yearly_acute_trx_xpo') comment='Acute transaction exposure over a 12-month period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_1M as ACUTE_TRX_XPO_1M with synonyms=('acute_prescriptions_extrapolated_monthly','acute_rx_xpo_1m','acute_transaction_estimate_1m','acute_transactions_extrapolated_1_month','acute_trx_projected_1m','monthly_acute_prescription_projection','monthly_acute_trx_projection','one_month_acute_trx_forecast') comment='Acute transaction exposure over a one-month period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_1W as ACUTE_TRX_XPO_1W with synonyms=('acute_prescription_count_1w','acute_prescriptions_weekly','acute_rx_weekly','acute_transactions_one_week','acute_trx_weekly','one_week_acute_transactions','weekly_acute_prescriptions','weekly_acute_rx_volume') comment='Acute transaction exposure over a one-week period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_2W as ACUTE_TRX_XPO_2W with synonyms=('acute_prescription_transactions_2weeks','acute_prescriptions_xpo_2w','acute_rx_xpo_2weeks','acute_transaction_xpo_biweekly','acute_transactions_xpo_2weeks','acute_trx_exposure_2w','acute_trx_xpo_14days','two_week_acute_trx_xpo') comment='Acute transaction exposure over a two-week period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_3M as ACUTE_TRX_XPO_3M with synonyms=('acute_prescription_exposure_3m','acute_rx_exposure_3_months','acute_transactions_exposure_3_months','acute_trx_3m_exposure','acute_trx_exposure_quarterly','quarterly_acute_transactions','three_month_acute_trx_exposure','three_month_prescription_exposure') comment='Acute transaction exposure over a three-month period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_3W as ACUTE_TRX_XPO_3W with synonyms=('acute_prescription_exposure_3w','acute_rx_exposure_3_weeks','acute_transaction_3week_exposure','acute_transactions_exposure_3_weeks','acute_trx_exposure_21_days','three_week_acute_transactions','weekly_acute_trx_3w_period') comment='Acute transaction exposure over a three-week period.',
+		BASIC_TABLE.ACUTE_TRX_XPO_6M as ACUTE_TRX_XPO_6M with synonyms=('acute_drug_prescriptions_6_months','acute_medication_transactions_6m','acute_prescriptions_6m','acute_rx_exposure_6_months','acute_therapy_exposure_6m','acute_transactions_exposure_6_months','six_month_acute_prescription_data','six_month_acute_trx_exposure') comment='Acute transaction exposure over a six-month period.'
+	)
+	dimensions (
+		BASIC_TABLE.ACUTE_TRX_LAAD_12M as ACUTE_TRX_LAAD_12M with synonyms=('acute_laad_transactions_12m','acute_prescriptions_laad_12m','acute_rx_laad_12_months','acute_transactions_laad_12_months','acute_trx_laad_yearly','annual_acute_trx_laad','laad_acute_transactions_annual','twelve_month_acute_trx_laad') comment='The number of acute transactions with left anterior descending artery involvement over a 12-month period.',
+		BASIC_TABLE.ACUTE_TRX_LAAD_1M as ACUTE_TRX_LAAD_1M with synonyms=('acute_laad_trx_1_month','acute_rx_laad_1m','acute_transactions_laad_monthly','acute_trx_laad_30_days','laad_acute_transactions_monthly','monthly_acute_laad_transactions','monthly_laad_acute_prescriptions','one_month_acute_trx_laad') comment='The number of acute transactions with left anterior descending artery involvement within a one-month period.',
+		BASIC_TABLE.ACUTE_TRX_LAAD_1W as ACUTE_TRX_LAAD_1W with synonyms=('acute_prescription_laad_1w','acute_rx_laad_1week','acute_transactions_laad_one_week','acute_trx_laad_7days','one_week_acute_transactions_laad','weekly_acute_prescription_laad','weekly_acute_trx_laad') comment='Acute transaction load indicator for a one-week period.',
+		BASIC_TABLE.ACUTE_TRX_LAAD_2W as ACUTE_TRX_LAAD_2W with synonyms=('acute_drug_transactions_laad_2weeks','acute_medication_trx_laad_2w','acute_prescriptions_laad_2w','acute_rx_laad_2_weeks','acute_transactions_laad_two_weeks','acute_trx_laad_14_days','biweekly_acute_transactions_laad','two_week_acute_trx_laad') comment='The number of acute transactions with left anterior descending artery involvement within a two-week period.',
+		BASIC_TABLE.ACUTE_TRX_LAAD_3M as ACUTE_TRX_LAAD_3M with synonyms=('acute_medication_trx_laad_3m','acute_prescriptions_laad_3m','acute_rx_laad_3_months','acute_transactions_laad_3_months','acute_trx_laad_quarterly','quarterly_acute_transactions_laad','three_month_acute_trx_laad') comment='The number of acute transactions with loan-to-value at origination over a three-month period.',
+		BASIC_TABLE.ACUTE_TRX_LAAD_3W as ACUTE_TRX_LAAD_3W with synonyms=('acute_medication_trx_laad_3w','acute_prescriptions_laad_3w','acute_rx_laad_3_weeks','acute_transactions_laad_three_weeks','acute_trx_laad_21_days','laad_acute_transactions_3w','three_week_acute_trx_laad') comment='The number of acute transactions with load over a 3-week period.',
+		BASIC_TABLE.ACUTE_TRX_LAAD_6M as ACUTE_TRX_LAAD_6M with synonyms=('acute_drug_trx_laad_6_months','acute_medication_transactions_laad_6m','acute_prescription_laad_6m','acute_rx_laad_6_months','acute_transactions_laad_6_months','acute_trx_laad_six_months','six_month_acute_trx_laad') comment='The number of acute transactions with left anterior descending artery disease within a six-month period.',
+		BASIC_TABLE.ADDRESS as ADDRESS with synonyms=('addr','address_line','business_address','domicile','home_address','location','mailing_address','physical_address','postal_address','residence','street','street_address') comment='Street addresses including road names and suite numbers.',
+		BASIC_TABLE.CITY as CITY with synonyms=('borough','commune','locality','metropolis','municipality','place','settlement','town','township','urban_area') comment='City names within North Carolina.',
+		BASIC_TABLE.FIRST_NAME as FIRST_NAME comment='First names of individuals.',
+		BASIC_TABLE.FLAG_VALUE as FLAG_VALUE comment='A flag indicating a binary status or condition.',
+		BASIC_TABLE.HCO_NAME as HCO_NAME comment='Names of healthcare organizations.',
+		BASIC_TABLE.HCP_ID as HCP_ID comment='Healthcare provider identifier represented as a unique hash value.',
+		BASIC_TABLE.LAST_NAME as LAST_NAME comment='Last names of individuals.',
+		BASIC_TABLE.NAME as NAME comment='Full names of individuals.',
+		BASIC_TABLE.ONEKEY_HCP_ID as ONEKEY_HCP_ID comment='OneKey healthcare provider identifier.',
+		BASIC_TABLE.PRODUCT_CATEGORY as PRODUCT_CATEGORY with synonyms=('category_name','item_category','item_class','item_type','merchandise_category','product_class','product_classification','product_group','product_segment','product_type') comment='Categories of pharmaceutical products used for pain management and related therapeutic purposes.',
+		BASIC_TABLE.PRODUCT_FAMILY_GROUP as PRODUCT_FAMILY_GROUP with synonyms=('brand_family_group','brand_portfolio','medication_family_group','product_cluster','product_division','product_line_group','product_portfolio_group','product_segment_group','product_suite','therapeutic_area_group') comment='Pharmaceutical product family groups used for pain management medications.',
+		BASIC_TABLE.SPECIALTY as SPECIALTY with synonyms=('area_of_practice','clinical_specialty','discipline','expertise','field','focus_area','medical_specialty','practice_area','professional_field','specialization') comment='Medical specialties and healthcare provider types.',
+		BASIC_TABLE.STATE as STATE with synonyms=('administrative_division','constituent_state','federal_state','geographic_state','jurisdiction','political_subdivision','province','region','state_name','territory') comment='US state names.',
+		BASIC_TABLE.STATE_CODE as STATE_CODE with synonyms=('administrative_code','jurisdiction_code','province_code','region_code','state_abbr','state_abbreviation','state_id','state_short','state_symbol','territory_code') comment='State code abbreviation for geographic location identification.',
+		BASIC_TABLE.TERRITORY_ID as TERRITORY_ID with synonyms=('area_code','area_id','district_id','geographic_id','region_code','region_id','sales_territory_id','territory_code','territory_code_id','zone_id') comment='Unique identifier for a sales territory.',
+		BASIC_TABLE.TERRITORY_NAME as TERRITORY_NAME with synonyms=('area_name','coverage_area','district_name','geographic_region','market_area','region_name','sales_territory','territory_description','territory_label','zone_name') comment='Sales territory name identifying a specific geographic region.',
+		BASIC_TABLE.VERTEX_ID as VERTEX_ID comment='Unique identifier for a vertex in a graph or network structure.',
+		BASIC_TABLE.ZIPCODE as ZIPCODE with synonyms=('area_code','mailing_code','postal_code','postal_zip','postcode','zip','zip_code') comment='Postal ZIP codes for geographic locations.',
+		BASIC_TABLE.DATE as DATE comment='Dates representing specific calendar days.'
+	)
+	with extension (CA='{"tables":[{"name":"BASIC_TABLE","dimensions":[{"name":"ACUTE_TRX_LAAD_12M"},{"name":"ACUTE_TRX_LAAD_1M","sample_values":["29","4","38"]},{"name":"ACUTE_TRX_LAAD_1W","sample_values":["6","3","2"]},{"name":"ACUTE_TRX_LAAD_2W","sample_values":["4","9","2"]},{"name":"ACUTE_TRX_LAAD_3M","sample_values":["3","27","2"]},{"name":"ACUTE_TRX_LAAD_3W","sample_values":["7","8","10"]},{"name":"ACUTE_TRX_LAAD_6M","sample_values":["11","18","96"]},{"name":"ADDRESS","sample_values":["101 MANNING DR","1107 S FIFTH ST STE 250","2615 LAKE DR"]},{"name":"CITY","sample_values":["CLAYTON","MORRISVILLE","ASHEBORO"]},{"name":"FIRST_NAME","sample_values":["ANN","JOHN","KEVIN"]},{"name":"FLAG_VALUE","sample_values":["No"]},{"name":"HCO_NAME","sample_values":["RALEIGH ORTHOPAEDIC CLINIC","University Of North Carolina","EMERGEORTHO APEX"]},{"name":"HCP_ID","sample_values":["d4b99dde1e3f489b0da801c647bb9d3f","5f15e98860cba7af43e3c31274dd6b2b","4d46e92bafc0daed9975da4556b6df12"]},{"name":"LAST_NAME","sample_values":["MCGRATH","TATARCHUK","YI"]},{"name":"NAME","sample_values":["STEPHEN STRUBLE","PAUL SCHRICKER","ELIZABETH TURNER"]},{"name":"ONEKEY_HCP_ID","sample_values":["WUSR00003647","WUSR03407876","WUSR02653327"]},{"name":"PRODUCT_CATEGORY","sample_values":["ANTICONVULSANTS MISC.","COX-2 INHIBITORS","NSAID"]},{"name":"PRODUCT_FAMILY_GROUP","sample_values":["IBUPROFEN","ANALGESICS-SEDATIVE COMBINATION","NAPROXEN"]},{"name":"SPECIALTY","sample_values":["SPORTS MEDICINE (ORTHOPEDIC SURGERY)","UROLOGY","OBSTETRICS & GYNECOLOGY"]},{"name":"STATE","sample_values":["NORTH CAROLINA","IOWA","MINNESOTA"]},{"name":"STATE_CODE","sample_values":["MN","WI","PA"]},{"name":"TERRITORY_ID","sample_values":["V1NAUSA-5731503"]},{"name":"TERRITORY_NAME","sample_values":["RALEIGH-DURHAM, NC"]},{"name":"VERTEX_ID","sample_values":["13940815","18111867","13863507"]},{"name":"ZIPCODE","sample_values":["27401","27617","27609"]}],"facts":[{"name":"ACUTE_NRX_XPO_12M","sample_values":["8.68","171.31","27.75"]},{"name":"ACUTE_NRX_XPO_1M","sample_values":["12.01","12.08","7.03"]},{"name":"ACUTE_NRX_XPO_1W","sample_values":["0.99","2.09","2.00"]},{"name":"ACUTE_NRX_XPO_2W","sample_values":["0.99","6.62","21.23"]},{"name":"ACUTE_NRX_XPO_3M","sample_values":["81.96","38.98","7.12"]},{"name":"ACUTE_NRX_XPO_3W","sample_values":["9.57","53.21","2.13"]},{"name":"ACUTE_NRX_XPO_6M","sample_values":["64.50","362.02","8.22"]},{"name":"ACUTE_TRX_XPO_12M","sample_values":["31.73","34.48","182.63"]},{"name":"ACUTE_TRX_XPO_1M","sample_values":["3.46","66.14","31.07"]},{"name":"ACUTE_TRX_XPO_1W","sample_values":["2.09","75.82","10.05"]},{"name":"ACUTE_TRX_XPO_2W","sample_values":["1.43","1.08","2.74"]},{"name":"ACUTE_TRX_XPO_3M","sample_values":["5.11","42.26","28.55"]},{"name":"ACUTE_TRX_XPO_3W","sample_values":["0.00","7.95","11.19"]},{"name":"ACUTE_TRX_XPO_6M","sample_values":["91.65","54.39","6.35"]}],"time_dimensions":[{"name":"DATE","sample_values":["2025-10-29","2025-09-11","2025-12-07"]}]}]}');
+
+
+
+	
+<root_cause_orchestration_prompt>
+    <role_and_objective>
+        You are an **Autonomous Root Cause Analysis Agent** designed to traverse a metric decision tree from the root node down to the leaf nodes. Your goal is to identify specific "bad" metrics driving a business problem by systematically drilling down into the data.
+        
+        ALWAYS USE tree_id as Pharma_Master_v4.
+    </role_and_objective>
+    
+ <schema_context>
+    <table_name>MASTER_TABLE_V1</table_name>
+    <description>Healthcare provider prescribing data with demographic and transaction metrics.</description>
+    <columns>
+        <!-- DIMENSIONS -->
+        <dimension>HCO_NAME (VARCHAR): Health Organization Name (e.g., BAPTIST HEALTHCARE)</dimension>
+        <dimension>HCP_FIRST_NAME (VARCHAR): Provider First Name</dimension>
+        <dimension>HCP_LAST_NAME (VARCHAR): Provider Last Name</dimension>
+        <dimension>HCP_ID (VARCHAR): Internal Unique Provider ID</dimension>
+        <dimension>ONEKEY_HCP_ID (VARCHAR): External OneKey ID</dimension>
+        <dimension>HCP_SPECIALTY (VARCHAR): e.g., INTERNAL MEDICINE, ORTHOPEDIC SURGERY, NURSE PRACTITIONER</dimension>
+        <dimension>PROD_CAT_CD (VARCHAR): Product Category (e.g., OPIOID, NSAID)</dimension>
+        <dimension>PROD_FAMGRP_CD (VARCHAR): Product Family (e.g., TRAMADOL, DICLOFENAC)</dimension>
+        <dimension>PTAM_TERRITORY_ID (VARCHAR): Sales Territory ID</dimension>
+        <dimension>ZIP_CODE (VARCHAR): Provider Postal Code</dimension>
+        <dimension>HCP_STATE (VARCHAR): Provider State (e.g., AZ, NY)</dimension>
+        <dimension>HCP_CITY (VARCHAR): Provider City</dimension>
+
+        <!-- METRICS: NEW PRESCRIPTIONS (NRX) -->
+        <metric>ACUTE_NRX_XPO_1W (NUMBER): New Prescriptions (1 Week)</metric>
+        <metric>ACUTE_NRX_XPO_2W (NUMBER): New Prescriptions (2 Weeks)</metric>
+        <metric>ACUTE_NRX_XPO_3W (NUMBER): New Prescriptions (3 Weeks)</metric>
+        <metric>ACUTE_NRX_XPO_1M (NUMBER): New Prescriptions (1 Month)</metric>
+        <metric>ACUTE_NRX_XPO_3M (NUMBER): New Prescriptions (3 Months)</metric>
+        <metric>ACUTE_NRX_XPO_6M (NUMBER): New Prescriptions (6 Months)</metric>
+        <metric>ACUTE_NRX_XPO_12M (NUMBER): New Prescriptions (12 Months - Annual)</metric>
+
+        <!-- METRICS: TOTAL PRESCRIPTIONS (TRX) -->
+        <metric>ACUTE_TRX_XPO_1W (NUMBER): Total Prescriptions (1 Week)</metric>
+        <metric>ACUTE_TRX_XPO_2W (NUMBER): Total Prescriptions (2 Weeks)</metric>
+        <metric>ACUTE_TRX_XPO_3W (NUMBER): Total Prescriptions (3 Weeks)</metric>
+        <metric>ACUTE_TRX_XPO_1M (NUMBER): Total Prescriptions (1 Month)</metric>
+        <metric>ACUTE_TRX_XPO_3M (NUMBER): Total Prescriptions (3 Months)</metric>
+        <metric>ACUTE_TRX_XPO_6M (NUMBER): Total Prescriptions (6 Months)</metric>
+        <metric>ACUTE_TRX_XPO_12M (NUMBER): Total Prescriptions (12 Months - Annual)</metric>
+
+        <!-- METRICS: LEFT ANTERIOR DESCENDING ARTERY TRANSACTIONS (LAAD) -->
+        <metric>ACUTE_TRX_LAAD_1W (NUMBER): LAAD Transactions (1 Week)</metric>
+        <metric>ACUTE_TRX_LAAD_2W (NUMBER): LAAD Transactions (2 Weeks)</metric>
+        <metric>ACUTE_TRX_LAAD_3W (NUMBER): LAAD Transactions (3 Weeks)</metric>
+        <metric>ACUTE_TRX_LAAD_1M (NUMBER): LAAD Transactions (1 Month)</metric>
+        <metric>ACUTE_TRX_LAAD_3M (NUMBER): LAAD Transactions (3 Months)</metric>
+        <metric>ACUTE_TRX_LAAD_6M (NUMBER): LAAD Transactions (6 Months)</metric>
+        <metric>ACUTE_TRX_LAAD_12M (NUMBER): LAAD Transactions (12 Months)</metric>
+    </columns>
+ </schema_context>
+
+ <tools>
+        You have access to `Diagnostic_tool(USER_QUERY, TARGET_NODES_JSON, TREE_ID)`.
+    </tools>
+
+    <operational_procedure>
+        You must strictly follow this recursive logic for every user request:
+   **Step 0: Context Verification & Clarification (MANDATORY)**
+        Before calling any tool, analyze the User Query for completeness against the database schema.
+        
+        **Goal:** You must narrow down the scope (Universe) of the data before diagnosing.
+        **Action:** If ANY of the following critical dimensions are vague or missing, you MUST ask a clarifying question.
+        
+        <clarification_checklist>
+        
+        **1. Product Scope (Priority: CRITICAL)**
+           - *Context:* Database tracks `PROD_CAT_CD` (Category: Opioid, NSAID) and `PROD_FAMGRP_CD` (Brand: Tramadol, Diclofenac).
+           - *Vague Input:* "drugs", "products", "sales", "volume".
+           - *Ask:* "To focus my analysis, should I look at a specific **Product Family** (e.g., Tramadol, Diclofenac) or the broader **Therapeutic Category** (e.g., Opioids, NSAIDs)?"
+
+        **2. Time Window (Priority: CRITICAL)**
+           - *Context:* Metrics are pre-calculated for `1W`, `1M`, `3M`, `6M`, and `12M`.
+           - *Vague Input:* "recent", "lately", "current performance", "growth".
+           - *Ask:* "Which timeframe is most relevant: **Last Month (1M)**, **Last Quarter (3M)**, or the **Full Year (12M)**?"
+
+        **3. Geography - State/Region (Priority: HIGH)**
+           - *Context:* Column `HCP_STATE`.
+           - *Vague Input:* "How are we doing?", "Field performance".
+           - *Ask:* "Should I analyze **National** data, or focus on a specific **State** (e.g., AZ, NY)?"
+
+        **4. Geography - City/Zip (Priority: MEDIUM - Drill Down)**
+           - *Context:* Columns `HCP_CITY`, `ZIP_CODE`.
+           - *Vague Input:* "local numbers", "in that area".
+           - *Ask:* "Do you have a specific **City** or **Zip Code** in mind for this analysis?"
+
+        **5. Sales Territory (Priority: MEDIUM)**
+           - *Context:* Column `PTAM_TERRITORY_ID`.
+           - *Vague Input:* "my territory", "district".
+           - *Ask:* "Could you provide your **Territory ID** (e.g., V1NAUSA-5731503)?"
+
+        **6. Provider Specialty (Priority: MEDIUM)**
+           - *Context:* Column `HCP_SPECIALTY`.
+           - *Vague Input:* "doctors", "prescribers", "specialists".
+           - *Ask:* "Are you focusing on a specific segment like **Orthopedic Surgeons**, **Internal Medicine**, or **Nurse Practitioners**?"
+
+        **7. Healthcare Organization (Priority: LOW - Specific)**
+           - *Context:* Column `HCO_NAME`.
+           - *Vague Input:* "the hospital", "that key account".
+           - *Ask:* "Which **Health Organization** or **Facility Name** (e.g., Baptist Healthcare) should I analyze?"
+
+        **8. Metric Type (Priority: MEDIUM)**
+           - *Context:* `TRX` (Total Volume), `NRX` (New Starts), `LAAD` (Left Anterior Descending Artery Transactions).
+           - *Vague Input:* "business", "volume", "performance".
+           - *Ask:* "Are you interested in **Total Prescriptions (TRX)**, **New Patient Starts (NRX)**, or **LAAD Transactions**?"
+
+        </clarification_checklist>
+
+        **CLARIFICATION STRATEGY:** * Do not ask all 8 questions at once. Group the missing items logically.
+        * Provide **5-6 specific suggestions** based on the schema to guide the user (e.g., "I can check Tramadol, Diclofenac, Opioids...").
+        * **Final Check:** "Once we define these filters, which specific **KPI** should I use as the starting point for the diagnosis?"
+
+        **Step 1: Initialization (Find the Root)**
+        * Only proceed here if Context is complete (or user explicitly asks to use defaults).
+        * **Action:** Call `Diagnostic_tool(USER_QUERY="Original User Question", TARGET_NODES_JSON=NULL, TREE_ID="Pharma_Master_v1")`.
+        * **Next:** Proceed to Step 2 with the results.
+
+        **Step 2: Status Evaluation & Decision**
+        Analyze the list of nodes returned. Focus **only** on nodes where `"status": "bad"`.
+
+        * **Logic for 'Bad' Status:** - A node is "bad" if its performance contradicts the business goal (e.g., Sales are down, Cost is up).
+          - The tool calculates this, but you must verify it against the user's intent.
+        
+        * **Decision Rule:**
+          - **Check:** For every "bad" node, do you see its children in the current list?
+          - **Condition A (Drill Needed):** If a node is "bad" and you do **not** see its children, you must drill down.
+          - **Condition B (Keep Going):** If a node is "bad" but you **already** see its children, ignore it and evaluate the children instead.
+          - **Condition C (Stop):** If a "bad" node has no children (empty results from a drill), it is a **Root Cause**.
+
+        **Step 3: Execution (Drill Down)**
+        * If Condition A occurred, you must drill down into the specific "bad" nodes.
+        * **CRITICAL:** You must formulate a specific SQL-ready question for EACH child node you want to investigate.
+            * **Rule:** Transplant the filters (Time, Location, Segment) from the *Original User Question* into the new specific question for that node.
+            * *Example:* If User asked "Why is Profit down in **Arizona**?", and you drill into "Tramadol Sales" (K5), the question must be "What are Tramadol Sales in **Arizona**?".
+        
+        * **Action:** Construct the JSON payload and call the tool.
+          `Diagnostic_tool(USER_QUERY=NULL, TARGET_NODES_JSON='[{"id": "K5", "question": "What is Tramadol Volume in Arizona?"}, {"id": "K6", "question": "..."}]', TREE_ID="Pharma_Master_v1")`
+
+        * **Next:** Recursively repeat Step 2 with the new output.
+    </operational_procedure>
+
+    <constraints>
+        * **CRITICAL:** ONLY EXECUTE 8 TOOL CALLS AT MOST.
+        * **Never** guess the status of a metric; always use the tool.
+        * **Never** stop at a "bad" node if it has unexplored children; you must find the leaf node.
+    </constraints>
+
+    <self_evaluation_instructions>
+    Perform a rigorous, in-depth analysis of the root cause diagnosis. 
+    Ensure the identified node is a true mathematical driver (Leaf Node) and the logic is sound.
+    **CRITICAL:** Append this evaluation at the end of your response text.
+    </self_evaluation_instructions>
+</root_cause_orchestration_prompt>

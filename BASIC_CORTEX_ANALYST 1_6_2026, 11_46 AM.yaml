@@ -26887,3 +26887,225 @@ PROMPT_ROOT_CAUSE_ORCHESTRATION = """
     </self_evaluation_instructions>
 </root_cause_orchestration_prompt>
 """
+
+
+
+INSERT INTO KPI_KNOWLEDGE_BASE_NEW (KPI_ID, METRIC_NAME, DESCRIPTION, SQL_QUERY, FEW_SHOT_EXAMPLES, KPI_EMBEDDING)
+
+-- =================================================================================================
+-- LEVEL 1: Market & Totals
+-- =================================================================================================
+
+SELECT 'K1', 
+       'Total Market Volume (TRX)', 
+       'Total volume of all acute prescriptions across the entire market. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1', 
+       PARSE_JSON('[
+           {"question": "What is the total market volume?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1"},
+           {"question": "Show me the overall TRX performance for the last 6 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_6M) FROM MASTER_TABLE_V1"},
+           {"question": "How many prescriptions were written in the last week?", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1"},
+           {"question": "Give me the 3-month aggregate prescription volume.", "sql": "SELECT SUM(ACUTE_TRX_XPO_3M) FROM MASTER_TABLE_V1"},
+           {"question": "What is the annual total TRX?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1"},
+           {"question": "Check market volume for the past 2 weeks.", "sql": "SELECT SUM(ACUTE_TRX_XPO_2W) FROM MASTER_TABLE_V1"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Total Market Volume (TRX). Description: Total volume of all acute prescriptions across the entire market. Keywords: all sales, overall performance, aggregate prescriptions, market size, TRX count')
+
+UNION ALL
+SELECT 'K2', 
+       'Total New Starts (NRX)', 
+       'Total volume of new-to-therapy prescriptions, indicating market growth. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1', 
+       PARSE_JSON('[
+           {"question": "How many new patients started therapy?", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1"},
+           {"question": "Show me the total NRX for the last month.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1M) FROM MASTER_TABLE_V1"},
+           {"question": "What is the new-to-therapy volume for the past 3 weeks?", "sql": "SELECT SUM(ACUTE_NRX_XPO_3W) FROM MASTER_TABLE_V1"},
+           {"question": "Are we acquiring new patients this week?", "sql": "SELECT SUM(ACUTE_NRX_XPO_1W) FROM MASTER_TABLE_V1"},
+           {"question": "Show me 6-month new start trends.", "sql": "SELECT SUM(ACUTE_NRX_XPO_6M) FROM MASTER_TABLE_V1"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Total New Starts (NRX). Description: Total volume of new-to-therapy prescriptions, indicating market growth. Keywords: acquisition, new patients, fresh starts, growth indicator, NRX count')
+
+-- =================================================================================================
+-- LEVEL 2: Categories
+-- =================================================================================================
+
+UNION ALL
+SELECT 'K3', 
+       'Opioid Category Volume', 
+       'Total prescriptions for the Opioid drug class. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''', 
+       PARSE_JSON('[
+           {"question": "How is the opioid class performing?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"},
+           {"question": "Show me total opioid prescriptions for the last 3 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"},
+           {"question": "Volume for pain medications in the past week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"},
+           {"question": "Opioid category sales over the last 6 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_6M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Opioid Category Volume. Description: Total prescriptions for the Opioid drug class. Keywords: pain meds, narcotics, analgesics, tramadol class, pain killers')
+
+UNION ALL
+SELECT 'K4', 
+       'NSAID Category Volume', 
+       'Total prescriptions for the NSAID drug class. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''', 
+       PARSE_JSON('[
+           {"question": "What is the volume for NSAIDs?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"},
+           {"question": "Show me anti-inflammatory prescription counts for last month.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"},
+           {"question": "NSAID category performance over 12 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"},
+           {"question": "How many NSAID scripts in the last 2 weeks?", "sql": "SELECT SUM(ACUTE_TRX_XPO_2W) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'NSAID Category Volume. Description: Total prescriptions for the NSAID drug class. Keywords: anti inflammatory, diclofenac class, non-opioid pain relief, ibuprofen class')
+
+-- =================================================================================================
+-- LEVEL 3: Products
+-- =================================================================================================
+
+UNION ALL
+SELECT 'K5', 
+       'Tramadol Brand Volume', 
+       'Total prescriptions specifically for the Tramadol product family. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''', 
+       PARSE_JSON('[
+           {"question": "How much Tramadol are we selling?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "Show me Tramadol performance for the last 3 weeks.", "sql": "SELECT SUM(ACUTE_TRX_XPO_3W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "Tramadol specific volume last quarter (3M).", "sql": "SELECT SUM(ACUTE_TRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "TRX for Tramadol brand in the last week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Tramadol Brand Volume. Description: Total prescriptions specifically for the Tramadol product family. Keywords: tramadol sales, specific product performance, our brand, tramadol TRX')
+
+UNION ALL
+SELECT 'K6', 
+       'Diclofenac Brand Volume', 
+       'Total prescriptions specifically for the Diclofenac product family. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''', 
+       PARSE_JSON('[
+           {"question": "How is Diclofenac performing?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"},
+           {"question": "Show me Diclofenac sales volume for last 6 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_6M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"},
+           {"question": "Diclofenac product family stats last month.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"},
+           {"question": "TRX for Diclofenac in the past week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Diclofenac Brand Volume. Description: Total prescriptions specifically for the Diclofenac product family. Keywords: diclofenac sales, specific product performance, voltaren, diclofenac TRX')
+
+-- =================================================================================================
+-- LEVEL 4: Product Performance Metrics
+-- =================================================================================================
+
+UNION ALL
+SELECT 'K7', 
+       'Tramadol New Growth (NRX)', 
+       'New patient prescriptions for Tramadol. Key indicator of sales force effectiveness. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''', 
+       PARSE_JSON('[
+           {"question": "How many new patients are taking Tramadol?", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "Tramadol new starts last month.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "New growth for Tramadol over the last 3 months.", "sql": "SELECT SUM(ACUTE_NRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "NRX for Tramadol in the past week.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Tramadol New Growth (NRX). Description: New patient prescriptions for Tramadol. Keywords: new starts, acquisition, fresh patients, sales effectiveness, tramadol NRX')
+
+UNION ALL
+SELECT 'K8', 
+       'Tramadol Retention (Refills)', 
+       'Volume of Tramadol refills (TRX minus NRX), indicating patient retention. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) - SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''', 
+       PARSE_JSON('[
+           {"question": "Are Tramadol patients refilling their scripts?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) - SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "Show me Tramadol refills for the last 6 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_6M) - SUM(ACUTE_NRX_XPO_6M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "Tramadol retention rate over 3 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_3M) - SUM(ACUTE_NRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"},
+           {"question": "Continuing patients for Tramadol last week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) - SUM(ACUTE_NRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Tramadol Retention (Refills). Description: Volume of Tramadol refills indicating patient retention. Keywords: loyalty, repeat business, continuing therapy, refill rate, patient stickiness')
+
+UNION ALL
+SELECT 'K9', 
+       'Diclofenac New Growth (NRX)', 
+       'New patient prescriptions for Diclofenac. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''', 
+       PARSE_JSON('[
+           {"question": "How many new starts for Diclofenac?", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"},
+           {"question": "Diclofenac new patient volume last month.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"},
+           {"question": "NRX for Diclofenac last 2 weeks.", "sql": "SELECT SUM(ACUTE_NRX_XPO_2W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"},
+           {"question": "New therapy starts for Diclofenac annually.", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''DICLOFENAC''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Diclofenac New Growth (NRX). Description: New patient prescriptions for Diclofenac. Keywords: new starts, fresh patients, acquisition, diclofenac NRX')
+
+-- =================================================================================================
+-- LEVEL 5: Specialist & Geography Segments
+-- =================================================================================================
+
+UNION ALL
+SELECT 'K10', 
+       'Orthopedic Tramadol Starts', 
+       'New Tramadol prescriptions written specifically by Orthopedic Surgeons. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY LIKE ''%ORTHOPEDIC%''', 
+       PARSE_JSON('[
+           {"question": "How many Orthos are starting patients on Tramadol?", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY LIKE ''%ORTHOPEDIC%''"},
+           {"question": "Tramadol new starts by Orthopedic Surgeons last month.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY LIKE ''%ORTHOPEDIC%''"},
+           {"question": "Ortho contribution to Tramadol growth over 6 months.", "sql": "SELECT SUM(ACUTE_NRX_XPO_6M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY LIKE ''%ORTHOPEDIC%''"},
+           {"question": "Surgeon new prescriptions for Tramadol last week.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY LIKE ''%ORTHOPEDIC%''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Orthopedic Tramadol Starts. Description: New Tramadol prescriptions written specifically by Orthopedic Surgeons. Keywords: ortho, surgeon, bone doctors, specialist starts, orthopedic NRX')
+
+UNION ALL
+SELECT 'K11', 
+       'PCP Tramadol Starts', 
+       'New Tramadol prescriptions written by Primary Care/Internal Medicine. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY IN (''INTERNAL MEDICINE'', ''FAMILY MEDICINE'')', 
+       PARSE_JSON('[
+           {"question": "Tramadol new starts in Primary Care.", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY IN (''INTERNAL MEDICINE'', ''FAMILY MEDICINE'')"},
+           {"question": "How much Tramadol growth is coming from PCPs in the last quarter?", "sql": "SELECT SUM(ACUTE_NRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY IN (''INTERNAL MEDICINE'', ''FAMILY MEDICINE'')"},
+           {"question": "Internal Medicine Tramadol new scripts last week.", "sql": "SELECT SUM(ACUTE_NRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY IN (''INTERNAL MEDICINE'', ''FAMILY MEDICINE'')"},
+           {"question": "General practitioner Tramadol starts annually.", "sql": "SELECT SUM(ACUTE_NRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_FAMGRP_CD = ''TRAMADOL'' AND HCP_SPECIALTY IN (''INTERNAL MEDICINE'', ''FAMILY MEDICINE'')"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'PCP Tramadol Starts. Description: New Tramadol prescriptions written by Primary Care/Internal Medicine. Keywords: internal medicine, family doctor, GP, generalist, PCP NRX')
+
+UNION ALL
+SELECT 'K12', 
+       'Opioid Market Volume', 
+       'Total prescription volume for the Opioid category. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''', 
+       PARSE_JSON('[
+           {"question": "What is the total Opioid market volume?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"},
+           {"question": "Show me the size of the opioid market over the last 3 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"},
+           {"question": "Total TRX for all opioids last week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"},
+           {"question": "Opioid segment total for the last month.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD LIKE ''%OPIOID%''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'Opioid Market Volume. Description: Total prescription volume for the Opioid category. Keywords: market size, total potential, opioid segment, pain killer market')
+
+UNION ALL
+SELECT 'K13', 
+       'NSAID Market Volume', 
+       'Total prescription volume for the NSAID category. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''', 
+       PARSE_JSON('[
+           {"question": "What is the total NSAID market volume?", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"},
+           {"question": "Show me the size of the NSAID market last month.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"},
+           {"question": "Total TRX for all NSAIDs over 6 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_6M) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"},
+           {"question": "NSAID segment total last week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE PROD_CAT_CD = ''NSAID''"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'NSAID Market Volume. Description: Total prescription volume for the NSAID category. Keywords: market size, total potential, non-steroidal segment, anti-inflammatory market')
+
+UNION ALL
+SELECT 'K14', 
+       'High Volume Writers (>10)', 
+       'Prescriptions coming from HCPs with more than 10 total scripts. Default view is 12 months.', 
+       'SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE ACUTE_TRX_XPO_12M > 10', 
+       PARSE_JSON('[
+           {"question": "Show me volume from top writers.", "sql": "SELECT SUM(ACUTE_TRX_XPO_12M) FROM MASTER_TABLE_V1 WHERE ACUTE_TRX_XPO_12M > 10"},
+           {"question": "How much volume comes from HCPs with >10 scripts in the last 3 months?", "sql": "SELECT SUM(ACUTE_TRX_XPO_3M) FROM MASTER_TABLE_V1 WHERE ACUTE_TRX_XPO_3M > 10"},
+           {"question": "Performance of high volume prescribers last week.", "sql": "SELECT SUM(ACUTE_TRX_XPO_1W) FROM MASTER_TABLE_V1 WHERE ACUTE_TRX_XPO_1W > 10"},
+           {"question": "Top decile writers volume over 6 months.", "sql": "SELECT SUM(ACUTE_TRX_XPO_6M) FROM MASTER_TABLE_V1 WHERE ACUTE_TRX_XPO_6M > 10"}
+       ]'),
+       SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-m', 
+           'High Volume Writers (>10). Description: Prescriptions coming from HCPs with more than 10 total scripts. Keywords: top prescribers, heavy hitters, key accounts, frequent writers, high decile HCPs');

@@ -33057,3 +33057,6 @@ if user_input:
         "content": full_response,
         "artifacts": st.session_state.current_artifacts
     })
+
+
+Stream Error: 'generator' object has no attribute 'refined_query'

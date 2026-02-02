@@ -31155,3 +31155,20 @@ def main(session: Session):
     print(f"⏱️  Total Execution Time: {row_data['EXECUTION_TIME_MS']}ms")
 
     return final_output
+
+
+Agent Error: 1 validation error for RephraserOutput refined_query Field required [type=missing, input_value={}, input_type=dict] For further information visit https://errors.pydantic.dev/2.10/v/missing
+
+Stream Error: 'NoneType' object has no attribute 'refined_query'
+
+streamlit.errors.StreamlitAPIException: The provided input (type: <class 'NoneType'>) cannot be iterated. Please make sure that it is a generator, generator function or iterable.
+
+Traceback:
+File "/tmp/appRoot/streamlit_app.py", line 1864, in <module>
+    full_response = st.write_stream(stream_processor(st.session_state.session, user_input, st.session_state.messages))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/usr/lib/python_udf/424cc7c564559f272927b494b96032d7083d66f06811bb811e2c51b0679c39ba/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 531, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/usr/lib/python_udf/424cc7c564559f272927b494b96032d7083d66f06811bb811e2c51b0679c39ba/lib/python3.11/site-packages/streamlit/elements/write.py", line 202, in write_stream
+    raise StreamlitAPIException(

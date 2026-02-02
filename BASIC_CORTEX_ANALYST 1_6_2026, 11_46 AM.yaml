@@ -30897,3 +30897,15 @@ def handler(session: Session, session_id: str, user_query: str) -> str:
 if __name__ == "__main__":
     # For local testing
     pass
+
+
+
+Return type of generator function must be compatible with "Generator[Any, Any, Any]"
+  "Generator[Any, Any, Any]" is not assignable to "Tuple[Any, Any]"PylancereportInvalidTypeForm
+(class) Tuple
+Built-in immutable sequence.
+
+If no argument is given, the constructor returns an empty tuple.
+If iterable is specified the tuple is initialized from iterable's items.
+
+If the argument is a tuple, the return value is the same object.

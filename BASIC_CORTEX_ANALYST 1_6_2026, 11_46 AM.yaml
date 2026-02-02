@@ -30909,3 +30909,249 @@ If no argument is given, the constructor returns an empty tuple.
 If iterable is specified the tuple is initialized from iterable's items.
 
 If the argument is a tuple, the return value is the same object.
+
+
+
+
+
+
+
+
+
+
+# ==========================================
+# 8. MAIN EXECUTION
+# ==========================================
+
+
+def main(session: Session):
+    """Main Orchestrator Entry Point."""
+
+    # Start timing
+    start_time = datetime.datetime.now()
+    session_id: str= "1120" 
+    user_query: str="Which zip codes are outperforming the nation for the metric total trx of rlats three months? Give me bar plot representing the values"
+    
+    manager = AgentManager(session)
+    
+    # Initialize row_data with ALL required columns for audit table
+    row_data = {
+        "SESSION_ID": session_id,
+        "USER_QUERY": user_query,
+        "REPHRASED_QUERY": None,
+        "INTENT_TYPE": None,
+        "INTENT_CONFIDENCE": None,
+        "DATA_SUMMARY": None,
+        "DATA_SQL": None,
+        "DATA_SQL_EXPLANATION": None,
+        "DATA_CLARIFICATION": None,
+        "DATA_RESULT_SET": None,
+        "DATA_CHARTS": None,
+        "DATA_EVAL_SCORE": None,
+        "DATA_EVAL_REASONING": None,
+        "RC_SUMMARY": None,
+        "RC_GRAPH_JSON": None,
+        "RC_EVAL_SCORE": None,
+        "RC_EVAL_REASONING": None,
+        "IS_BLOCKED": False,
+        "FULL_RAW_JSON": None,
+        "EXECUTION_TIME_MS": None,
+    }
+
+    log_checkpoint("MAIN: START", {"query": user_query, "session": session_id})
+
+    # 1. Fetch History
+    history = get_chat_history(session, session_id)
+
+    # 2. Input Guard
+    guard = check_input_guard(session, user_query)
+    if not guard.is_safe:
+        row_data["IS_BLOCKED"] = True
+
+        # Calculate execution time
+        end_time = datetime.datetime.now()
+        row_data["EXECUTION_TIME_MS"] = int(
+            (end_time - start_time).total_seconds() * 1000
+        )
+
+        # Save audit log
+        row_data["FULL_RAW_JSON"] = {"status": "blocked", "message": guard.message}
+        _save_audit_row(session, row_data, session_id)
+
+        return {"status": "blocked", "message": guard.message}
+
+    # 3. Save User Message
+    save_chat_message(session, session_id, "user", user_query)
+
+    # 4. Rephrase
+    try:
+        rephrased = manager.run_rephraser(user_query, history)
+        effective_query = rephrased.refined_query or user_query
+    except Exception as e:
+        print(f"⚠️ Rephraser failed: {e}")
+        effective_query = user_query
+
+    # 5. Intent Classification
+    try:
+        intent = manager.run_intent_classifier(effective_query)
+    except Exception as e:
+        print(f"⚠️ Intent classification failed: {e}")
+        # Default to data retrieval if intent fails
+        intent = IntentClassification(
+            intent_type="data_retrieval",
+            data_retrieval_query=effective_query,
+            confidence="low",
+            reasoning=f"Failed to classify intent: {str(e)}",
+        )
+
+    row_data["REPHRASED_QUERY"] = effective_query
+    row_data["INTENT_TYPE"] = intent.intent_type
+    row_data["INTENT_CONFIDENCE"] = intent.confidence
+
+    final_output = {
+        "original": user_query,
+        "processed": effective_query,
+        "intent": intent.model_dump(),
+        "results": [],
+    }
+    
+    bot_response_text = ""
+
+    # 6. Execute based on Intent
+    if intent.direct_response:
+        msg = intent.direct_response
+        final_output["results"].append({"type": "direct", "message": msg})
+        bot_response_text = msg
+
+    else:
+        futures = {}
+        with ThreadPoolExecutor(max_workers=2) as executor:
+
+            # Data Flow (Uses Parallel Orchestrator)
+            if intent.intent_type in [
+                "data_retrieval",
+                "combined",
+                "clarification_needed",
+            ]:
+                q = intent.data_retrieval_query or effective_query
+                futures["data"] = executor.submit(manager.run_data_agent, q)
+
+            # Root Cause Flow
+            if intent.intent_type in ["root_cause_analysis", "combined"]:
+                q = intent.root_cause_query or effective_query
+                futures["rc"] = executor.submit(manager.run_root_cause_agent, q)
+
+        # Process Data Results
+        if "data" in futures:
+            try:
+                res = futures["data"].result()
+                res_dump = res.model_dump()
+
+                row_data["DATA_EVAL_SCORE"] = res.evaluation.score
+                row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+                row_data["DATA_SQL"] = res.sql_generated
+                row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
+
+                # Store as dict/list - will be converted to JSON in _save_audit_row
+                if res.tables:
+                    row_data["DATA_RESULT_SET"] = res.tables
+                if res.charts:
+                    row_data["DATA_CHARTS"] = res.charts
+                if res.bot_answer:
+                    row_data["DATA_SUMMARY"] = res.bot_answer
+                    final_output["results"].append(
+                        {
+                            "type": "data_analysis",
+                            "bot_response":res.bot_answer,
+                            "visual_summary": res.visual_summary,
+                            "tables": res.tables,
+                            "charts": res.charts,
+                            "sql_generated": res.sql_generated,
+                            "sql_explanation": res.sql_explanation,
+                            "full_pydantic_object": res_dump,
+                        }
+                    )
+                
+
+                bot_response_text += res.bot_answer + "\n"
+                
+                # ADDED: Include visual summary in bot response if present
+                if res.visual_summary:
+                    bot_response_text += f"\n{res.visual_summary}\n"
+
+            except Exception as e:
+                error_msg = f"Data analysis failed: {str(e)}"
+                print(f"❌ {error_msg}")
+                traceback.print_exc()
+                final_output["results"].append({"type": "error", "message": error_msg})
+                bot_response_text += error_msg + "\n"
+
+        # Process Root Cause Results
+        if "rc" in futures:
+            try:
+                res_rc = futures["rc"].result()
+                res_rc_dump = res_rc.model_dump()
+                
+                row_data["RC_EVAL_SCORE"] = res_rc.evaluation.score
+                row_data["RC_EVAL_REASONING"] = res_rc.evaluation.reasoning
+
+                
+                final_output["results"].append(
+                        {
+                            "type": "root_cause",
+                            "summary": res_rc.bot_answer,
+                            "graph": res_rc.react_flow_json,
+                            "full_pydantic_object": res_rc_dump,
+                        }
+                    )
+                row_data["RC_SUMMARY"] = res_rc.bot_answer
+                if res_rc.react_flow_json:
+                    row_data["RC_GRAPH_JSON"] = res_rc.react_flow_json
+
+                bot_response_text += res_rc.bot_answer + "\n"
+
+            except Exception as e:
+                error_msg = f"Root cause analysis failed: {str(e)}"
+                print(f"❌ {error_msg}")
+                traceback.print_exc()
+                final_output["results"].append({"type": "error", "message": error_msg})
+                bot_response_text += error_msg + "\n"
+
+    # 7. Save Bot Response
+    if bot_response_text:
+        # Save structured metadata to METADATA column
+        message_metadata = {
+            "intent_data": intent.model_dump(),
+            "sql_generated": row_data.get("DATA_SQL"),
+            "is_blocked": row_data.get("IS_BLOCKED"),
+            "tool_artifacts": final_output.get("results"),
+            "generated_at": datetime.datetime.now().isoformat(),
+        }
+
+        try:
+            save_chat_message(
+                session,
+                session_id,
+                "assistant",
+                bot_response_text.strip(),
+                metadata=message_metadata,
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to save assistant message: {e}")
+
+    # 8. Calculate execution time
+    end_time = datetime.datetime.now()
+    row_data["EXECUTION_TIME_MS"] = int((end_time - start_time).total_seconds() * 1000)
+
+    # 9. Save Audit Log
+    row_data["FULL_RAW_JSON"] = final_output
+    try:
+        _save_audit_row(session, row_data, session_id)
+    except Exception as e:
+        print(f"⚠️ Failed to save audit log: {e}")
+        traceback.print_exc()
+
+    print("✅ Process Completed")
+    print(f"⏱️  Total Execution Time: {row_data['EXECUTION_TIME_MS']}ms")
+
+    return final_output

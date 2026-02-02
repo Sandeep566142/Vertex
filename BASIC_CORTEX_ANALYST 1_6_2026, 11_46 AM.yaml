@@ -27932,3 +27932,1479 @@ PROMPT_ROOT_CAUSE_RESPONSE = """
         </section_2_react_flow_json>
 </response_structure_instructions>
 """
+
+
+
+
+import json
+import logging
+import pprint
+import re
+import functools
+import _snowflake  # Native Snowflake module for internal API calls
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict, Any, Optional, Literal, Tuple
+from pydantic import BaseModel, Field, field_validator
+from snowflake.snowpark import Session
+from snowflake.snowpark.functions import lit, parse_json, col
+from collections import defaultdict
+import datetime
+import traceback
+import time
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+
+
+class AgentConfig(BaseModel):
+    """Configuration for the agent execution"""
+
+    # LLM Models
+    model: str = "claude-sonnet-4-5"
+
+    # Snowflake Objects
+    cortex_analyst_object_master: str = (
+        "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MASTERTABLE_V1"
+    )
+    cortex_analyst_object_ards: str = (
+        "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING.BASIC_CORTEX_ANALYST"
+    )
+    warehouse: str = "DEV_PAIN_SALES_PERFORMANCE_B_WH"
+
+    # Tables - Updated to V2
+    messages_table: str = "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MESSAGES_V2"
+    audit_log_table: str = (
+        "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.AGENT_DETAILED_HISTORY_V2"
+    )
+
+    # Tools
+    diagnostic_udf: str = (
+        "DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.DIAGNOSTIC_TOOL_V3"
+    )
+    diagnostic_tree_id: str = "Pharma_Master_v4"
+
+    enable_semantic_parsing: bool = True
+
+
+CONFIG = AgentConfig()
+
+# ==========================================
+# 2. PYDANTIC MODELS
+# ==========================================
+
+
+class EvaluationResult(BaseModel):
+    score: int = Field(default=0, description="Score 1-10.")
+    reasoning: str = Field(
+        default="No evaluation provided.", description="Justification."
+    )
+
+
+class IntentClassification(BaseModel):
+    intent_type: str = Field(
+        ...,
+        description="greeting, data_retrieval, root_cause_analysis, clarification_needed, general_question, off_topic, combined",
+    )
+    data_retrieval_query: Optional[str] = None
+    root_cause_query: Optional[str] = None
+    direct_response: Optional[str] = None
+    clarification_question: Optional[str] = None
+    confidence: str = Field(..., description="high, medium, low")
+    reasoning: str = Field(..., description="Reasoning")
+
+
+class RephraserOutput(BaseModel):
+    refined_query: str = Field(..., description="The fully contextualized query.")
+
+
+class TableSelection(BaseModel):
+    relevant_table_names: List[str] = Field(..., description="List of table names.")
+
+
+class GuardResult(BaseModel):
+    is_safe: bool = Field(...)
+    message: Optional[str] = Field(None)
+
+
+class SqlResult(BaseModel):
+    clean_answer_text: str = Field(default="")
+    clarifying_question: Optional[str] = None
+    tables: List[Any] = Field(default_factory=list)
+    charts: List[Any] = Field(default_factory=list)  # Changed from List[Dict]
+    sql_generated: Optional[str] = None
+    sql_explanation: Optional[str] = None
+    is_verified_query: bool = False
+    evaluation: EvaluationResult = Field(default_factory=EvaluationResult)
+    is_retry: bool = False
+
+    @field_validator("charts", mode="before")
+    @classmethod
+    def parse_charts(cls, v):
+        if not v:
+            return []
+        parsed = []
+        for item in v:
+            if isinstance(item, dict):
+                parsed.append(item)
+            elif isinstance(item, str):
+                try:
+                    parsed_item = json.loads(item)
+                    parsed.append(parsed_item)
+                except:
+                    # Keep as string if can't parse
+                    parsed.append(item)
+        return parsed
+
+
+class DiagnosticResult(BaseModel):
+    clean_summary_text: str = Field(default="")
+    clarifying_question: Optional[str] = None
+    react_flow_json: Optional[Dict] = None
+    evaluation: EvaluationResult = Field(default_factory=EvaluationResult)
+
+
+# ==========================================
+# 2. TIMING DECORATOR
+# ==========================================
+
+EXECUTION_TIMINGS = []
+
+
+def time_execution(step_name: str):
+    """Decorator to measure execution time of functions and log them."""
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start_ts = time.time()
+            try:
+                result = func(*args, **kwargs)
+                status = "success"
+                return result
+            except Exception as e:
+                status = "error"
+                raise e
+            finally:
+                end_ts = time.time()
+                duration_ms = int((end_ts - start_ts) * 1000)
+                EXECUTION_TIMINGS.append(
+                    {"step": step_name, "duration_ms": duration_ms, "status": status}
+                )
+                print(f"⏱️ [TIMING] {step_name}: {duration_ms}ms")
+
+        return wrapper
+
+    return decorator
+
+
+# ==========================================
+# 3. PROMPTS
+# ==========================================
+
+# --- REPHRASER ---
+PROMPT_REPHRASER_SYSTEM = "You are an advanced Contextual Query Reconstruction Engine. Your sole purpose is to convert conversational fragments into precise, standalone database-ready queries. You do not answer questions; you only rephrase them."
+
+PROMPT_REPHRASER_ORCHESTRATION = """
+<query_reconstruction_master_prompt>
+    <objective>
+    Analyze the `Current User Input` in the context of the `Conversation History`. 
+    Produce a **single, grammatically complete, standalone question** that explicitly includes all necessary filters, metrics, entities, and timeframes required to execute the user's intent.
+    </objective>
+
+    <cognitive_process>
+    You must execute these logic steps in order for every request:
+
+    **1. Analyze the Interaction State:**
+       - **State A (New Topic):** User is asking a completely new question (e.g., "Start over," "Change topic"). -> *Ignore history.*
+       - **State B (Drill-Down/Follow-up):** User is asking about the same topic but changing one variable (e.g., "What about in 2024?", "And for Product X?"). -> *Merge History + Current.*
+       - **State C (Slot Filling/Clarification):** - Check the **Last Bot Message**. Did the Bot ask for a specific missing piece of information (e.g., "I need a valid ID," "Which region?")?
+         - If YES, the Current User Input is the **ANSWER** to that specific gap. You must take the *Original User Query* (before the error) and insert this new value into it.
+       - **State D (Correction):** User says "Actually, I meant X" or "No, filter by Y". -> *Replace the specific conflicting parameter in the previous query.*
+
+    **2. Intent Inheritance (The "Verb" Rule):**
+       - If the user provides a fragment (e.g., "In New York"), you must inherit the **Intent Verb** from the last valid User Query.
+       - *Examples:*
+         - If History was "**Why** did sales drop?", and input is "In NY?", new query is "**Why** did sales drop in NY?"
+         - If History was "**List** top 10...", and input is "In NY?", new query is "**List** top 10... in NY?"
+         - If History was "**Compare** X vs Y", and input is "And Z?", new query is "**Compare** X vs Z".
+
+    **3. Entity & Pronoun Resolution:**
+       - Replace "it", "that", "those", "the previous one", "the same [attribute]" with the actual distinct values found in history.
+       - If the user input is a raw code/ID (e.g., "A123", "US-East") and the context implies a specific dimension (e.g., Territory, SKU), explicitly label it (e.g., "Territory A123").
+
+    </cognitive_process>
+
+    <advanced_handling_rules>
+        <rule name="The_Any_Entity_Rule">
+            Do not hardcode logic for "Territories" or "Locations". This logic applies to **ANY** entity (Products, Prescribers, SKUs, Campaigns, Employees, Departments, etc.).
+            If the user gives a value, find what Dimension it belongs to based on the previous bot question or user context.
+        </rule>
+        
+        <rule name="The_Correction_Rule">
+            If the user input starts with "No," "Actually," "I meant," or "Wait," treat this as a **Modification**. 
+            Find the specific parameter in the previous query that is being corrected and overwrite it. Keep everything else the same.
+        </rule>
+
+        <rule name="The_Cumulative_Filter_Rule">
+            If the user adds a new filter (e.g., "only for Q3"), **PRESERVE** all previous active filters (e.g., Region, Product) unless the user explicitly removes them.
+            *Exception:* If the new filter contradicts an old one (e.g., old="Region East", new="Region West"), the new one overwrites.
+        </rule>
+    </advanced_handling_rules>
+
+    <few_shot_examples>
+        <scenario type="Slot Filling (Handling Missing Info)">
+            <history_user>Show me the churn rate for campaign C-999.</history_user>
+            <history_bot>Campaign C-999 does not exist. Please provide a valid Campaign ID.</history_bot>
+            <current_input>C-555</current_input>
+            <output>Show me the churn rate for campaign C-555.</output>
+        </scenario>
+
+        <scenario type="Intent Inheritance (Why -> What)">
+            <history_user>Why is profit down for the iPhone?</history_user>
+            <history_bot>Profit is down due to supply chain costs.</history_bot>
+            <current_input>What about the iPad?</current_input>
+            <output>Why is profit down for the iPad?</output>
+        </scenario>
+
+        <scenario type="Correction">
+            <history_user>Get top 10 doctors in California.</history_user>
+            <current_input>Actually, I meant Cardiologists in California.</current_input>
+            <output>Get top 10 Cardiologists in California.</output>
+        </scenario>
+
+        <scenario type="Drill Down (Cumulative)">
+            <history_user>Total revenue for Nike.</history_user>
+            <current_input>In Europe.</current_input>
+            <output>Total revenue for Nike in Europe.</output>
+            <current_input>Just for Q4.</current_input>
+            <output>Total revenue for Nike in Europe for Q4.</output>
+        </scenario>
+        
+        <scenario type="Ambiguous ID">
+            <history_user>Analyze the performance of Region North.</history_user>
+            <current_input>12345</current_input>
+            <note>Assumes 12345 is a zip code or ID relevant to the previous context if no specific question was asked</note>
+            <output>Analyze the performance of Region North for ID 12345.</output>
+        </scenario>
+    </few_shot_examples>
+</query_reconstruction_master_prompt>
+"""
+
+PROMPT_REPHRASER_RESPONSE = """
+<output_format>
+Output a single valid JSON object strictly. 
+No markdown formatting (no ```json). 
+No conversational filler.
+
+Template:
+{ "refined_query": "The fully reconstructed standalone query string" }
+</output_format>
+"""
+# --- INTENT ---
+PROMPT_INTENT_SYSTEM = "You are an Expert Intent Classification System. Be polite, professional, and friendly. Be direct and unambiguous."
+
+PROMPT_INTENT_ORCHESTRATION = """
+<intent_classification_instructions>
+
+<mission>
+Your MISSION is to be a RIGID INTENT ROUTER.
+You MUST distinguish between "WHAT is happening" (Data) and "WHY it is happening" (Root Cause).
+Your logic must be binary and strict.
+</mission>
+
+<intent_categories>
+
+<intent name="root_cause_analysis">
+    <description>
+        **HIGHEST PRIORITY.**
+        User wants to know the REASON, DRIVER, or CAUSE of a specific behavior.
+        **CRITICAL OVERRIDE:** If the query implies a diagnostic question (e.g., "Why is X rising?", "Why did Y fall?"), it is ALWAYS root_cause_analysis.
+        It does NOT matter if they mention metrics (Volume, Sales, Prescriptions). If they ask "Why", they want an explanation, not a list of numbers.
+    </description>
+    <indicators>why, explain, reason for, root cause, what is driving, what is causing, what caused, investigate, diagnose, how come, factor, due to</indicators>
+    <action>
+        1. Extract the query VERBATIM into `root_cause_query`.
+        2. DO NOT include visual requests here.
+    </action>
+</intent>
+
+<intent name="data_retrieval">
+    <description>
+        User wants to FETCH static numbers, trends, or lists.
+        They are asking "What is the value?" or "Compare X and Y".
+        **CONSTRAINT:** If the query contains "Why", "Reason", or "Driver", it is FORBIDDEN from being data_retrieval.
+    </description>
+    <indicators>show, list, get, fetch, display, find, what is the value, what is the total, how many, count, top 10, trend of, compare</indicators>
+    <action>
+        1. Extract the query into `data_retrieval_query`.
+        2. MANDATORY: You MUST append the exact string " and generate a table and a visual" to the end of the query.
+    </action>
+</intent>
+
+<intent name="combined">
+    <description>User explicitly asks for BOTH a display AND an explanation in the same prompt.</description>
+    <indicators>E.g., "Show me the trend AND explain why it's happening." (Must have a conjunction like 'and', 'also')</indicators>
+    <action>
+        1. Extract the data part to `data_retrieval_query` (with visual suffix).
+        2. Extract the causal part to `root_cause_query`.
+    </action>
+</intent>
+
+<intent name="greeting">
+    <action>Set direct_response.</action>
+</intent>
+
+<intent name="clarification_needed">
+    <action>Set clarification_question.</action>
+</intent>
+
+<intent name="general_question">
+    <action>Set direct_response.</action>
+</intent>
+
+<intent name="off_topic">
+    <action>Set direct_response.</action>
+</intent>
+
+</intent_categories>
+
+<STRICT_LOGIC_HIERARCHY>
+
+1. **THE "WHY" TRUMP CARD (ABSOLUTE RULE):**
+   - Input: "Why is Market Volume rising?" -> `root_cause_analysis`
+   - Input: "Show me Market Volume rising." -> `data_retrieval`
+   - IF the word "Why" exists, `data_retrieval` is invalid.
+   - "Why" questions about trends (rising, falling, spiking) are REQUESTS FOR EXPLANATION, not data fetches.
+
+2. **THE "WHAT" TRAP:**
+   - "What is the volume?" -> Data.
+   - "What is *driving* the volume?" -> Root Cause.
+   - "What *caused* the drop?" -> Root Cause.
+   - You must look at the verb. If the verb implies causality (driving, causing), it is Root Cause.
+
+3. **VERBATIM EXTRACTION:**
+   - Never paraphrase the `root_cause_query`.
+
+4. **VISUALS:**
+   - ONLY append "and generate a table and a visual" if `intent_type` is `data_retrieval`.
+
+</STRICT_LOGIC_HIERARCHY>
+
+<FEW_SHOT_ENFORCEMENT>
+
+Example 1: The "NSAID/Tramadol" Fix (Trend Analysis)
+Input: "Why is the NSAID Market Volume rising in Internal Medicine while Tramadol Brand Volume is falling in the same specialty?"
+Output:
+{
+  "intent_type": "root_cause_analysis",
+  "data_retrieval": null,
+  "root_cause": "Why is the NSAID Market Volume rising in Internal Medicine while Tramadol Brand Volume is falling in the same specialty?",
+  "confidence": "high",
+  "reasoning": "STRICT RULE: Query asks 'Why' regarding a trend (rising/falling). This requires diagnostic analysis, not just data retrieval."
+}
+
+Example 2: Pure Data Comparison
+Input: "Compare the NSAID Market Volume and Tramadol Brand Volume for the last 12 months."
+Output:
+{
+  "intent_type": "data_retrieval",
+  "data_retrieval": "Compare the NSAID Market Volume and Tramadol Brand Volume for the last 12 months and generate a table and a visual",
+  "root_cause": null,
+  "confidence": "high",
+  "reasoning": "User asks to 'Compare' two metrics. No 'Why' or causality requested."
+}
+
+Example 3: "What" as a Driver (Trap)
+Input: "What is driving the increase in prescription costs?"
+Output:
+{
+  "intent_type": "root_cause_analysis",
+  "data_retrieval": null,
+  "root_cause": "What is driving the increase in prescription costs?",
+  "confidence": "high",
+  "reasoning": "Phrase 'What is driving' indicates a request for the Root Cause."
+}
+
+Example 4: Combined Explicit
+Input: "Plot the sales for Q3 and explain the dip in August."
+Output:
+{
+  "intent_type": "combined",
+  "data_retrieval": "Plot the sales for Q3 and generate a table and a visual",
+  "root_cause": "explain the dip in August",
+  "confidence": "high",
+  "reasoning": "Explicit conjunction. Part 1 = Data (Plot), Part 2 = Root Cause (Explain)."
+}
+</FEW_SHOT_ENFORCEMENT>
+"""
+
+PROMPT_INTENT_RESPONSE = """
+<output_format>
+At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in below format:
+{
+  "intent_type": "data_retrieval",
+  "data_retrieval_query": "Show me sales...",
+  "root_cause_query": null,
+  "direct_response": null,
+  "clarification_question": null,
+  "confidence": "high",
+  "reasoning": "User used 'show me' keyword"
+}
+</output_format>
+"""
+
+# --- DATA AGENT ---
+PROMPT_DATA_AGENT_SYSTEM = "You are an expert Data Analyst. Be polite, professional, and friendly. Be direct and unambiguous."
+
+PROMPT_DATA_AGENT_ORCHESTRATION = """
+<data_agent_instructions>
+<objective>
+Use the analyst_tool to answer data requests with comprehensive results including tables and visualizations.
+</objective>
+
+<clarification_protocol>
+You have access to the Master Schema.
+If the user asks a vague question like "Show me sales" without specifying time, product, or region:
+1. CHECK the Master Schema for available dimensions (e.g., Region, Specialty, Brand).
+2. DO NOT guess.
+3. ASK a specific clarifying question: "Would you like to see sales broken down by Region, Specialty, or Brand?"
+4. If the query is clear, proceed to generate SQL.
+</clarification_protocol>
+
+<execution_rules>
+<rule id="1">ALWAYS generate a table (Result Set) for data requests</rule>
+<rule id="2">Generate appropriate visualizations when data is suitable for charts</rule>
+<rule id="3">Provide clear, concise summaries of the data findings</rule>
+<rule id="4">Handle errors gracefully and explain any data limitations</rule>
+</execution_rules>
+
+<self_evaluation_instructions>
+You MUST perform a rigorous self-critique of your SQL and data analysis.
+1. **Accuracy (Score 1-10):** Does the SQL strict follow the user's constraints (filters, date ranges)?
+2. **Data Integrity:** Are the results logical? (e.g., no negative counts where impossible).
+3. **Clarity:** Is the summary accessible to a non-technical user?
+</self_evaluation_instructions>
+</data_agent_instructions>
+"""
+
+PROMPT_DATA_AGENT_RESPONSE = """
+<output_format>
+At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in below format:
+```json
+{
+  "clean_answer_text": "Summary of findings...",
+  "clarifying_question": null,
+  "evaluation": {
+    "score": 8,
+    "reasoning": "Data matches request."
+  }
+}
+```
+</output_format>
+"""
+
+# --- ROOT CAUSE ---
+PROMPT_ROOT_CAUSE_SYSTEM = """
+You are an Autonomous Root Cause Analysis Agent. Be polite, professional, and friendly. Be direct and unambiguous."""
+
+
+PROMPT_ROOT_CAUSE_ORCHESTRATION = """
+<root_cause_orchestration_prompt>
+    <role_and_objective>
+        Your goal is to explain *why* a specific performance trend is happening by rigorously drilling down into the question.
+    </role_and_objective>
+
+    <critical_anti_hallucination_protocol>
+        1. **NO GUESSING:** If a dimension (e.g., Territory Name) is not explicitly provided or found in the schema, you MUST ask for it.
+        2. **SCHEMA LOCK:** You may ONLY use columns defined in `MASTER_TABLE_V1`. Do not invent columns like `SALES_REGION` or `DOCTOR_TYPE`. Use `PTAM_TERRITORY_ID` and `HCP_SPECIALTY`.
+        3. **KPI LOCK:** You may ONLY analyze the **14 Approved KPIs (K1-K14)** defined below. Do not analyze "Market Share" or "ROI" as they do not exist.
+        4. **STOP ON GOOD NEWS:** If a metric is "Performing" (Good Status), DO NOT drill down further. Only drill into "Drivers" (Bad Status).
+        5. **PRUNE DEAD PATHS:** Do not waste tool calls on branches that are "Stable" or "Neutral". Focus 100% of your energy on the "Bad" numbers.
+    </critical_anti_hallucination_protocol>
+
+    <kpi_definitions_schema_map>
+        **Global Market Metrics:**
+        * **K1 [Total Market Volume]:** Sum of `ACUTE_TRX_XPO`.
+        * **K2 [Total New Starts]:** Sum of `ACUTE_NRX_XPO` (Growth).
+        * **K12 [Opioid Market Vol]:** Category = 'OPIOID'.
+        * **K13 [NSAID Market Vol]:** Category = 'NSAID'.
+
+        **Product-Specific Metrics:**
+        * **K3/K4 [Category Volume]:** Sales for Opioid/NSAID Class.
+        * **K5 [Tramadol Brand Vol]:** Family = 'TRAMADOL'.
+        * **K6 [Diclofenac Brand Vol]:** Family = 'DICLOFENAC'.
+
+        **Performance Drivers (The "Why" Metrics):**
+        * **K7 [Tramadol Growth]:** New Starts (NRX) for Tramadol.
+        * **K8 [Tramadol Retention]:** Refills (TRX - NRX) for Tramadol.
+        * **K9 [Diclofenac Growth]:** New Starts (NRX) for Diclofenac.
+        * **K14 [High Volume Writers]:** HCPs with >10 Scripts.
+
+        **Specialist & Clinical Metrics:**
+        * **K10 [Orthopedic Starts]:** NRX from Orthopedic Surgeons.
+        * **K11 [PCP Starts]:** NRX from Internal/Family Med.
+        * **[Clinical Quality]:** `ACUTE_TRX_LAAD` (Left Anterior Descending).
+    </kpi_definitions_schema_map>
+
+    <status_logic_definitions>
+        *Use these definitions to interpret the `Diagnostic_tool` output:*
+        * **VALIDATED (Root Node):** The user's premise is CORRECT. (e.g., User asks "Why is Sales down?" -> Data shows Sales are down). Action: Drill Down.
+        * **PREMISE_MISMATCH (Root Node):** The user's premise is WRONG. (e.g., User asks "Why is Sales down?" -> Data shows Sales are UP). Action: STOP and correct the user.
+        * **DRIVER (Child Node):** This specific metric is negatively impacting the parent. (e.g., "Retention" is dropping). Action: This is the Root Cause.
+        * **PERFORMING (Child Node):** This metric is healthy/stable. Action: STOP. Do not explore this path.
+    </status_logic_definitions>
+
+    <operational_procedure>
+        **PHASE 1: CONTEXT VERIFICATION (The "Layer-by-Layer" Scoping Protocol)**
+        *Analyze the user's input. Even if a Product is mentioned, ensure the FULL context is defined layer by layer. Check if the following Critical Dimensions are defined:*
+        1.  **Product Scope & Hierarchy** (Category -> Family -> Comparison)
+        2.  **Geography** (Zip Code, Territory, State)
+        3.  **Provider Segment** (Specialty)
+        4.  **Key Accounts** (HCO Name)
+        5.  **Comparison Baseline** (Time, Peer, or Cohort)
+        6.  **Target KPI** (Must map to K1-K14)
+
+        *If ANY are missing or ambiguous, ALWAYS STOP and Generate a clarification response using this Schema-Driven Menu:*
+
+        <schema_driven_clarification_menu>
+            **1. Product Scope & Hierarchy (Column: `PROD_FAMGRP_CD` / `PROD_CAT_CD`):**
+            "To ensure a comprehensive analysis, we need to scope this out step-by-step:"
+            * [ ] **Step 1 (Category Layer):** A single Family can belong to multiple Categories. Are we analyzing **Tramadol** in the context of the **Opioid Class** or another segment?
+            * [ ] **Step 2 (Family Layer):** Are we focusing on a specific Family like **TRAMADOL** or **DICLOFENAC**?
+            * [ ] **Step 3 (Comparison Context):** If a Family is selected, do you want to compare it **vs its Category** (e.g. Tramadol vs All Opioids) or **vs a Competitor** (e.g. Tramadol vs Diclofenac)?
+
+            **2. Geography & Location (Columns: `ZIP_CODE`, `PTAM_TERRITORY_ID`, `HCP_STATE`):**
+            "How should we filter the location to find the root cause?"
+            * [ ] **Zip Code:** Specific local analysis (e.g., 29605).
+            * [ ] **Territory:** Specific Sales Region (e.g., V1NAUSA-5731503).
+            * [ ] **State:** Broader Regional View (e.g., NC).
+
+            **3. Provider Segment (Column: `HCP_SPECIALTY`):**
+            "Should we isolate a specific physician specialty?"
+            * [ ] **All Writers:** General Market.
+            * [ ] **Specialists:** **Orthopedic Surgeons** vs **Primary Care (PCP)** vs **Emergency Medicine**.
+
+            **4. Key Accounts (Column: `HCO_NAME`):**
+            "Are we analyzing a specific Health Organization?"
+            * [ ] **No:** Analyze all accounts.
+            * [ ] **Yes:** Isolate specific Key Accounts (e.g., **'BAPTIST HEALTHCARE SYSTEM, INC'**).
+
+            **5. Comparison Baseline & Timeframe (CRITICAL for "Why" Analysis):**
+            "To understand the trend, what is the benchmark?"
+            * [ ] **Time-over-Time:** Current Month vs **Last Month** (MoM) or **Last Year** (YoY).
+            * [ ] **Short Term:** Current Week vs **Last Week** (WoW).
+            * [ ] **Product vs Product:** **Tramadol** vs **Diclofenac**.
+            * [ ] **Peer Comparison:** **Ortho** vs **PCP** performance.
+
+            **6. FINAL STEP: KPI Recommendation (Analyze Inputs & Suggest 4-5):**
+            *Instruction:* **DO NOT** suggest KPIs in the first turn. Wait until Product, Geo, and Segment are confirmed.
+            *Once inputs are locked:* "Based on your focus, I recommend analyzing these specific metrics. Which one should we start with?"
+            * *[Example Output if User selected Tramadol/Ortho]:*
+                1. **[K5] Tramadol Brand Volume** (Total Performance)
+                2. **[K7] Tramadol New Growth** (Patient Acquisition)
+                3. **[K8] Tramadol Retention** (Patient Loyalty/Refills)
+                4. **[K10] Orthopedic Tramadol Starts** (Specialist Performance)
+        </schema_driven_clarification_menu>
+
+        **PHASE 2: EXECUTION & DRILL DOWN (Efficiency Protocol)**
+        * **Step 1: Initialization**
+          Call `Diagnostic_tool(USER_QUERY=user_question, TARGET_NODES_JSON=NULL, TREE_ID="Pharma_Master_v4")`.
+
+        * **Step 2: Status Evaluation & Pruning**
+          Analyze results.
+          * If Status is **PREMISE_MISMATCH**: STOP immediately. Report "Good News".
+          * If Status is **PERFORMING**: STOP. Do not drill down.
+          * If Status is **VALIDATED** or **DRIVER**: Proceed to Step 3.
+
+        * **Step 3: Recursive Drill Down (Only on Drivers)**
+          If a "Driver" node has children, drill down using **Inherited Comparison Logic**.
+          * *User Question:* "Why is Tramadol K5 down in Zip 29605?"
+          * *Drill Logic:* Check **K7 (New Starts)** vs **K8 (Refills)**.
+          * *Drill Logic:* Check **K10 (Orthopedic)** vs **K11 (PCP)**.
+          * *Action:* Call `Diagnostic_tool(USER_QUERY=NULL, TARGET_NODES_JSON='[{"id": "...", "question": "..."}]', TREE_ID="Pharma_Master_v4")`.
+
+        * **Step 4: Stop Condition**
+          Stop when "Driver" nodes have no children (Leaf Node). **Root Cause Identified.**
+
+    </operational_procedure>
+    
+    <self_evaluation_instructions>
+    **MANDATORY SCORING PROTOCOL:**
+   You MUST perform a rigorous self-critique of your root cause logic.
+    1. **Logic (Score 1-10):** Is the causal chain (Root -> Leaf) mathematically sound?
+    2. **Driver Isolation:** Did we truly find the leaf node, or did we stop too early?
+    3. **Completeness:** Did we explore all "driver" branches?
+    </self_evaluation_instructions>
+</root_cause_orchestration_prompt>"""
+
+PROMPT_ROOT_CAUSE_RESPONSE = """
+<critical_directive>
+            **OUTPUT FORMAT RULE: STRICT JSON ONLY.**
+            1. You MUST NOT include any preamble, conversation, or text before the `{` or after the `}`.
+            2. The output must be parseable by `json.loads()`.
+            3. Do not wrap the JSON in markdown code blocks (e.g., ```json). Just output the raw JSON string.
+        </critical_directive>
+
+        <json_template>
+        {
+          "clean_summary_text": "Executive summary string explaining the root cause path in plain English. Start with 'Root Cause Identified:' if found.",
+          "clarifying_question": "If inputs are missing (Phase 1), list the specific menu options here. If analysis is done, list the 'Actionable Insight' or next step.",
+          "react_flow_json": {
+            "nodes": [
+              {
+                "id": "N0",
+                "type": "default",
+                "data": { "label": "Metric Name: Value" },
+                "position": { "x": 0, "y": 0 },
+                "style": {
+                  "background": "#FFE2E5", 
+                  "width": 180, 
+                  "color": "#333",
+                  "border": "1px solid #777",
+                  "borderRadius": "8px"
+                }
+              }
+            ],
+            "edges": [
+              {
+                "id": "e1-N0-N1",
+                "source": "N0",
+                "target": "N1",
+                "label": "driven by",
+                "animated": true,
+                "style": { "stroke": "#555", "strokeWidth": 2 }
+              }
+            ]
+          },
+          "evaluation": {
+            "score": 100,
+            "reasoning": "Self-evaluation reasoning here."
+          }
+        }
+        </json_template>
+
+        <section_content_guidelines>
+            <summary_logic>
+                - **clean_summary_text:** Provide a narrative analysis. Start at the Top Node. Trace the "Bad" (Driver) path. Explicitly rule out "Stable" branches. Synthesize findings (e.g., "While Total Volume is down 5% [K5], New Starts are down 12% [K7], identifying Acquisition as the primary drag").
+            </summary_logic>
+            <visualization_logic>
+                - **react_flow_json:** - **Root Node (Level 0):** `x: 0, y: 0`
+                    - **Children (Level 1):** `y: 150`. Spread `x` widely (e.g., -300 and +300).
+                    - **Grandchildren (Level 2):** `y: 300`. Spread `x` relative to their parent (e.g., parent_x - 100).
+                    - **Styles:** RED (#FFE2E5) for Bad/Driver/Validated. GREEN (#CDE8E6) for Good/Performing. ORANGE (#FFCCBC) for Root Cause.
+            </visualization_logic>
+        </section_content_guidelines>
+    </response_structure_instructions>
+
+# ==========================================
+# 4. HELPER FUNCTIONS
+# ==========================================
+
+
+def log_checkpoint(step: str, details: Any):
+    print(f"\n{'='*50}\n🛑 CHECKPOINT: {step}\n{'-'*50}")
+    if isinstance(details, BaseModel):
+        pprint.pprint(details.model_dump())
+    elif isinstance(details, (dict, list)):
+        pprint.pprint(details)
+    else:
+        print(str(details))
+    print(f"{'='*50}\n")
+
+
+# ==========================================
+# HISTORY MANAGEMENT FUNCTIONS
+# ==========================================
+
+
+def get_chat_history(session: Session, session_id: str, limit: int = 10) -> List[Dict]:
+    """Retrieves chat history for a specific session_id formatted for Cortex."""
+    if not session_id:
+        return []
+
+    try:
+        sql = f"""
+        SELECT SENDER_TYPE, MESSAGE_TEXT 
+        FROM {CONFIG.messages_table}
+        WHERE CONVERSATION_ID = '{session_id}'
+        ORDER BY CREATED_AT ASC
+        LIMIT {limit}
+        """
+        rows = session.sql(sql).collect()
+
+        history = []
+        for r in rows:
+            role = "user" if r["SENDER_TYPE"].lower() == "user" else "assistant"
+            history.append(
+                {"role": role, "content": [{"type": "text", "text": r["MESSAGE_TEXT"]}]}
+            )
+
+        print(f"📜 Retrieved {len(history)} past messages for Session {session_id}")
+        return history
+
+    except Exception as e:
+        print(f"⚠️ History Fetch Failed: {e}")
+        return []
+
+
+def save_chat_message(
+    session: Session,
+    session_id: str,
+    role: str,
+    content: str,
+    metadata: Optional[Dict] = None,
+):
+    """Saves a message to the MESSAGES_V2 table with proper VARIANT handling."""
+    if not session_id or not content:
+        return
+
+    try:
+        # Use SQL INSERT with explicit column specification
+        safe_content = content.replace("'", "''")
+        safe_session_id = str(session_id).replace("'", "''")
+
+        if metadata:
+            # Convert to JSON and escape properly
+            meta_json = json.dumps(metadata).replace("\\", "\\\\").replace("'", "''")
+            sql = f"""
+            INSERT INTO {CONFIG.messages_table} 
+            (CONVERSATION_ID, SENDER_TYPE, MESSAGE_TEXT, METADATA)
+            SELECT '{safe_session_id}', '{role}', '{safe_content}', 
+                    PARSE_JSON('{meta_json}')
+            """
+        else:
+            sql = f"""
+            INSERT INTO {CONFIG.messages_table} 
+            (CONVERSATION_ID, SENDER_TYPE, MESSAGE_TEXT)
+            VALUES ('{safe_session_id}', '{role}', '{safe_content}')
+            """
+
+        session.sql(sql).collect()
+        print(f"💾 Saved {role} message to history.")
+
+    except Exception as e:
+        print(f"❌ Save Message Failed: {e}")
+        raise
+
+
+@time_execution("Agent Invoke")
+def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dict:
+    """Invokes 'agent:run'."""
+    ENDPOINT = "/api/v2/cortex/agent:run"
+    print(f"--- INVOKING AGENT: {agent_name} ---")
+
+    try:
+        resp = _snowflake.send_snow_api_request(
+            "POST",
+            ENDPOINT,
+            {"Content-Type": "application/json", "Accept": "text/event-stream"},
+            {},
+            payload,
+            {},
+            120000,
+        )
+        content = resp.get("content")
+        # print("CONTENT",content)
+        if not content:
+            return {"error": "Empty"}
+
+        extracted = {
+            "text": "",
+            "tables": [],
+            "charts": [],
+            "sql_generated": None,
+            "sql_explanation": None,
+        }
+        try:
+            parsed = json.loads(content)
+        except:
+            parsed = [json.loads(line) for line in content.splitlines() if line.strip()]
+
+        def process_event(evt, data):
+            # print("EVENT",evt)
+            if evt == "response.text.delta":
+                extracted["text"] += data.get("text", "")
+            elif evt == "response.chart":
+                extracted["charts"].append(data.get("chart") or data.get("chart_spec"))
+                # print(extracted["charts"])
+            elif evt == "response.table":
+                rs = data.get("result_set", [])
+                extracted["tables"].append(rs)
+            elif evt == "response.tool_result.analyst.delta":
+                # print('response.tool_result.analyts.delt')
+                # print(delta)
+                delta = data.get("delta", {})
+                if delta.get("sql"):
+                    extracted["sql_generated"] = delta.get("sql")
+                if delta.get("sql_explanation"):
+                    extracted["sql_explanation"] = delta.get("sql_explanation")
+                if delta.get("result_set"):
+                    extracted["tables"].append(delta.get("result_set"))
+            elif evt == "response.tool_result":
+                # print(data)
+                for item in data.get("content", []):
+                    if item.get("type") == "json":
+                        json_p = item.get("json", {})
+                        if "sql" in json_p:
+                            extracted["sql_generated"] = json_p["sql"]
+                        if "result_set" in json_p:
+                            extracted["tables"].append(json_p["result_set"])
+
+        if isinstance(parsed, list):
+            for item in parsed:
+                process_event(item.get("event"), item.get("data", {}))
+
+        return extracted
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def extract_pydantic_from_text(text: str, model_class: type[BaseModel]) -> BaseModel:
+    """Robust JSON extraction."""
+    if not text:
+        return model_class()
+
+    def try_parse(json_str):
+        try:
+            return json.loads(json_str)
+        except:
+            try:
+                return json.loads(json_str, strict=False)
+            except:
+                return None
+
+    match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if match:
+        data = try_parse(match.group(1))
+        if data:
+            try:
+                return model_class(**data)
+            except:
+                pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1:
+        data = try_parse(text[start : end + 1])
+        if data:
+            try:
+                return model_class(**data)
+            except:
+                pass
+
+    if model_class == RephraserOutput:
+        return RephraserOutput(refined_query=text.strip())
+
+    return model_class()
+
+
+@time_execution("Guardrails")
+def check_input_guard(session: Session, user_input: str) -> GuardResult:
+    try:
+        safe_input = user_input.replace("'", "''")
+        res = session.sql(
+            f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{CONFIG.model}', [{{'role': 'user', 'content': '{safe_input}'}}], {{'guardrails': true}}) as r"
+        ).collect()
+        if not res:
+            return GuardResult(is_safe=True)
+        is_unsafe = (
+            "Response filtered" in json.loads(res[0]["R"])["choices"][0]["messages"]
+        )
+        return GuardResult(
+            is_safe=not is_unsafe, message="Blocked." if is_unsafe else None
+        )
+    except:
+        return GuardResult(is_safe=True)
+
+
+class PayloadFactory:
+    @staticmethod
+    def create(
+        query: str,
+        instructions: Any,
+        tools: List = None,
+        resources: Dict = None,
+        history: List = None,
+    ) -> Dict:
+        messages = (history if history else []) + [
+            {"role": "user", "content": [{"type": "text", "text": query}]}
+        ]
+        inst_payload = (
+            instructions if isinstance(instructions, dict) else {"system": instructions}
+        )
+        return {
+            "messages": messages,
+            "models": {"orchestration": CONFIG.model},
+            "instructions": inst_payload,
+            "tools": tools or [],
+            "tool_resources": resources or {},
+        }
+
+
+def _save_audit_row(session: Session, data: dict, session_id: str):
+    """Saves detailed execution logs using a staged approach for complex VARIANT data."""
+    try:
+        import uuid
+
+        # Prepare the complete record
+        # UPDATED: Matches AGENT_DETAILED_HISTORY_V2 structure exactly.
+        # Excludes IS_RETRY which is not in the DDL.
+        record = {
+            "AUDIT_ID": str(uuid.uuid4()),  # Added to match table column count (22)
+            "SESSION_ID": session_id,
+            "USER_QUERY": data.get("USER_QUERY"),
+            "REPHRASED_QUERY": data.get("REPHRASED_QUERY"),
+            "INTENT_TYPE": data.get("INTENT_TYPE"),
+            "INTENT_CONFIDENCE": data.get("INTENT_CONFIDENCE"),
+            "DATA_SUMMARY": data.get("DATA_SUMMARY"),
+            "DATA_SQL": data.get("DATA_SQL"),
+            "DATA_SQL_EXPLANATION": data.get("DATA_SQL_EXPLANATION"),
+            "DATA_CLARIFICATION": data.get("DATA_CLARIFICATION"),
+            "DATA_RESULT_SET": data.get("DATA_RESULT_SET"),
+            "DATA_CHARTS": data.get("DATA_CHARTS"),
+            "DATA_EVAL_SCORE": data.get("DATA_EVAL_SCORE"),
+            "DATA_EVAL_REASONING": data.get("DATA_EVAL_REASONING"),
+            "RC_SUMMARY": data.get("RC_SUMMARY"),
+            "RC_GRAPH_JSON": data.get("RC_GRAPH_JSON"),
+            "RC_EVAL_SCORE": data.get("RC_EVAL_SCORE"),
+            "RC_EVAL_REASONING": data.get("RC_EVAL_REASONING"),
+            "IS_BLOCKED": data.get("IS_BLOCKED", False),
+            "FULL_RAW_JSON": data.get("FULL_RAW_JSON"),
+            "EXECUTION_TIME_MS": data.get("EXECUTION_TIME_MS"),
+            "CREATED_AT": datetime.datetime.now(),
+        }
+
+        # Convert VARIANT fields to JSON strings within the dict
+        for field in [
+            "DATA_RESULT_SET",
+            "DATA_CHARTS",
+            "RC_GRAPH_JSON",
+            "FULL_RAW_JSON",
+        ]:
+            if record[field] is not None and not isinstance(record[field], str):
+                record[field] = json.dumps(record[field])
+
+        # Create DataFrame with the record
+        df = session.create_dataframe([record])
+
+        # Convert JSON strings to VARIANT using PARSE_JSON
+        for field in [
+            "DATA_RESULT_SET",
+            "DATA_CHARTS",
+            "RC_GRAPH_JSON",
+            "FULL_RAW_JSON",
+        ]:
+            if record[field] is not None:
+                df = df.with_column(field, parse_json(col(field)))
+
+        # Enforce exact column order to match table DDL and prevent type mismatches
+        column_order = [
+            "AUDIT_ID",
+            "SESSION_ID",
+            "USER_QUERY",
+            "REPHRASED_QUERY",
+            "INTENT_TYPE",
+            "INTENT_CONFIDENCE",
+            "DATA_SUMMARY",
+            "DATA_SQL",
+            "DATA_SQL_EXPLANATION",
+            "DATA_CLARIFICATION",
+            "DATA_RESULT_SET",
+            "DATA_CHARTS",
+            "DATA_EVAL_SCORE",
+            "DATA_EVAL_REASONING",
+            "RC_SUMMARY",
+            "RC_GRAPH_JSON",
+            "RC_EVAL_SCORE",
+            "RC_EVAL_REASONING",
+            "IS_BLOCKED",
+            "FULL_RAW_JSON",
+            "EXECUTION_TIME_MS",
+            "CREATED_AT",
+        ]
+        df = df.select([col(c) for c in column_order])
+
+        # Write to table
+        df.write.mode("append").save_as_table(CONFIG.audit_log_table)
+
+        print(f"✅ Audit log saved for session {session_id}.")
+
+    except Exception as e:
+        print(f"❌ Audit Log Error (DataFrame approach): {e}")
+
+        # Fallback: Insert with simplified data (without complex VARIANT fields)
+        try:
+            print("🔄 Attempting simplified insert without VARIANT fields...")
+
+            safe_session = session_id.replace("'", "''")
+            safe_query = str(data.get("USER_QUERY", "")).replace("'", "''")
+            safe_rephrased = (
+                str(data.get("REPHRASED_QUERY", "")).replace("'", "''")
+                if data.get("REPHRASED_QUERY")
+                else "NULL"
+            )
+            safe_intent = (
+                str(data.get("INTENT_TYPE", "")).replace("'", "''")
+                if data.get("INTENT_TYPE")
+                else "NULL"
+            )
+
+            fallback_sql = f"""
+            INSERT INTO {CONFIG.audit_log_table} 
+            (SESSION_ID, USER_QUERY, REPHRASED_QUERY, INTENT_TYPE, INTENT_CONFIDENCE, 
+             DATA_EVAL_SCORE, RC_EVAL_SCORE, IS_BLOCKED, EXECUTION_TIME_MS)
+            VALUES (
+                '{safe_session}',
+                '{safe_query}',
+                {f"'{safe_rephrased}'" if data.get("REPHRASED_QUERY") else "NULL"},
+                {f"'{safe_intent}'" if data.get("INTENT_TYPE") else "NULL"},
+                {f"'{data.get('INTENT_CONFIDENCE')}'" if data.get("INTENT_CONFIDENCE") else "NULL"},
+                {data.get("DATA_EVAL_SCORE") if data.get("DATA_EVAL_SCORE") is not None else "NULL"},
+                {data.get("RC_EVAL_SCORE") if data.get("RC_EVAL_SCORE") is not None else "NULL"},
+                {str(data.get("IS_BLOCKED", False)).upper()},
+                {data.get("EXECUTION_TIME_MS") if data.get("EXECUTION_TIME_MS") is not None else "NULL"}
+            )
+            """
+
+            session.sql(fallback_sql).collect()
+            print(f"⚠️ Audit log saved with simplified data (VARIANT fields skipped).")
+
+        except Exception as e2:
+            print(f"❌ Fallback Insert Failed: {e2}")
+            import traceback
+
+            traceback.print_exc()
+
+
+@time_execution("AI_COMPLETE")
+def get_cortex_completion(session: Session, prompt: str) -> str:
+    try:
+        safe_prompt = prompt.replace("'", "''")
+        cmd = (
+            f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{CONFIG.model}', '{safe_prompt}') as R"
+        )
+        return session.sql(cmd).collect()[0]["R"]
+    except Exception as e:
+        return ""
+
+
+# ==========================================
+# 6. AGENT MANAGER
+# ==========================================
+
+
+class AgentManager:
+    
+    def __init__(self, session: Session):
+        self.session = session
+        
+    @time_execution("Rephraser Agent")
+    def run_rephraser(self, query: str, history: List[Dict]) -> RephraserOutput:
+        inst = {
+            "system": PROMPT_REPHRASER_SYSTEM,
+            "orchestration": PROMPT_REPHRASER_ORCHESTRATION,
+            "response": PROMPT_REPHRASER_RESPONSE,
+        }
+        payload = PayloadFactory.create(query, inst, history=history)
+        resp = invoke_cortex_agent(self.session, payload, "Rephraser Agent")
+        print(resp)
+        return extract_pydantic_from_text(resp.get("text", ""), RephraserOutput)
+
+    @time_execution("Intent Agent")
+    def run_intent_classifier(self, query: str) -> IntentClassification:
+        inst = {
+            "system": PROMPT_INTENT_SYSTEM,
+            "orchestration": PROMPT_INTENT_ORCHESTRATION,
+            "response": PROMPT_INTENT_RESPONSE,
+        }
+        payload = PayloadFactory.create(query, inst)
+        resp = invoke_cortex_agent(self.session, payload, "Intent Agent")
+        print(resp)
+        return extract_pydantic_from_text(resp.get("text", ""), IntentClassification)
+
+    @time_execution("Data Agent")
+    def run_data_agent(
+        self,
+        query: str,
+        schema_context: Optional[str] = None,
+        is_optimized: bool = False,
+    ) -> SqlResult:
+        # Determine correct object and context
+        target_view = (
+            CONFIG.cortex_analyst_object_ards
+            if is_optimized
+            else CONFIG.cortex_analyst_object_master
+        )
+
+        tools = [
+            {
+                "tool_spec": {
+                    "type": "cortex_analyst_text_to_sql",
+                    "name": "analyst_tool",
+                }
+            }
+        ]
+        res_def = {
+            "analyst_tool": {
+                "type": "cortex_analyst_text_to_sql",
+                "semantic_view": target_view,
+                "execution_environment": {
+                    "type": "warehouse",
+                    "warehouse": CONFIG.warehouse,
+                },
+            }
+        }
+
+        # Inject Master Schema Context into System Prompt if provided
+        system_prompt = PROMPT_DATA_AGENT_SYSTEM
+        if is_optimized == False:
+            system_prompt += f"Enrich the user question with the below schema. \n\nMASTER SCHEMA CONTEXT:\n{CONFIG.cortex_analyst_object_master}"
+
+        inst = {
+            "system": system_prompt,
+            "orchestration": PROMPT_DATA_AGENT_ORCHESTRATION,
+            "response": PROMPT_DATA_AGENT_RESPONSE,
+        }
+        payload = PayloadFactory.create(query, inst, tools, res_def)
+        resp = invoke_cortex_agent(
+            self.session,
+            payload,
+            "Data Agent" + (" (Optimized)" if is_optimized else ""),
+        )
+
+        raw_text = resp.get("text", "")
+        parsed = extract_pydantic_from_text(raw_text, SqlResult)
+
+        parsed.tables = resp.get("tables", [])
+        parsed.sql_generated = resp.get("sql_generated")
+        parsed.sql_explanation = resp.get("sql_explanation")
+        parsed.charts = resp.get("charts")
+        return parsed
+
+    def run_root_cause_agent(self, query: str) -> DiagnosticResult:
+        tools = [
+            {
+                "tool_spec": {
+                    "type": "generic",
+                    "name": "Diagnostic_tool",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "USER_QUERY": {"type": "string"},
+                            "TARGET_NODES_JSON": {"type": "string"},
+                            "TREE_ID": {"type": "string"},
+                        },
+                        "required": ["USER_QUERY", "TARGET_NODES_JSON", "TREE_ID"],
+                    },
+                }
+            }
+        ]
+        res_def = {
+            "Diagnostic_tool": {
+                "type": "procedure",
+                "execution_environment": {
+                    "type": "warehouse",
+                    "warehouse": CONFIG.warehouse,
+                },
+                "identifier": CONFIG.diagnostic_udf,
+            }
+        }
+
+        inst = {
+            "system": PROMPT_ROOT_CAUSE_SYSTEM,
+            "orchestration": PROMPT_ROOT_CAUSE_ORCHESTRATION,
+            "response": PROMPT_ROOT_CAUSE_RESPONSE,
+        }
+        payload = PayloadFactory.create(query, inst, tools, res_def)
+        resp = invoke_cortex_agent(self.session, payload, "Root Cause Agent")
+
+        raw_text = resp.get("text", "")
+        print(raw_text)
+        parsed = extract_pydantic_from_text(raw_text, DiagnosticResult)
+        print(parsed)
+        return parsed
+
+
+# ==========================================
+# 7. MAIN EXECUTION
+# ==========================================
+
+
+def main(session: Session):
+    """Main Orchestrator Entry Point."""
+
+    # Start timing
+    start_time = datetime.datetime.now()
+
+    manager = AgentManager(session)
+    user_query = "WHY TEAMADOL NUMBERS are decsresing uner fmaily mediicne category"
+    session_id = "113"
+    # Initialize row_data with ALL required columns for audit table
+    row_data = {
+        "SESSION_ID": session_id,
+        "USER_QUERY": user_query,
+        "REPHRASED_QUERY": None,
+        "INTENT_TYPE": None,
+        "INTENT_CONFIDENCE": None,
+        "DATA_SUMMARY": None,
+        "DATA_SQL": None,
+        "DATA_SQL_EXPLANATION": None,
+        "DATA_CLARIFICATION": None,
+        "DATA_RESULT_SET": None,
+        "DATA_CHARTS": None,
+        "DATA_EVAL_SCORE": None,
+        "DATA_EVAL_REASONING": None,
+        "RC_SUMMARY": None,
+        "RC_GRAPH_JSON": None,
+        "RC_EVAL_SCORE": None,
+        "RC_EVAL_REASONING": None,
+        "IS_BLOCKED": False,
+        "IS_RETRY": False,
+        "FULL_RAW_JSON": None,
+        "EXECUTION_TIME_MS": None,
+    }
+
+    log_checkpoint("MAIN: START", {"query": user_query, "session": session_id})
+
+    # 1. Fetch History
+    history = get_chat_history(session, session_id)
+
+    # 2. Input Guard
+    guard = check_input_guard(session, user_query)
+    if not guard.is_safe:
+        row_data["IS_BLOCKED"] = True
+
+        # Calculate execution time
+        end_time = datetime.datetime.now()
+        row_data["EXECUTION_TIME_MS"] = int(
+            (end_time - start_time).total_seconds() * 1000
+        )
+
+        # Save audit log
+        row_data["FULL_RAW_JSON"] = {"status": "blocked", "message": guard.message}
+        _save_audit_row(session, row_data, session_id)
+
+        return {"status": "blocked", "message": guard.message}
+
+    # 3. Save User Message
+    save_chat_message(session, session_id, "user", user_query)
+
+    # 4. Rephrase
+    try:
+        rephrased = manager.run_rephraser(user_query, history)
+        print("REPHRASED", rephrased)
+        effective_query = rephrased.refined_query or user_query
+    except Exception as e:
+        print(f"⚠️ Rephraser failed: {e}")
+        effective_query = user_query
+
+    # 5. Intent Classification
+    try:
+        intent = manager.run_intent_classifier(effective_query)
+        print("INTENT", intent)
+    except Exception as e:
+        print(f"⚠️ Intent classification failed: {e}")
+        # Default to data retrieval if intent fails
+        intent = IntentClassification(
+            intent_type="data_retrieval",
+            data_retrieval_query=effective_query,
+            confidence="low",
+            reasoning=f"Failed to classify intent: {str(e)}",
+        )
+
+    row_data["REPHRASED_QUERY"] = effective_query
+    row_data["INTENT_TYPE"] = intent.intent_type
+    row_data["INTENT_CONFIDENCE"] = intent.confidence
+
+    final_output = {
+        "original": user_query,
+        "processed": effective_query,
+        "intent": intent.model_dump(),
+        "results": [],
+    }
+    # print(final_output)
+    bot_response_text = ""
+
+    # 6. Execute based on Intent
+    if intent.direct_response:
+        msg = intent.direct_response
+        final_output["results"].append({"type": "direct", "message": msg})
+        bot_response_text = msg
+
+    else:
+        futures = {}
+        with ThreadPoolExecutor(max_workers=2) as executor:
+
+            # Data Flow (Uses Parallel Orchestrator)
+            if intent.intent_type in [
+                "data_retrieval",
+                "combined",
+                "clarification_needed",
+            ]:
+                q = intent.data_retrieval_query or effective_query
+                futures["data"] = executor.submit(manager.run_data_agent, q)
+
+            # Root Cause Flow
+            if intent.intent_type in ["root_cause_analysis", "combined"]:
+                q = intent.root_cause_query or effective_query
+                futures["rc"] = executor.submit(manager.run_root_cause_agent, q)
+
+        # Process Data Results
+        if "data" in futures:
+            try:
+                res = futures["data"].result()
+                res_dump = res.model_dump()
+
+                row_data["DATA_EVAL_SCORE"] = res.evaluation.score
+                row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+                row_data["DATA_SQL"] = res.sql_generated
+                row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
+
+                if res.is_retry:
+                    row_data["IS_RETRY"] = True
+
+                # Store as dict/list - will be converted to JSON in _save_audit_row
+                if res.tables:
+                    row_data["DATA_RESULT_SET"] = res.tables
+                if res.charts:
+                    row_data["DATA_CHARTS"] = res.charts
+
+                if res.clarifying_question:
+                    response_text = res.clarifying_question
+                    final_output["results"].append(
+                        {
+                            "type": "clarification",
+                            "message": response_text,
+                            "full_pydantic_object": res_dump,
+                        }
+                    )
+                    row_data["DATA_CLARIFICATION"] = response_text
+                else:
+                    response_text = res.clean_answer_text
+                    final_output["results"].append(
+                        {
+                            "type": "data_analysis",
+                            "summary": response_text,
+                            "tables": res.tables,
+                            "charts": res.charts,
+                            "sql_generated": res.sql_generated,
+                            "sql_explanation": res.sql_explanation,
+                            "full_pydantic_object": res_dump,
+                        }
+                    )
+                    row_data["DATA_SUMMARY"] = response_text
+
+                bot_response_text += response_text + "\n"
+
+            except Exception as e:
+                error_msg = f"Data analysis failed: {str(e)}"
+                print(f"❌ {error_msg}")
+                final_output["results"].append({"type": "error", "message": error_msg})
+                bot_response_text += error_msg + "\n"
+
+        # Process Root Cause Results
+        if "rc" in futures:
+            try:
+                res_rc = futures["rc"].result()
+                res_rc_dump = res_rc.model_dump()
+                print("ROOT_CAUSE_ANSWER", res_rc)
+                row_data["RC_EVAL_SCORE"] = res_rc.evaluation.score
+                row_data["RC_EVAL_REASONING"] = res_rc.evaluation.reasoning
+
+                if res_rc.clarifying_question:
+                    response_text = res_rc.clarifying_question
+                    final_output["results"].append(
+                        {
+                            "type": "clarification",
+                            "message": response_text,
+                            "full_pydantic_object": res_rc_dump,
+                        }
+                    )
+                else:
+                    response_text = res_rc.clean_summary_text
+                    final_output["results"].append(
+                        {
+                            "type": "root_cause",
+                            "summary": response_text,
+                            "graph": res_rc.react_flow_json,
+                            "full_pydantic_object": res_rc_dump,
+                        }
+                    )
+                    row_data["RC_SUMMARY"] = res_rc.clean_summary_text
+                    if res_rc.react_flow_json:
+                        row_data["RC_GRAPH_JSON"] = res_rc.react_flow_json
+
+                bot_response_text += response_text + "\n"
+
+            except Exception as e:
+                error_msg = f"Root cause analysis failed: {str(e)}"
+                print(f"❌ {error_msg}")
+                final_output["results"].append({"type": "error", "message": error_msg})
+                bot_response_text += error_msg + "\n"
+
+    # 7. Save Bot Response
+    if bot_response_text:
+        # Save structured metadata to METADATA column
+        message_metadata = {
+            "intent_data": intent.model_dump(),
+            "sql_generated": row_data.get("DATA_SQL"),
+            "is_blocked": row_data.get("IS_BLOCKED"),
+            "tool_artifacts": final_output.get("results"),
+            "generated_at": datetime.datetime.now().isoformat(),
+        }
+
+        try:
+            save_chat_message(
+                session,
+                session_id,
+                "assistant",
+                bot_response_text.strip(),
+                metadata=message_metadata,
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to save assistant message: {e}")
+
+    # 8. Calculate execution time
+    end_time = datetime.datetime.now()
+    row_data["EXECUTION_TIME_MS"] = int((end_time - start_time).total_seconds() * 1000)
+
+    # 9. Save Audit Log
+    row_data["FULL_RAW_JSON"] = final_output
+    try:
+        _save_audit_row(session, row_data, session_id)
+    except Exception as e:
+        print(f"⚠️ Failed to save audit log: {e}")
+        import traceback
+
+        traceback.print_exc()
+
+    print("✅ Process Completed")
+    print(f"⏱️  Total Execution Time: {row_data['EXECUTION_TIME_MS']}ms")
+
+    return final_output
+
+
+# Helper wrapper for Snowflake stored procedure
+def handler(session: Session, session_id: str, user_query: str) -> str:
+    """
+    Snowflake Stored Procedure Handler
+
+    Usage:
+    CALL AGENT_HANDLER('session_123', 'Show me top prescribers');
+    """
+    try:
+        result = main(session, session_id, user_query)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_result = {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc(),
+        }
+        return json.dumps(error_result, indent=2)
+
+
+if __name__ == "__main__":
+    # For local testing
+    pass

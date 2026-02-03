@@ -35775,3 +35775,27 @@ def main(session: Session):
         GLOBAL_TRACER.flush_to_snowflake(session)
         
         print(f"🏁 Execution Finished in {row_data['EXECUTION_TIME_MS']}ms")
+
+
+
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/snowpark/_internal/server_connection.py", line 529, in run_query
+    results_cursor = self.execute_and_notify_query_listener(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/snowpark/_internal/server_connection.py", line 459, in execute_and_notify_query_listener
+    raise ex
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/snowpark/_internal/server_connection.py", line 450, in execute_and_notify_query_listener
+    results_cursor = self._cursor.execute(query, **kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/connector/cursor.py", line 1142, in execute
+    Error.errorhandler_wrapper(self.connection, self, error_class, errvalue)
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/connector/errors.py", line 286, in errorhandler_wrapper
+    handed_over = Error.hand_to_other_handler(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/connector/errors.py", line 341, in hand_to_other_handler
+    cursor.errorhandler(connection, cursor, error_class, error_value)
+  File "/usr/lib/python_udf/e1eec8af4329a9a81d3fe4bf3c71f562043065948b8fe0cd805415bd79c738fb/lib/python3.11/site-packages/snowflake/connector/errors.py", line 217, in default_errorhandler
+    raise error_class(
+snowflake.snowpark.exceptions.SnowparkSQLException: (1304): 01c22a17-081a-66fe-7503-830101684d57: 002020 (21S01): 01c22a17-081a-66fe-7503-830101684d57: SQL compilation error:
+Insert value list does not match column list expecting 17 but got 18
+🏁 Execution Finished in 69436ms
+⏱️ [TIMING] Main Orchestrator: 71036ms

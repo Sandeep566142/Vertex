@@ -35804,3 +35804,16 @@ Insert value list does not match column list expecting 17 but got 18
 
 
 {'choices': [{'messages': "# I need to see what data is available to answer this question about zip codes and transactions\n\nLet me first check what datasets or information you have available. Could you please provide:\n\n1. The data file or dataset that contains:\n   - Zip codes\n   - Total transactions (trx) for the last three months\n   - National benchmark/average for comparison\n\n2. Or let me know if you'd like me to work with sample data to demonstrate how this analysis would be done.\n\n## How I'll approach this once I have the data:\n\n1. Calculate the national average for total transactions\n2. Identify zip codes that exceed this average\n3. Create a bar plot showing these outperforming zip codes\n\nHere's a template of what the code would look like:\n\n```python\nimport pandas as pd\nimport matplotlib.pyplot as plt\n\n# Sample structure - replace with your actual data\n# df = pd.read_csv('your_data.csv')\n\n# Calculate national average\n# national_avg = df['total_trx_3mo'].mean()\n\n# Filter outperforming zip codes\n# outperforming = df[df['total_trx_3mo'] > national_avg]\n\n# Create bar plot\n# plt.figure(figsize=(12, 6))\n# plt.bar(outperforming['zip_code'].astype(str), outperforming['total_trx_3mo'])\n# plt.axhline(y=national_avg, color='r', linestyle='--', label='National Average')\n# plt.xlabel('Zip Code')\n# plt.ylabel('Total Transactions (3 months)')\n# plt.title('Zip Codes Outperforming National Average')\n# plt.xticks(rotation=45)\n# plt.legend()\n# plt.tight_layout()\n# plt.show()\n```\n\n**Please share your data file and I'll create the specific analysis and visualization you need!**"}], 'created': 1770132121, 'model': 'claude-sonnet-4-5', 'usage': {'completion_tokens': 440, 'guardrails_tokens': 605, 'prompt_tokens': 37, 'total_tokens': 1082}}
+
+
+create or replace TABLE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MESSAGES_V2 (
+	MESSAGE_ID VARCHAR(36) NOT NULL DEFAULT UUID_STRING(),
+	CONVERSATION_ID VARCHAR(100) NOT NULL,
+	SENDER_TYPE VARCHAR(20) NOT NULL,
+	MESSAGE_TEXT VARCHAR(16777216) NOT NULL,
+	METADATA VARIANT,
+	CREATED_AT TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+	UPDATED_AT TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+	CHARTS VARIANT,
+	primary key (MESSAGE_ID)
+);

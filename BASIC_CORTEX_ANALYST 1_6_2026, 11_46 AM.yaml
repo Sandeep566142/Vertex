@@ -36847,3 +36847,276 @@ def main(session: Session, user_query: str, target_nodes_json: str, tree_id: str
     except Exception as e:
         return json.dumps({"error": str(e), "trace": traceback.format_exc()})
 ';
+
+
+
+name: RBAC_DEMO
+tables:
+  - name: MASTER_TABLE_RBAC
+    description: The table contains records of healthcare providers and their prescribing activity across different pharmaceutical products and time periods. Each record represents a healthcare professional or organization with their specialty information, geographic location, territory assignment, and prescription metrics measured over various timeframes.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: AI_POC
+      table: MASTER_TABLE_RBAC
+    dimensions:
+      - name: ACUTE_TRX_LAAD_12M
+        description: The number of acute transactions with loan as a service (LaaS) in the past 12 months.
+        expr: ACUTE_TRX_LAAD_12M
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '5'
+          - '1'
+          - '61'
+      - name: ACUTE_TRX_LAAD_1M
+        description: The number of acute transactions with loan-to-value adjustment amount determination within a one-month period.
+        expr: ACUTE_TRX_LAAD_1M
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '0'
+          - '4'
+          - '7'
+      - name: ACUTE_TRX_LAAD_1W
+        description: The number of acute transactions with a one-week look-ahead adjustment date.
+        expr: ACUTE_TRX_LAAD_1W
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '0'
+          - '4'
+          - '2'
+      - name: ACUTE_TRX_LAAD_2W
+        description: The number of acute transactions with a load within a two-week period.
+        expr: ACUTE_TRX_LAAD_2W
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '3'
+          - '9'
+          - '0'
+      - name: ACUTE_TRX_LAAD_3M
+        description: The number of acute transactions with load over a three-month period.
+        expr: ACUTE_TRX_LAAD_3M
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '3'
+          - '1'
+          - '17'
+      - name: ACUTE_TRX_LAAD_3W
+        description: The number of acute transactions with load over a three-week period.
+        expr: ACUTE_TRX_LAAD_3W
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '3'
+          - '2'
+          - '5'
+      - name: ACUTE_TRX_LAAD_6M
+        description: The number of acute transactions with loan-to-value at application decision over a six-month period.
+        expr: ACUTE_TRX_LAAD_6M
+        data_type: NUMBER(30,0)
+        sample_values:
+          - '3'
+          - '27'
+          - '1'
+      - name: HCO_NAME
+        description: Healthcare organization names.
+        expr: HCO_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - BAPTIST HEALTHCARE SYSTEM, INC
+          - COVENANT HEALTH
+          - CHATTANOOGA HAMILTON COUNTY HOSPITAL AUTHORITY
+      - name: HCP_FIRST_NAME
+        description: First names of healthcare providers.
+        expr: HCP_FIRST_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - KATLYN
+          - KAYLA
+          - TRAVIS
+      - name: HCP_ID
+        description: Unique identifier for healthcare providers in hexadecimal format.
+        expr: HCP_ID
+        data_type: VARCHAR(32)
+        sample_values:
+          - 6fa5a694bb142b049f8145f9ea5da727
+          - 01cbfca1fa54a4ee4b679d612348ef9c
+          - 16b56010d51cb861a61cf92adb37a9d0
+      - name: HCP_LAST_NAME
+        description: Last names of healthcare providers.
+        expr: HCP_LAST_NAME
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - MUSSELWHITE
+          - SPEARS
+          - WHITFIELD
+      - name: HCP_SPECIALTY
+        description: Medical specialties of healthcare providers.
+        expr: HCP_SPECIALTY
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - EMERGENCY MEDICINE
+          - OBSTETRICS & GYNECOLOGY
+          - PULMONARY CRITICAL CARE MEDICINE
+      - name: ONEKEY_HCP_ID
+        description: Unique identifier for healthcare professionals in the OneKey system.
+        expr: ONEKEY_HCP_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - WUSM03830006
+          - WUSM00051836
+          - WUSR00348570
+      - name: PROD_CAT_CD
+        description: Pharmaceutical product category codes indicating the therapeutic classification of pain management medications.
+        expr: PROD_CAT_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - STRONG OPIOID AGONIST
+          - MODERATE OPIOID COMBINATIONS
+          - NSAID
+      - name: PROD_FAMGRP_CD
+        description: Pharmaceutical product family group codes representing categories of pain management medications.
+        expr: PROD_FAMGRP_CD
+        data_type: VARCHAR(256)
+        sample_values:
+          - PREGABALIN
+          - KETOROLAC
+          - HYDROCODONE COMBINATIONS
+      - name: PTAM_TERRITORY_ID
+        description: PTAM territory identifier used for sales performance tracking and analytics.
+        expr: PTAM_TERRITORY_ID
+        data_type: VARCHAR(255)
+        sample_values:
+          - V1NAUSA-5733302
+      - name: ZIP_CODE
+        description: Postal ZIP codes for geographic locations.
+        expr: ZIP_CODE
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - '29671'
+          - '29605'
+          - '29303'
+    facts:
+      - name: ACUTE_NRX_XPO_12M
+        description: Twelve-month acute new prescription exposure metrics.
+        expr: ACUTE_NRX_XPO_12M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '5.96'
+          - '1.22'
+          - '3.98'
+      - name: ACUTE_NRX_XPO_1M
+        description: Acute new prescription exposure over a one-month period.
+        expr: ACUTE_NRX_XPO_1M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '1.06'
+          - '3.00'
+          - '1.08'
+      - name: ACUTE_NRX_XPO_1W
+        description: Acute new prescription exposure over a one-week period.
+        expr: ACUTE_NRX_XPO_1W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '1.06'
+          - '4.00'
+          - '3.00'
+      - name: ACUTE_NRX_XPO_2W
+        description: Acute new prescription exposure over a two-week period.
+        expr: ACUTE_NRX_XPO_2W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '8.16'
+          - '1.06'
+          - '8.15'
+      - name: ACUTE_NRX_XPO_3M
+        description: Acute new prescription exposure over a three-month period.
+        expr: ACUTE_NRX_XPO_3M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '25.26'
+          - '30.06'
+          - '4.04'
+      - name: ACUTE_NRX_XPO_3W
+        description: Acute new prescription exposure over a three-week period.
+        expr: ACUTE_NRX_XPO_3W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '9.22'
+          - '1.06'
+          - '3.00'
+      - name: ACUTE_NRX_XPO_6M
+        description: Acute new prescription exposure over a 6-month period.
+        expr: ACUTE_NRX_XPO_6M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '47.47'
+          - '4.89'
+          - '6.02'
+      - name: ACUTE_TRX_XPO_12M
+        description: Acute transaction exposure over a 12-month period.
+        expr: ACUTE_TRX_XPO_12M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '5.96'
+          - '1.22'
+          - '3.98'
+      - name: ACUTE_TRX_XPO_1M
+        description: Acute transaction exposure over a one-month period.
+        expr: ACUTE_TRX_XPO_1M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '1.00'
+          - '6.54'
+          - '2.02'
+      - name: ACUTE_TRX_XPO_1W
+        description: Acute transaction exposure over a one-week period.
+        expr: ACUTE_TRX_XPO_1W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '8.92'
+          - '1.06'
+          - '3.00'
+      - name: ACUTE_TRX_XPO_2W
+        description: Acute transaction exposure over a two-week period.
+        expr: ACUTE_TRX_XPO_2W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '8.92'
+          - '1.06'
+          - '8.15'
+      - name: ACUTE_TRX_XPO_3M
+        description: Acute transaction exposure over a three-month period.
+        expr: ACUTE_TRX_XPO_3M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '3.03'
+          - '10.89'
+          - '1.00'
+      - name: ACUTE_TRX_XPO_3W
+        description: Acute transaction exposure over a three-week period.
+        expr: ACUTE_TRX_XPO_3W
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '9.22'
+          - '1.06'
+          - '3.00'
+      - name: ACUTE_TRX_XPO_6M
+        description: Acute transaction exposure over a six-month period.
+        expr: ACUTE_TRX_XPO_6M
+        data_type: NUMBER(38,2)
+        access_modifier: public_access
+        sample_values:
+          - '47.47'
+          - '4.89'
+          - '1.22'

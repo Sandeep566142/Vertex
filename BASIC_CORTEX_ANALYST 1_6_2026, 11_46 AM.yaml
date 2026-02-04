@@ -35817,3 +35817,177 @@ create or replace TABLE DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.AI_POC.MESSAGE
 	CHARTS VARIANT,
 	primary key (MESSAGE_ID)
 );
+
+
+
+
+name: MASTER_V3_ALL_AGGREGATED_TESTING
+tables:
+  - name: MASTER_TABLE_V3
+    description: The table contains records of healthcare professional interactions and sales activities. Each record represents a healthcare provider with their identifying information, practice location, affiliated organization, and associated sales territory details, along with call activity and product information.
+    base_table:
+      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
+      schema: AI_POC
+      table: MASTER_TABLE_V3
+    dimensions:
+      - name: ACUTE_TRX_LAAD
+        description: The number of acute transactions in the last-as-of date period.
+        expr: ACUTE_TRX_LAAD
+        data_type: NUMBER
+        sample_values:
+          - '1'
+          - '2'
+          - '3'
+      - name: ADDRESS
+        description: Street addresses of physical locations.
+        expr: ADDRESS
+        data_type: VARCHAR
+        sample_values:
+          - 1300 FRANKLIN AVE
+          - 1301 S KOKE MILL RD
+          - 4561 MAINE ST
+      - name: CITY
+        expr: CITY
+        data_type: VARCHAR
+      - name: FIRST_NAME
+        expr: FIRST_NAME
+        data_type: VARCHAR
+      - name: FLAG_VALUE
+        expr: FLAG_VALUE
+        data_type: VARCHAR
+      - name: HCO_NAME
+        expr: HCO_NAME
+        data_type: VARCHAR
+      - name: HCP_ID
+        description: Healthcare provider unique identifier.
+        expr: HCP_ID
+        data_type: VARCHAR
+        sample_values:
+          - 52ac99e8dbbf031557d0499cabf871d0
+          - 9cd3e5f30b55dda3e317c2f18f0139a8
+          - 3a4e91fb009ccae385139aec6e6a2478
+      - name: LAST_NAME
+        expr: LAST_NAME
+        data_type: VARCHAR
+      - name: NAME
+        description: The name of the individual associated with the record.
+        expr: NAME
+        data_type: VARCHAR
+        sample_values:
+          - LINH NGUYEN
+          - ARVIND KULKARNI
+          - SUNG HEE AN
+      - name: ONEKEY_HCP_ID
+        description: Unique identifier for healthcare professionals in the OneKey system.
+        expr: ONEKEY_HCP_ID
+        data_type: VARCHAR
+        sample_values:
+          - WUSM04991061
+          - WUSR06190709
+          - WUSM04298781
+      - name: PRODUCT_CATEGORY
+        description: The category of pharmaceutical pain management product based on its therapeutic classification and mechanism of action.
+        expr: PRODUCT_CATEGORY
+        data_type: VARCHAR
+        sample_values:
+          - ANTI-CONVULSANT
+          - ANTICONVULSANTS MISC.
+          - COX-2 INHIBITORS
+      - name: PRODUCT_FAMILY_GROUP
+        description: Pharmaceutical product family or drug category groupings for pain management medications.
+        expr: PRODUCT_FAMILY_GROUP
+        data_type: VARCHAR
+        sample_values:
+          - NAPROXEN
+          - LIDOCAINE - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
+          - PREGABALIN
+      - name: SPECIALTY
+        description: The medical specialty or professional designation of the healthcare provider.
+        expr: SPECIALTY
+        data_type: VARCHAR
+        sample_values:
+          - PLASTIC SURGERY
+          - NURSE PRACTITIONER
+          - DENTIST
+      - name: STATE
+        description: United States state names where sales or business activities occur.
+        expr: STATE
+        data_type: VARCHAR
+        sample_values:
+          - ILLINOIS
+          - INDIANA
+          - TENNESSEE
+      - name: STATE_CODE
+        description: Two-letter US state abbreviations indicating the state location.
+        expr: STATE_CODE
+        data_type: VARCHAR
+        sample_values:
+          - TN
+          - IN
+          - IL
+      - name: TERRITORY_ID
+        description: Unique identifier for a sales territory.
+        expr: TERRITORY_ID
+        data_type: VARCHAR
+        sample_values:
+          - V1NAUSA-5732405
+          - V1NAUSA-5732102
+          - V1NAUSA-5732202
+      - name: TERRITORY_NAME
+        description: The name of the sales territory.
+        expr: TERRITORY_NAME
+        data_type: VARCHAR
+        sample_values:
+          - ATLANTA NORTH, GA
+          - SPRINGFIELD, IL
+          - EVANSVILLE, IN
+      - name: VERTEX_ID
+        description: Unique identifier for a vertex in the data structure.
+        expr: VERTEX_ID
+        data_type: VARCHAR
+        sample_values:
+          - '14864776'
+          - '14125308'
+          - '13866244'
+      - name: ZIPCODE
+        description: Five-digit postal codes used to identify geographic delivery areas in the United States.
+        expr: ZIPCODE
+        data_type: VARCHAR
+        sample_values:
+          - '47715'
+          - '46060'
+          - '46278'
+    time_dimensions:
+      - name: CALL_DATE
+        description: The date when a call occurred.
+        expr: CALL_DATE
+        data_type: DATE
+        sample_values:
+          - '2025-10-13'
+          - '2025-07-07'
+          - '2025-06-11'
+      - name: XPO_WEEK_DT
+        description: The date representing the week in the XPO system.
+        expr: XPO_WEEK_DT
+        data_type: DATE
+        sample_values:
+          - '2025-10-31'
+          - '2025-04-25'
+          - '2025-05-30'
+    facts:
+      - name: ACUTE_NRX_XPO
+        description: Acute new prescription exposure metric.
+        expr: ACUTE_NRX_XPO
+        data_type: NUMBER
+        sample_values:
+          - '12.47'
+          - '39.39'
+          - '65.58'
+      - name: ACUTE_TRX_XPO
+        description: Acute transaction exposure values measured in numeric units.
+        expr: ACUTE_TRX_XPO
+        data_type: NUMBER
+        sample_values:
+          - '2.24'
+          - '17.73'
+          - '9.77'

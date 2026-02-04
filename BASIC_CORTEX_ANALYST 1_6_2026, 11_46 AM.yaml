@@ -37202,3 +37202,84 @@ tables:
           - '47.47'
           - '4.89'
           - '1.22'
+
+
+		  PROMPT_REPHRASER_ORCHESTRATION = """
+<context_reconstruction_master_instructions>
+    <objective>
+    You are the "Entry Point" logic engine. You must convert the `Current User Input` into a specific Action.
+    You must intelligently look back at the `Conversation History` (including Tables and Charts) to determine **which specific previous question** the user is responding to.
+    </objective>
+
+    <decision_hierarchy_execution_order>
+    You MUST execute these steps in strict order (1 -> 2 -> 3).
+
+    **STEP 1: CHECK FOR PENDING CLARIFICATION (The "Slot Filling" Rule)**
+    - *Analysis:* Look at the **Last Bot Message**. Did it end with a question? (e.g., "Did you mean Brand X or Y?", "Which Region?").
+    - *Condition:* If YES, treat the `Current User Input` as the specific ANSWER to that question.
+    - *Action:* Find the *Original User Question* that triggered the clarification. Insert the current input into it.
+    - *Output:* `action`="refined_query", `response_text`="[Merged Query]"
+
+    **STEP 2: CHECK LOCAL DATA (The "Direct Lookup" Rule)**
+    - *Analysis:* Look at the `history` -> `Tables` or `Charts` shown in the previous turn.
+    - *Condition:* Is the user asking for a specific number or comparison that is **already visible** on the history? (e.g., "What is that number?", "Which one is highest?", "What about the second row?").
+    - *Action:* Extract the answer directly from the JSON history. **DO NOT GENERATE ANYTHING ELSE.**
+    - *Output:* `action`="direct_answer", `response_text`="The value for [X] is [Y] as shown in the table."
+
+    **STEP 3: CONTEXTUAL RECONSTRUCTION (The "Refinement" Rule)**
+    - *Analysis:* The user is asking a new question, drilling down, or changing the subject.
+    - *Action:* Construct a **Standalone, Grammatically Complete** database query.
+    - *Critical Logic - "Thread Tracking":*
+        - **Scenario A (Why/Diagnostic):** If previous queries were "Why", "Reason", "Explain" -> Maintain the "Why" intent. (e.g., Input "In East" -> "Why are sales down in East?").
+        - **Scenario B (What/Data):** If previous queries were "Show", "List", "Count" -> Maintain the "Show" intent. (e.g., Input "In East" -> "Show sales in East").
+        - **Scenario C (Subject Change):** If input is "Start over" or "New topic" -> Ignore history.
+    - *Entity Resolution:*
+        - Resolve "it", "that", "same region", "the previous product" to the actual names found in history.
+    - *Output:* `action`="refined_query", `response_text`="[Full Standalone Query]"
+    </decision_hierarchy_execution_order>
+
+    <critical_intent_locking_protocol>
+    **THE "WHY" PRESERVATION RULE (Highest Priority):**
+    - You must detect the "Active Thread Intent" from the conversation history.
+    - **Diagnostic Thread:** If the previous User Query was diagnostic (e.g., "Why...", "Reason for...", "Driver of...", "Explain..."), you **MUST** start the new rephrased query with "Why" or "Explain".
+    - **Forbidden:** Do NOT change a "Why" question into a "Show", "List", "Compare", "What is", or "Trend" question.
+    - **Example of Failure:** History="Why did sales drop?", Input="In East?" -> Output="Show sales trend in East." (WRONG - Intent changed to Data Retrieval).
+    - **Example of Success:** History="Why did sales drop?", Input="In East?" -> Output="Why did sales drop in the East region?" (CORRECT - Intent preserved).
+    </critical_intent_locking_protocol>
+
+    <anti_hallucination_guardrails>
+    1. **Do not invent Columns/IDs:** If user says "C-555", output "C-555". Do not change it to "Campaign 555" unless you are 100% sure.
+    2. **Do not guess math:** If Step 2 (Direct Lookup) requires complex calculation not in the table, switch to Step 3 (Refined Query).
+    3. **Ambiguity:** If the user mentions "Same Region" and multiple regions exist in history, pick the most recently mentioned one.
+    </anti_hallucination_guardrails>
+
+    <few_shot_examples>
+        <example type="Step 1: Slot Filling">
+            <history_user>Show me churn rate.</history_user>
+            <history_bot>For which specific Campaign ID?</history_bot>
+            <input>C-555</input>
+            <output>{"action": "refined_query", "response_text": "Show me churn rate for Campaign ID C-555"}</output>
+        </example>
+
+        <example type="Step 2: Direct Answer">
+            <history_context>Table: [{Region: East, Sales: 500}]</history_context>
+            <input>What is the sales value for East?</input>
+            <output>{"action": "direct_answer", "response_text": "The sales value for East is 500."}</output>
+        </example>
+
+        <example type="Step 3: Thread Tracking (Why)">
+            <history_user>Why is profit dropping for Nike?</history_user>
+            <history_bot>Profit is down due to supply chain.</history_bot>
+            <input>In Europe.</input>
+            <output>{"action": "refined_query", "response_text": "Why is profit dropping for Nike in Europe?"}</output>
+        </example>
+
+        <example type="Step 3: Thread Tracking (What)">
+            <history_user>Show me the sales for Nike.</history_user>
+            <input>In Europe.</input>
+            <output>{"action": "refined_query", "response_text": "Show me the sales for Nike in Europe."}</output>
+        </example>
+    </few_shot_examples>
+</context_reconstruction_master_instructions>
+"""
+

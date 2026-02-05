@@ -73,6 +73,19 @@ CONFIG = AgentConfig()
 # 2. Agent MODELS
 # ==========================================
 
+
+class ErrorEvent(BaseModel):
+    """
+    Dedicated model for ALL system errors.
+    This is what the UI receives when a function fails.
+    """
+    is_error: bool = Field(default=True, frozen=True)
+    status_code: int = Field(..., description="Extracted status code (e.g., 401, 503) or default 500.")
+    message: str = Field(..., description="The direct error message from the exception.")
+    context: str = Field(..., description="Where the error occurred (e.g., 'Data Agent').")
+    technical_details: Optional[str] = Field(None, description="Raw exception trace.")
+
+
 class EvaluationResult(BaseModel):
     """Represents the self-evaluation of an agent's response."""
     score: int = Field(default=0, description="Confidence score from 1-10.")
@@ -89,9 +102,21 @@ class IntentClassification(BaseModel):
     reasoning: str = Field(..., description="Reasoning.")
 
 class RephraserOutput(BaseModel):
-    """Output model for the query rephraser."""
-    refined_query: str = Field(..., description="Refined query.")
-
+    """
+    Unified output model.
+    - If action is 'direct_answer', response_text is the final answer.
+    - If action is 'refined_query', response_text is the STANDALONE USER QUESTION (in English).
+    """
+    action: Literal["direct_answer", "refined_query"] = Field(
+        ..., 
+        description="Flag to determine if we stop (direct_answer) or proceed to analysis (refined_query)."
+    )
+    
+    response_text: str = Field(
+        ..., 
+        description="Contains the Direct Answer Text OR the Refined Natural Language Question (e.g., 'Show me sales in 2024')."
+    )
+    
 class GuardResult(BaseModel):
     """Result of the safety guardrail check."""
     is_safe: bool = Field(...)
@@ -197,7 +222,7 @@ class TelemetryCollector:
         return span
 
     
-    def end_span(self, span: TelemetrySpan, outputs: Any = None, error: Exception = None, model: str = None, extra_tags: List[str] = None):
+    def end_span(self, span: TelemetrySpan, outputs: Any = None, error: Exception = None, model: str = None):
         """Ends a span, calculates duration, and captures outputs.
 
         Args:
@@ -205,13 +230,9 @@ class TelemetryCollector:
             outputs (Any, optional): Result of the operation.
             error (Exception, optional): Exception if the operation failed.
             model (str, optional): Name of the model used (if LLM call).
-            extra_tags (List[str], optional): Additional tags to append.
         """
         span.end_time = datetime.datetime.now()
         span.duration_ms = int((span.end_time - span.start_time).total_seconds() * 1000)
-        
-        if extra_tags:
-            span.tags.extend(extra_tags)
 
         # Detect Usage Metrics from various return types
         explicit_usage = None
@@ -243,7 +264,6 @@ class TelemetryCollector:
         if error:
             span.status = "error"
             span.error_message = str(error)
-            span.tags.append("status:error")
         else:
             span.status = "success"
             
@@ -381,89 +401,99 @@ def time_execution(step_name: str, kind: str = "INTERNAL"):
 PROMPT_REPHRASER_SYSTEM = "You are an advanced Contextual Query Reconstruction Engine. Your sole purpose is to convert conversational fragments into precise, standalone database-ready queries. You do not answer questions; you only rephrase them."
 
 PROMPT_REPHRASER_ORCHESTRATION = """
-<query_reconstruction_master_prompt>
+<context_reconstruction_master_instructions>
     <objective>
-    Analyze the `Current User Input` in the context of the `Conversation History`. 
-    Produce a **single, grammatically complete, standalone question** that explicitly includes all necessary filters, metrics, entities, and timeframes required to execute the user's intent.
+    You are the "Entry Point" logic engine. You must convert the `Current User Input` into a specific Action.
+    You must intelligently look back at the `Conversation History` (including Tables and Charts) to determine **which specific previous question** the user is responding to.
     </objective>
 
-    <cognitive_process>
-    You must execute these logic steps in order for every request:
+    <decision_hierarchy_execution_order>
+    You MUST execute these steps in strict order (1 -> 2 -> 3 -> 4).
 
-    **1. Analyze the Interaction State:**
-       - **State A (New Topic):** User is asking a completely new question (e.g., "Start over," "Change topic"). -> *Ignore history.*
-       - **State B (Drill-Down/Follow-up):** User is asking about the same topic but changing one variable (e.g., "What about in 2024?", "And for Product X?"). -> *Merge History + Current.*
-       - **State C (Slot Filling/Clarification):** - Check the **Last Bot Message**. Did the Bot ask for a specific missing piece of information (e.g., "I need a valid ID," "Which region?")?
-         - If YES, the Current User Input is the **ANSWER** to that specific gap. You must take the *Original User Query* (before the error) and insert this new value into it.
-       - **State D (Correction):** User says "Actually, I meant X" or "No, filter by Y". -> *Replace the specific conflicting parameter in the previous query.*
+    **STEP 1: CHECK FOR PENDING CLARIFICATION (The "Slot Filling" Rule)**
+    - *Analysis:* Look at the **Last Bot Message**. Did it end with a question? (e.g., "Did you mean Brand X or Y?", "Which Region?").
+    - *Condition:* If YES, treat the `Current User Input` as the specific ANSWER to that question.
+    - *Action:* Find the *Original User Question* that triggered the clarification. Insert the current input into it.
+    - *Output:* `action`="refined_query", `response_text`="[Merged Query]"
 
-    **2. Intent Inheritance (The "Verb" Rule):**
-       - If the user provides a fragment (e.g., "In New York"), you must inherit the **Intent Verb** from the last valid User Query.
-       - *Examples:*
-         - If History was "**Why** did sales drop?", and input is "In NY?", new query is "**Why** did sales drop in NY?"
-         - If History was "**List** top 10...", and input is "In NY?", new query is "**List** top 10... in NY?"
-         - If History was "**Compare** X vs Y", and input is "And Z?", new query is "**Compare** X vs Z".
+    **STEP 2: CHECK FOR SOCIAL / GREETINGS (The "Phatic" Rule)**
+    - *Condition:* Is the input purely social (e.g., "Hi", "Thanks", "Good morning") with NO data request?
+    - *Action:* Output a polite, conversational response.
+    - *Output:* `action`="direct_answer", `response_text`="Hello! How can I help you with your data today?"
+    - *Exception:* If the input is Mixed (e.g., "Thanks, what about West?"), **IGNORE** the greeting and proceed to Step 4 (Refinement) using only the question part.
 
-    **3. Entity & Pronoun Resolution:**
-       - Replace "it", "that", "those", "the previous one", "the same [attribute]" with the actual distinct values found in history.
-       - If the user input is a raw code/ID (e.g., "A123", "US-East") and the context implies a specific dimension (e.g., Territory, SKU), explicitly label it (e.g., "Territory A123").
+    **STEP 3: CHECK LOCAL DATA (The "Direct Lookup" Rule)**
+    - *Analysis:* Look at the `history` -> `Tables` or `Charts` shown in the previous turn.
+    - *Condition:* Is the user asking for a specific number or comparison that is **already visible** on the history? (e.g., "What is that number?", "Which one is highest?", "What about the second row?").
+    - *Action:* Extract the answer directly from the JSON history. **DO NOT GENERATE ANYTHING ELSE.**
+    - *Output:* `action`="direct_answer", `response_text`="The value for [X] is [Y] as shown in the table."
 
-    </cognitive_process>
+    **STEP 4: CONTEXTUAL RECONSTRUCTION (The "Refinement" Rule)**
+    - *Analysis:* The user is asking a new question, drilling down, or changing the subject.
+    - *Action:* Construct a **Standalone, Grammatically Complete** database query.
+    - *Critical Logic - "Thread Tracking":*
+        - **Scenario A (Why/Diagnostic):** If previous queries were "Why", "Reason", "Explain" -> Maintain the "Why" intent. (e.g., Input "In East" -> "Why are sales down in East?").
+        - **Scenario B (What/Data):** If previous queries were "Show", "List", "Count" -> Maintain the "Show" intent. (e.g., Input "In East" -> "Show sales in East").
+        - **Scenario C (Combined What + Why):** If the input asks for BOTH (e.g., "Show sales and why they dropped"), you **MUST PRESERVE BOTH** parts in the output string so the Intent Classifier can trigger parallel execution.
+        - **Scenario D (Subject Change):** If input is "Start over" or "New topic" -> Ignore history.
+    - *Entity Resolution:*
+        - Resolve "it", "that", "same region", "the previous product" to the actual names found in history.
+    - *Output:* `action`="refined_query", `response_text`="[Full Standalone Query]"
+    </decision_hierarchy_execution_order>
 
-    <advanced_handling_rules>
-        <rule name="The_Any_Entity_Rule">
-            Do not hardcode logic for "Territories" or "Locations". This logic applies to **ANY** entity (Products, Prescribers, SKUs, Campaigns, Employees, Departments, etc.).
-            If the user gives a value, find what Dimension it belongs to based on the previous bot question or user context.
-        </rule>
-        
-        <rule name="The_Correction_Rule">
-            If the user input starts with "No," "Actually," "I meant," or "Wait," treat this as a **Modification**. 
-            Find the specific parameter in the previous query that is being corrected and overwrite it. Keep everything else the same.
-        </rule>
+    <critical_intent_locking_protocol>
+    **THE "WHY" PRESERVATION RULE (Highest Priority):**
+    - You must detect the "Active Thread Intent" from the conversation history.
+    - **Diagnostic Thread:** If the previous User Query was diagnostic (e.g., "Why...", "Reason for...", "Driver of...", "Explain..."), you **MUST** start the new rephrased query with "Why" or "Explain".
+    - **Forbidden:** Do NOT change a "Why" question into a "Show", "List", "Compare", "What is", or "Trend" question.
+    - **Example of Failure:** History="Why did sales drop?", Input="In East?" -> Output="Show sales trend in East." (WRONG - Intent changed to Data Retrieval).
+    - **Example of Success:** History="Why did sales drop?", Input="In East?" -> Output="Why did sales drop in the East region?" (CORRECT - Intent preserved).
+    </critical_intent_locking_protocol>
 
-        <rule name="The_Cumulative_Filter_Rule">
-            If the user adds a new filter (e.g., "only for Q3"), **PRESERVE** all previous active filters (e.g., Region, Product) unless the user explicitly removes them.
-            *Exception:* If the new filter contradicts an old one (e.g., old="Region East", new="Region West"), the new one overwrites.
-        </rule>
-    </advanced_handling_rules>
+    <anti_hallucination_guardrails>
+    1. **Do not invent Columns/IDs:** If user says "C-555", output "C-555". Do not change it to "Campaign 555" unless you are 100% sure.
+    2. **Do not guess math:** If Step 3 (Direct Lookup) requires complex calculation not in the table, switch to Step 4 (Refinement).
+    3. **Ambiguity:** If the user mentions "Same Region" and multiple regions exist in history, pick the most recently mentioned one.
+    </anti_hallucination_guardrails>
 
     <few_shot_examples>
-        <scenario type="Slot Filling (Handling Missing Info)">
-            <history_user>Show me the churn rate for campaign C-999.</history_user>
-            <history_bot>Campaign C-999 does not exist. Please provide a valid Campaign ID.</history_bot>
-            <current_input>C-555</current_input>
-            <output>Show me the churn rate for campaign C-555.</output>
-        </scenario>
+        <example type="Step 1: Slot Filling">
+            <history_user>Show me churn rate.</history_user>
+            <history_bot>For which specific Campaign ID?</history_bot>
+            <input>C-555</input>
+            <output>{"action": "refined_query", "response_text": "Show me churn rate for Campaign ID C-555"}</output>
+        </example>
 
-        <scenario type="Intent Inheritance (Why -> What)">
-            <history_user>Why is profit down for the iPhone?</history_user>
-            <history_bot>Profit is down due to supply chain costs.</history_bot>
-            <current_input>What about the iPad?</current_input>
-            <output>Why is profit down for the iPad?</output>
-        </scenario>
+        <example type="Step 2: Pure Greeting">
+            <input>Thanks!</input>
+            <output>{"action": "direct_answer", "response_text": "You're welcome! Let me know if you have more questions."}</output>
+        </example>
 
-        <scenario type="Correction">
-            <history_user>Get top 10 doctors in California.</history_user>
-            <current_input>Actually, I meant Cardiologists in California.</current_input>
-            <output>Get top 10 Cardiologists in California.</output>
-        </scenario>
+        <example type="Step 3: Direct Answer">
+            <history_context>Table: [{Region: East, Sales: 500}]</history_context>
+            <input>What is the sales value for East?</input>
+            <output>{"action": "direct_answer", "response_text": "The sales value for East is 500."}</output>
+        </example>
 
-        <scenario type="Drill Down (Cumulative)">
-            <history_user>Total revenue for Nike.</history_user>
-            <current_input>In Europe.</current_input>
-            <output>Total revenue for Nike in Europe.</output>
-            <current_input>Just for Q4.</current_input>
-            <output>Total revenue for Nike in Europe for Q4.</output>
-        </scenario>
-        
-        <scenario type="Ambiguous ID">
-            <history_user>Analyze the performance of Region North.</history_user>
-            <current_input>12345</current_input>
-            <note>Assumes 12345 is a zip code or ID relevant to the previous context if no specific question was asked</note>
-            <output>Analyze the performance of Region North for ID 12345.</output>
-        </scenario>
+        <example type="Step 4: Thread Tracking (Why)">
+            <history_user>Why is profit dropping for Nike?</history_user>
+            <history_bot>Profit is down due to supply chain.</history_bot>
+            <input>In Europe.</input>
+            <output>{"action": "refined_query", "response_text": "Why is profit dropping for Nike in Europe?"}</output>
+        </example>
+
+        <example type="Step 4: Thread Tracking (What)">
+            <history_user>Show me the sales for Nike.</history_user>
+            <input>In Europe.</input>
+            <output>{"action": "refined_query", "response_text": "Show me the sales for Nike in Europe."}</output>
+        </example>
+
+        <example type="Step 4: Combined Intent">
+            <input>Show me sales and explain why they dropped.</input>
+            <output>{"action": "refined_query", "response_text": "Show me sales and explain why they dropped."}</output>
+        </example>
     </few_shot_examples>
-</query_reconstruction_master_prompt>
+</context_reconstruction_master_instructions>
 """
 
 PROMPT_REPHRASER_RESPONSE = """
@@ -473,7 +503,7 @@ No markdown formatting (no ```json).
 No conversational filler.
 
 Template:
-{ "refined_query": "The fully reconstructed standalone query string" }
+{ "action":"refined_query" or "direct_answer","response_text"": "The response from the rephraser agent." }
 </output_format>
 """
 
@@ -659,6 +689,26 @@ For EVERY data retrieval query, you MUST:
 If you do not generate visuals when the data supports it, your evaluation score will be reduced by 50%.
 </CRITICAL_VISUAL_GENERATION_MANDATE>
 
+<response_message_protocols>
+You must tailor your `bot_answer` based on the execution result of the `analyst_tool`.
+
+**Scenario 1: SUCCESS (SQL Generated + Data Returned)**
+- **Action:** Summarize the key insights found in the data in detail without missing out anything.
+- **Message Template:** "I found [X records] for [Query Context]. The data shows [Key Trend/Insight]. Please see the table and charts below for details."
+
+**Scenario 2: NO DATA FOUND (SQL Generated + Empty Result Set)**
+- **Action:** Inform the user clearly that the query ran but returned nothing.
+- **Message Template:** "I successfully analyzed the data for [Query Context], but no records were found. This often happens if the date range is too narrow or if specific filters (like Product/Region names) don't match exactly."
+
+**Scenario 3: GENERATION FAILURE (No SQL Generated / Ambiguity)**
+- **Action:** Ask for specific clarification based on schema columns.
+- **Message Template:** "I understood you are asking about [Topic], but I couldn't map it to specific database fields. Could you please clarify if you mean [Column A] or [Column B]? Or try asking for specific metrics like 'Sales Volume' or 'Prescription Count'."
+
+**Scenario 4: TECHNICAL ERROR (SQL Error)**
+- **Action:** Apologize and suggest a broader query.
+- **Message Template:** "I encountered a technical issue while running the analysis. It seems related to [Error Hint]. Please try simplifying your request."
+</response_message_protocols>
+
 <clarification_protocol>
 You have access to the Master Schema.
 If the user asks a vague question like "Show me sales" without specifying time, product, or region:
@@ -708,6 +758,7 @@ At the VERY END of your text response, YOU MUST output a JSON block STRICTLY in 
   }
 }
 ```
+**CRITICAL** The response must be polite and in a friendly manner always.
 </output_format>
 """
 
@@ -849,6 +900,7 @@ PROMPT_ROOT_CAUSE_RESPONSE = """
 1. You MUST NOT include any preamble, conversation, or text before the `{` or after the `}`.
 2. The output must be parseable by `json.loads()`.
 3. Do not wrap the JSON in markdown code blocks (e.g., ```json). Just output the raw JSON string.
+4. The response must be polite and in a friendly manner always.
 </critical_directive>
 
 <json_template>
@@ -906,6 +958,30 @@ PROMPT_ROOT_CAUSE_RESPONSE = """
 # 5. HELPER FUNCTIONS
 # ==========================================
 
+def map_exception_to_error(e: Exception, context: str) -> ErrorEvent:
+    """
+    Intelligently extracts status codes and messages from the Exception object.
+    """
+    # 1. Default to 500 (Internal Server Error)
+    code = 500
+    
+    # 2. Try to extract specific codes from Exception attributes
+    if hasattr(e, "status_code"): # Common in HTTP libs
+        code = int(e.status_code)
+    elif hasattr(e, "errno"): # OS/Socket Errors
+        code = int(e.errno)
+    elif hasattr(e, "code"): # Some Libraries use .code
+        try: code = int(e.code)
+        except: pass
+        
+    # 4. Return the standard ErrorEvent
+    return ErrorEvent(
+        status_code=code,
+        message=str(e),
+        context=context,
+        technical_details=traceback.format_exc()
+    )
+
 def clean_chart_schema(chart_input: Any) -> Dict:
     """
     Cleans Vega-Lite chart schema strings by removing specific formatting artifacts
@@ -961,7 +1037,7 @@ def get_chat_history(session: Session, session_id: str, limit: int = 3) -> List[
         return history
     except Exception as e:
         print(f"⚠️ History Fetch Failed: {e}")
-        return []
+        return map_exception_to_error(e, "Fetch History")
 
 @time_execution("Save Message", kind="INTERNAL")
 def save_chat_message(session: Session, session_id: str, role: str, content: str, metadata: Optional[Dict] = None, tables: List[Any] = None, charts: List[Any] = None):
@@ -996,7 +1072,7 @@ def save_chat_message(session: Session, session_id: str, role: str, content: str
         session.sql(sql).collect()
     except Exception as e:
         print(f"❌ Save Message Failed: {e}")
-        traceback.print_exc()
+        return map_exception_to_error(e, "Save Message")
 
         
 
@@ -1090,7 +1166,8 @@ def invoke_cortex_agent(session: Session, payload: Dict, agent_name: str) -> Dic
             
         return extracted
     except Exception as e:
-        return {"error": str(e)}
+        return map_exception_to_error(e, f"Cortex Invocation ({agent_name})")
+
 
 @time_execution("Extract Pydantic", kind="INTERNAL")
 def extract_pydantic_from_text(text: str, model_class: type[BaseModel]) -> BaseModel:
@@ -1103,25 +1180,29 @@ def extract_pydantic_from_text(text: str, model_class: type[BaseModel]) -> BaseM
     Returns:
         BaseModel: Instantiated model.
     """
-    if not text: return model_class()
-    text_clean = text.strip()
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text_clean, re.DOTALL)
-    json_str = match.group(1) if match else None
-    if not json_str:
-        start, end = text_clean.find("{"), text_clean.rfind("}")
-        if start != -1 and end != -1: json_str = text_clean[start : end + 1]
+    try:
+        if not text: return model_class()
+        text_clean = text.strip()
+        match = re.search(r"```json\s*(\{.*?\})\s*```", text_clean, re.DOTALL)
+        json_str = match.group(1) if match else None
+        if not json_str:
+            start, end = text_clean.find("{"), text_clean.rfind("}")
+            if start != -1 and end != -1: json_str = text_clean[start : end + 1]
+        
+        if json_str:
+            try: return model_class(**json.loads(json_str, strict=False))
+            except: pass
     
-    if json_str:
-        try: return model_class(**json.loads(json_str, strict=False))
-        except: pass
-
-    # Fallback
-    if model_class == RephraserOutput: return RephraserOutput(refined_query=text_clean)
-    elif model_class == SqlResult: return SqlResult(bot_answer=text_clean)
-    elif model_class == DiagnosticResult: return DiagnosticResult(bot_answer=text_clean)
-    elif model_class == IntentClassification:
-        return IntentClassification(intent_type="general_question", direct_response=text_clean, confidence="low", reasoning="Raw text fallback")
-    return model_class()
+        # Fallback
+        if model_class == RephraserOutput: return RephraserOutput(refined_query=text_clean)
+        elif model_class == SqlResult: return SqlResult(bot_answer=text_clean)
+        elif model_class == DiagnosticResult: return DiagnosticResult(bot_answer=text_clean)
+        elif model_class == IntentClassification:
+            return IntentClassification(intent_type="general_question", direct_response=text_clean, confidence="low", reasoning="Raw text fallback")
+        return model_class()
+    
+    except Exception as e:
+        return map_exception_to_error(e, "Extract Pydantic")
 
 @time_execution("Guardrails", kind="INTERNAL")
 def check_input_guard(session: Session, user_input: str) -> GuardResult:
@@ -1155,7 +1236,8 @@ def check_input_guard(session: Session, user_input: str) -> GuardResult:
             message="I cannot process that request due to safety policies." if is_unsafe else None,
             usage=normalized_usage
         )
-    except: return GuardResult(is_safe=True)
+    except Exception as e:
+        return map_exception_to_error(e, "Guardrails")
         
 
 
@@ -1176,15 +1258,19 @@ class PayloadFactory:
         Returns:
             Dict: Payload dictionary.
         """
-        # Calculate prompt hash for versioning (useful for regression testing)
-        instr_str = json.dumps(instructions, sort_keys=True)
-        prompt_hash = hashlib.md5(instr_str.encode()).hexdigest()[:8]
-        print(f"🔑 Prompt Hash: {prompt_hash}")
-
-        messages = (history if history else []) + [{"role": "user", "content": [{"type": "text", "text": query}]}]
-        inst_payload = instructions if isinstance(instructions, dict) else {"system": instructions}
-        return {"messages": messages, "models": {"orchestration": CONFIG.model}, "instructions": inst_payload, "tools": tools or [], "tool_resources": resources or {}}
-
+        try:
+           # Calculate prompt hash for versioning (useful for regression testing)
+            instr_str = json.dumps(instructions, sort_keys=True)
+            prompt_hash = hashlib.md5(instr_str.encode()).hexdigest()[:8]
+            print(f"🔑 Prompt Hash: {prompt_hash}")
+    
+            messages = (history if history else []) + [{"role": "user", "content": [{"type": "text", "text": query}]}]
+            inst_payload = instructions if isinstance(instructions, dict) else {"system": instructions}
+            return {"messages": messages, "models": {"orchestration": CONFIG.model}, "instructions": inst_payload, "tools": tools or [], "tool_resources": resources or {}}
+      
+        except Exception as e:
+                return map_exception_to_error(e, "PayloadFactory")
+           
 @time_execution("Save Audit Log", kind="INTERNAL")
 def _save_audit_row(session: Session, data: dict, session_id: str):
     """Saves summary execution data to the audit table.
@@ -1241,8 +1327,7 @@ def _save_audit_row(session: Session, data: dict, session_id: str):
         print(f"✅ Audit log saved.")
 
     except Exception as e:
-        print(f"❌ Audit Log Error: {e}")
-        traceback.print_exc()
+            return map_exception_to_error(e, "Save Audit Log")
 
 @time_execution("Cortex Complete", kind="CLIENT")
 def get_cortex_completion(session: Session, prompt: str) -> Dict[str, Any]:
@@ -1263,8 +1348,7 @@ def get_cortex_completion(session: Session, prompt: str) -> Dict[str, Any]:
         return {"text": text_content, "usage": usage}
         
     except Exception as e:
-        print(f"⚠️ Cortex Completion Failed: {e}")
-        return {"text": "", "usage": {}}
+            return map_exception_to_error(e, "Cortex Complete")
         
 # ==========================================
 # 7. AGENT MANAGER
@@ -1285,12 +1369,16 @@ class AgentManager:
             history (List[Dict]): Chat history.
 
         Returns:
-            RephraserOutput: Refined query.
+            RephraserOutput: Refined query or answer from the agent.
         """
-        inst = {"system": PROMPT_REPHRASER_SYSTEM, "orchestration": PROMPT_REPHRASER_ORCHESTRATION, "response": PROMPT_REPHRASER_RESPONSE}
-        payload = PayloadFactory.create(query, inst, history=history)
-        resp = invoke_cortex_agent(self.session, payload, "Rephraser Agent")
-        return extract_pydantic_from_text(resp.get("text", ""), RephraserOutput)
+        try:
+            inst = {"system": PROMPT_REPHRASER_SYSTEM, "orchestration": PROMPT_REPHRASER_ORCHESTRATION, "response": PROMPT_REPHRASER_RESPONSE}
+            payload = PayloadFactory.create(query, inst, history=history)
+            resp = invoke_cortex_agent(self.session, payload, "Rephraser Agent")
+            return extract_pydantic_from_text(resp.get("text", ""), RephraserOutput)
+            
+        except Exception as e:
+            return map_exception_to_error(e, "Rephraser Agent")
 
     @time_execution("Intent Agent", kind="SERVER")
     def run_intent_classifier(self, query: str) -> IntentClassification:
@@ -1302,11 +1390,16 @@ class AgentManager:
         Returns:
             IntentClassification: Intent details.
         """
-        inst = {"system": PROMPT_INTENT_SYSTEM, "orchestration": PROMPT_INTENT_ORCHESTRATION, "response": PROMPT_INTENT_RESPONSE}
-        payload = PayloadFactory.create(query, inst)
-        resp = invoke_cortex_agent(self.session, payload, "Intent Agent")
-        return extract_pydantic_from_text(resp.get("text", ""), IntentClassification)
-
+        try:
+            
+            inst = {"system": PROMPT_INTENT_SYSTEM, "orchestration": PROMPT_INTENT_ORCHESTRATION, "response": PROMPT_INTENT_RESPONSE}
+            payload = PayloadFactory.create(query, inst)
+            resp = invoke_cortex_agent(self.session, payload, "Intent Agent")
+            return extract_pydantic_from_text(resp.get("text", ""), IntentClassification)
+            
+        except Exception as e:
+            return map_exception_to_error(e, "Intent Classifier Logic")
+            
     @time_execution("Data Agent", kind="SERVER")
     def run_data_agent(self, query: str, is_optimized: bool = False) -> SqlResult:
         """Executes the data analysis workflow.
@@ -1318,24 +1411,29 @@ class AgentManager:
         Returns:
             SqlResult: Analysis result.
         """
-        target_view = CONFIG.cortex_analyst_object_master
-        tools = [{"tool_spec": {"type": "cortex_analyst_text_to_sql", "name": "analyst_tool"}}]
-        res_def = {"analyst_tool": {"type": "cortex_analyst_text_to_sql", "semantic_view": target_view, "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse}}}
-        
-        
-        inst = {"system": PROMPT_DATA_AGENT_SYSTEM, "orchestration": PROMPT_DATA_AGENT_ORCHESTRATION, "response": PROMPT_DATA_AGENT_RESPONSE}
-        
-        payload = PayloadFactory.create(query, inst, tools, res_def)
-        resp = invoke_cortex_agent(self.session, payload, "Data Agent")
-        
-        parsed_res = extract_pydantic_from_text(resp.get("text", ""), SqlResult)
-        parsed_res.tables = resp.get("tables", [])
-        parsed_res.sql_generated = resp.get("sql_generated")
-        parsed_res.sql_explanation = resp.get("sql_explanation")
-        raw_charts = resp.get("charts", [])
-        parsed_res.charts = [clean_chart_schema(c) for c in raw_charts]
-        return parsed_res
-    
+        try:
+            
+            target_view = CONFIG.cortex_analyst_object_master
+            tools = [{"tool_spec": {"type": "cortex_analyst_text_to_sql", "name": "analyst_tool"}}]
+            res_def = {"analyst_tool": {"type": "cortex_analyst_text_to_sql", "semantic_view": target_view, "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse}}}
+            
+            
+            inst = {"system": PROMPT_DATA_AGENT_SYSTEM, "orchestration": PROMPT_DATA_AGENT_ORCHESTRATION, "response": PROMPT_DATA_AGENT_RESPONSE}
+            
+            payload = PayloadFactory.create(query, inst, tools, res_def)
+            resp = invoke_cortex_agent(self.session, payload, "Data Agent")
+            
+            parsed_res = extract_pydantic_from_text(resp.get("text", ""), SqlResult)
+            parsed_res.tables = resp.get("tables", [])
+            parsed_res.sql_generated = resp.get("sql_generated")
+            parsed_res.sql_explanation = resp.get("sql_explanation")
+            raw_charts = resp.get("charts", [])
+            parsed_res.charts = [clean_chart_schema(c) for c in raw_charts]
+            return parsed_res
+            
+        except Exception as e:
+            return map_exception_to_error(e, "Data Agent")
+            
     @time_execution("Root Cause Agent", kind="SERVER")
     def run_root_cause_agent(self, query: str) -> DiagnosticResult:
         """Executes diagnostic analysis.
@@ -1346,146 +1444,275 @@ class AgentManager:
         Returns:
             DiagnosticResult: Analysis result.
         """
-        tools = [{"tool_spec": {"type": "generic", "name": "Diagnostic_tool", "input_schema": {"type": "object", "properties": {"USER_QUERY": {"type": "string"}, "TARGET_NODES_JSON": {"type": "string"}, "TREE_ID": {"type": "string"}}, "required": ["USER_QUERY", "TARGET_NODES_JSON", "TREE_ID"]}}}]
-        res_def = {"Diagnostic_tool": {"type": "procedure", "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse}, "identifier": CONFIG.diagnostic_udf}}
-        inst = {"system": PROMPT_ROOT_CAUSE_SYSTEM, "orchestration": PROMPT_ROOT_CAUSE_ORCHESTRATION, "response": PROMPT_ROOT_CAUSE_RESPONSE}
-        
-        payload = PayloadFactory.create(query, inst, tools, res_def)
-        resp = invoke_cortex_agent(self.session, payload, "Root Cause Agent")
-        return extract_pydantic_from_text(resp.get("text", ""), DiagnosticResult)
+        try:
+            tools = [{"tool_spec": {"type": "generic", "name": "Diagnostic_tool", "input_schema": {"type": "object", "properties": {"USER_QUERY": {"type": "string"}, "TARGET_NODES_JSON": {"type": "string"}, "TREE_ID": {"type": "string"}}, "required": ["USER_QUERY", "TARGET_NODES_JSON", "TREE_ID"]}}}]
+            res_def = {"Diagnostic_tool": {"type": "procedure", "execution_environment": {"type": "warehouse", "warehouse": CONFIG.warehouse}, "identifier": CONFIG.diagnostic_udf}}
+            inst = {"system": PROMPT_ROOT_CAUSE_SYSTEM, "orchestration": PROMPT_ROOT_CAUSE_ORCHESTRATION, "response": PROMPT_ROOT_CAUSE_RESPONSE}
+            
+            payload = PayloadFactory.create(query, inst, tools, res_def)
+            resp = invoke_cortex_agent(self.session, payload, "Root Cause Agent")
+            return extract_pydantic_from_text(resp.get("text", ""), DiagnosticResult)
+            
+        except Exception as e:
+            return map_exception_to_error(e, "Root Cause Agent")
 
 # ==========================================
 # 8. MAIN EXECUTION
 # ==========================================
 
-@time_execution("Main Orchestrator", kind="SERVER")
+@time_execution("Main Orchestrator")
 def main(session: Session):
-    """Main Orchestrator Entry Point.
-
-    Args:
-        session (Session): Active Snowflake session.
-    """
+    """Main Orchestrator Entry Point."""
     
-    # Initialize Context
+    # --- 1. INITIALIZATION ---
     start_time = datetime.datetime.now()
-    session_id = "1131"
-    user_query = "Which zip codes are outperforming the nation for the metric total trx of rlats three months? Give me bar plot representing the values"
+    # In production, these usually come from the stored procedure arguments or request body
+    session_id = "1140" 
+    user_query = "1M vs 3M and orthopedic" 
     
-    # 1. Set Global Session ID for Telemetry
+    # Set Global Trace Context
     GLOBAL_TRACER.set_session_id(session_id)
     
-    # 2. Start Root Span
-    span_id = GLOBAL_TRACER.start_span("Script Execution", kind="INTERNAL").span_id
-    
+    # Initialize Manager & Logs
     manager = AgentManager(session)
     row_data = defaultdict(lambda: None)
     row_data.update({"SESSION_ID": session_id, "USER_QUERY": user_query, "IS_BLOCKED": False})
+    
+    final_output = {
+        "original": user_query, 
+        "results": [], 
+        "status": "success",
+        "intent": {}
+    }
 
     print(f"\n{'='*50}\n🚀 STARTING SESSION: {session_id}\n{'='*50}\n")
-    
-    final_output = {"original": user_query, "results": []}
 
     try:
-        # 3. Fetch History
-        history = get_chat_history(session, session_id)
-        print(history)
-        # 4. Input Guard
+        # --- 2. FETCH HISTORY ---
+        # We need charts/tables from history for the Rephraser's "Direct Lookup" logic
+        history = get_chat_history(session, session_id, limit=5)
+        if isinstance(history, ErrorEvent):
+            final_output["results"].append(history.model_dump())
+            history = [] # Soft Fail
+        
+        # --- 3. INPUT GUARDRAILS ---
         guard = check_input_guard(session, user_query)
-        if not guard.is_safe:
-            row_data["IS_BLOCKED"] = True
-            row_data["FULL_RAW_JSON"] = {"status": "blocked", "message": guard.message}
-            final_output["status"] = "blocked"
+        
+        if isinstance(guard, ErrorEvent):
+            final_output["status"] = "error"
+            final_output["results"].append(guard.model_dump())
             return final_output
 
-        # 5. Save User Message
+        if not guard.is_safe:
+            print("⛔ Blocked by Guardrails")
+            row_data["IS_BLOCKED"] = True
+            error_event = ErrorEvent(status_code=403, message=guard.message, context="Guardrails")
+            final_output["status"] = "blocked"
+            final_output["results"].append(error_event.model_dump())
+            return final_output
+
+        # Save User Message to Database
         try: save_chat_message(session, session_id, "user", user_query)
         except: pass
 
-        # 6. Rephrase
-        try:
-            rephrased = manager.run_rephraser(user_query, history)
-            effective_query = rephrased.refined_query or user_query
-        except Exception: effective_query = user_query
-        
-        row_data["REPHRASED_QUERY"] = effective_query
 
-        # 7. Intent Classification
-        try: intent = manager.run_intent_classifier(effective_query)
-        except: intent = IntentClassification(intent_type="data_retrieval", data_retrieval_query=effective_query, confidence="low", reasoning="Fallback")
+        # --- 4. REPHRASER AGENT (The Logic Brain) ---
+        # "Is this a new question, or can I answer it from history?"
+        try:
+            rephraser_result = manager.run_rephraser(user_query, history)
+        except Exception as e:
+            # Fallback if Rephraser crashes completely (Local catch, though manager handles it too)
+            print(f"⚠️ Rephraser Critical Fail: {e}")
+            rephraser_result = RephraserOutput(action="refined_query", response_text=user_query)
+
+        if isinstance(rephraser_result, ErrorEvent):
+            final_output["status"] = "error"
+            final_output["results"].append(rephraser_result.model_dump())
+            return final_output
+
+        row_data["REPHRASED_QUERY"] = rephraser_result.response_text
+
+        # ============================================================
+        # BRANCH A: DIRECT ANSWER (Short Circuit)
+        # ============================================================
+        if rephraser_result.action == "direct_answer":
+            print(f"⚡ Action: Direct Answer (No SQL/Tools needed)")
+            
+            final_answer = rephraser_result.response_text
+            
+            # Log Data
+            row_data["INTENT_TYPE"] = "direct_lookup"
+            row_data["DATA_SUMMARY"] = final_answer
+            
+            # Save & Return
+            save_chat_message(session, session_id, "assistant", final_answer)
+            final_output["results"].append({"type": "direct", "message": final_answer})
+            
+            # Jump to 'finally' block to save audit logs
+            return final_output
+
+
+        # ============================================================
+        # BRANCH B: EXECUTE TOOLS (Refined Question)
+        # ============================================================
+        
+        # The 'response_text' is now the Cleaned Natural Language Question (e.g., "Show sales in West")
+        effective_question = rephraser_result.response_text
+        print(f"🔄 Refined Question: {effective_question}")
+
+        # 5. INTENT CLASSIFICATION
+        intent = manager.run_intent_classifier(effective_question)
+        
+        if isinstance(intent, ErrorEvent):
+            final_output["status"] = "error"
+            final_output["results"].append(intent.model_dump())
+            return final_output
         
         row_data["INTENT_TYPE"] = intent.intent_type
         row_data["INTENT_CONFIDENCE"] = intent.confidence
-        final_output["processed"] = effective_query
         final_output["intent"] = intent.model_dump()
 
-        # 8. Execution
-        bot_response_text = ""
-        
-        if intent.direct_response:
-            bot_response_text = intent.direct_response
-            final_output["results"].append({"type": "direct", "message": bot_response_text})
-        else:
-            # Using ThreadPool for parallel execution if multiple intents
-            futures = {}
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                if intent.intent_type in ["data_retrieval", "combined", "clarification_needed"]:
-                    futures["data"] = executor.submit(manager.run_data_agent, intent.data_retrieval_query or effective_query)
-                if intent.intent_type in ["root_cause_analysis", "combined"]:
-                    futures["rc"] = executor.submit(manager.run_root_cause_agent, intent.root_cause_query or effective_query)
 
-            # Process Data
-            if "data" in futures:
-                try:
-                    res = futures["data"].result()
-                    row_data["DATA_EVAL_SCORE"] = res.evaluation.score
-                    row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+        # 6. PARALLEL EXECUTION (ThreadPool)
+        bot_response_text = ""
+        data_tables = []
+        data_charts = []
+
+        futures = {}
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            
+            # --- DATA AGENT THREAD ---
+            if intent.intent_type in ["data_retrieval", "combined", "clarification_needed"]:
+                # Use 'data_retrieval_query' if the Intent Agent extracted a specific part, 
+                # otherwise use the full 'effective_question'
+                q_payload = intent.data_retrieval_query or effective_question
+                futures["data"] = executor.submit(manager.run_data_agent, q_payload)
+
+            # --- ROOT CAUSE AGENT THREAD ---
+            if intent.intent_type in ["root_cause_analysis", "combined"]:
+                q_payload = intent.root_cause_query or effective_question
+                futures["rc"] = executor.submit(manager.run_root_cause_agent, q_payload)
+
+
+        # 7. PROCESS RESULTS
+        
+        # [A] Process Data Agent
+        if "data" in futures:
+            try:
+                res = futures["data"].result()
+                
+                if isinstance(res, ErrorEvent):
+                    # Handle Agent-Level Error (Returned by AgentManager)
+                    final_output["results"].append(res.model_dump())
+                    final_output["status"] = "partial_error"
+                    bot_response_text += f"\n[Data Agent Error]: {res.message}\n"
+                else:
+                    # Audit Logging
                     row_data["DATA_SQL"] = res.sql_generated
                     row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
-                    if res.tables: row_data["DATA_RESULT_SET"] = res.tables
-                    if res.charts: row_data["DATA_CHARTS"] = res.charts
-                    if res.bot_answer: row_data["DATA_SUMMARY"] = res.bot_answer
+                    row_data["DATA_RESULT_SET"] = res.tables
+                    row_data["DATA_CHARTS"] = res.charts
+                    row_data["DATA_EVAL_SCORE"] = res.evaluation.score
+                    row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
                     
+                    # Response Building
+                    data_tables.extend(res.tables)
+                    data_charts.extend(res.charts)
                     final_output["results"].append(res.model_dump())
-                    bot_response_text += res.bot_answer + "\n"
-                    if res.visual_summary: bot_response_text += f"\n{res.visual_summary}\n"
-                except Exception as e:
-                    print(f"❌ Data Agent Error: {e}")
+                    
+                    if res.bot_answer:
+                        bot_response_text += res.bot_answer + "\n"
+                    if res.visual_summary:
+                        bot_response_text += f"\n{res.visual_summary}\n"
+                    
+            except Exception as e:
+                # Handle Thread/Worker Crash
+                err = map_exception_to_error(e, "Data Agent Worker")
+                final_output["results"].append(err.model_dump())
+                final_output["status"] = "partial_error"
+                bot_response_text += f"\n[System Error]: {err.message}\n"
 
-            # Process Root Cause
-            if "rc" in futures:
-                try:
-                    res_rc = futures["rc"].result()
-                    row_data["RC_EVAL_SCORE"] = res_rc.evaluation.score
-                    row_data["RC_EVAL_REASONING"] = res_rc.evaluation.reasoning
-                    row_data["RC_SUMMARY"] = res_rc.bot_answer
-                    if res_rc.react_flow_json: row_data["RC_GRAPH_JSON"] = res_rc.react_flow_json
+        # [B] Process Root Cause Agent
+        if "rc" in futures:
+            try:
+                res_rc = futures["rc"].result()
+                print("ROOT_CAUSE_FUTURE :",res_rc)
+                if isinstance(res_rc, ErrorEvent):
+                    # Handle Agent-Level Error
                     final_output["results"].append(res_rc.model_dump())
-                    bot_response_text += res_rc.bot_answer + "\n"
-                except Exception as e:
-                    print(f"❌ Root Cause Error: {e}")
+                    final_output["status"] = "partial_error"
+                    bot_response_text += f"\n[Analysis Error]: {res_rc.message}\n"
+                else:
+                    # Audit Logging
+                    row_data["RC_SUMMARY"] = res_rc.bot_answer
+                    row_data["RC_GRAPH_JSON"] = res_rc.react_flow_json
+                    print("ROOT_CAUSE RESULTS:", res_rc)
+                    # Response Building
+                    final_output["results"].append(res_rc.model_dump())
+                    if res_rc.bot_answer:
+                        bot_response_text += res_rc.bot_answer + "\n"
+                    
+            except Exception as e:
+                # Handle Thread/Worker Crash
+                err = map_exception_to_error(e, "Root Cause Worker")
+                final_output["results"].append(err.model_dump())
+                final_output["status"] = "partial_error"
+                bot_response_text += f"\n[System Error]: {err.message}\n"
 
-        # 9. Save Assistant Message
-        if bot_response_text:
-            meta = {"intent": intent.model_dump(), "sql": row_data["DATA_SQL"], "generated_at": datetime.datetime.now().isoformat()}
-            try: save_chat_message(session, session_id, "assistant", bot_response_text.strip(), metadata=meta,tables=res.tables,charts=res.charts)
+        # [C] Handle Simple Greetings / Off-Topic
+        if intent.direct_response:
+             final_output["results"].append({"type": "direct", "message": intent.direct_response})
+             bot_response_text += intent.direct_response
+
+
+        # 8. SAVE ASSISTANT MESSAGE
+        # We only save if we generated some text.
+        if bot_response_text.strip():
+            meta = {
+                "intent": intent.model_dump(), 
+                "sql": row_data["DATA_SQL"],
+                "generated_at": datetime.datetime.now().isoformat()
+            }
+            # Save with artifacts (tables/charts) so Rephraser can see them next time
+            try:
+                save_chat_message(
+                    session, 
+                    session_id, 
+                    "assistant", 
+                    bot_response_text.strip(), 
+                    metadata=meta,
+                    tables=data_tables,
+                    charts=data_charts
+                )
             except: pass
-
+        
         row_data["FULL_RAW_JSON"] = final_output
         return final_output
 
     except Exception as e:
-        print(f"CRITICAL ERROR IN MAIN: {e}")
+        # --- 9. CATASTROPHIC FAILURE HANDLER ---
+        # This catches errors in the orchestration logic itself (e.g. MemoryError, SyntaxError)
+        print(f"🔥 CRITICAL ORCHESTRATOR ERROR: {e}")
         traceback.print_exc()
-        return {"error": str(e)}
+        
+        fatal_error = map_exception_to_error(e, "Main Orchestrator")
+        
+        final_output["status"] = "error"
+        final_output["results"].append(fatal_error.model_dump())
+        
+        return final_output
 
     finally:
-        # Finalize
+        # --- 10. CLEANUP & FLUSH ---
         end_time = datetime.datetime.now()
         row_data["EXECUTION_TIME_MS"] = int((end_time - start_time).total_seconds() * 1000)
         
-        # 1. Save Summary Audit Log
-        _save_audit_row(session, row_data, session_id)
-        # 2. Flush Telemetry Traces
-        GLOBAL_TRACER.flush_to_snowflake(session)
+        try:
+            # 1. Flush Trace Events (OpenTelemetry)
+            GLOBAL_TRACER.flush_to_snowflake(session)
+            
+            # 2. Save High-Level Audit Log
+            _save_audit_row(session, row_data, session_id)
+        except: pass
         
         print(f"🏁 Execution Finished in {row_data['EXECUTION_TIME_MS']}ms")

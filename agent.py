@@ -503,7 +503,7 @@ No markdown formatting (no ```json).
 No conversational filler.
 
 Template:
-{ "action":"refined_query" or "direct_answer","response_text"": "The response from the rephraser agent." }
+{ "action": either "refined_query" or "direct_answer","response_text"": "The response from the rephraser agent." }
 </output_format>
 """
 
@@ -1460,120 +1460,382 @@ class AgentManager:
 # 8. MAIN EXECUTION
 # ==========================================
 
-@time_execution("Main Orchestrator")
+# @time_execution("Main Orchestrator")
+# def main(session: Session):
+#     """Main Orchestrator Entry Point."""
+    
+#     # --- 1. INITIALIZATION ---
+#     start_time = datetime.datetime.now()
+#     # In production, these usually come from the stored procedure arguments or request body
+#     session_id = "1140" 
+#     user_query = "1M vs 3M and orthopedic" 
+    
+#     # Set Global Trace Context
+#     GLOBAL_TRACER.set_session_id(session_id)
+    
+#     # Initialize Manager & Logs
+#     manager = AgentManager(session)
+#     row_data = defaultdict(lambda: None)
+#     row_data.update({"SESSION_ID": session_id, "USER_QUERY": user_query, "IS_BLOCKED": False})
+    
+#     final_output = {
+#         "original": user_query, 
+#         "results": [], 
+#         "status": "success",
+#         "intent": {}
+#     }
+
+#     print(f"\n{'='*50}\n🚀 STARTING SESSION: {session_id}\n{'='*50}\n")
+
+#     try:
+#         # --- 2. FETCH HISTORY ---
+#         # We need charts/tables from history for the Rephraser's "Direct Lookup" logic
+#         history = get_chat_history(session, session_id, limit=5)
+#         if isinstance(history, ErrorEvent):
+#             final_output["results"].append(history.model_dump())
+#             history = [] # Soft Fail
+        
+#         # --- 3. INPUT GUARDRAILS ---
+#         guard = check_input_guard(session, user_query)
+        
+#         if isinstance(guard, ErrorEvent):
+#             final_output["status"] = "error"
+#             final_output["results"].append(guard.model_dump())
+#             return final_output
+
+#         if not guard.is_safe:
+#             print("⛔ Blocked by Guardrails")
+#             row_data["IS_BLOCKED"] = True
+#             error_event = ErrorEvent(status_code=403, message=guard.message, context="Guardrails")
+#             final_output["status"] = "blocked"
+#             final_output["results"].append(error_event.model_dump())
+#             return final_output
+
+#         # Save User Message to Database
+#         try: save_chat_message(session, session_id, "user", user_query)
+#         except: pass
+
+
+#         # --- 4. REPHRASER AGENT (The Logic Brain) ---
+#         # "Is this a new question, or can I answer it from history?"
+#         try:
+#             rephraser_result = manager.run_rephraser(user_query, history)
+#         except Exception as e:
+#             # Fallback if Rephraser crashes completely (Local catch, though manager handles it too)
+#             print(f"⚠️ Rephraser Critical Fail: {e}")
+#             rephraser_result = RephraserOutput(action="refined_query", response_text=user_query)
+
+#         if isinstance(rephraser_result, ErrorEvent):
+#             final_output["status"] = "error"
+#             final_output["results"].append(rephraser_result.model_dump())
+#             return final_output
+
+#         row_data["REPHRASED_QUERY"] = rephraser_result.response_text
+
+#         # ============================================================
+#         # BRANCH A: DIRECT ANSWER (Short Circuit)
+#         # ============================================================
+#         if rephraser_result.action == "direct_answer":
+#             print(f"⚡ Action: Direct Answer (No SQL/Tools needed)")
+            
+#             final_answer = rephraser_result.response_text
+            
+#             # Log Data
+#             row_data["INTENT_TYPE"] = "direct_lookup"
+#             row_data["DATA_SUMMARY"] = final_answer
+            
+#             # Save & Return
+#             save_chat_message(session, session_id, "assistant", final_answer)
+#             final_output["results"].append({"type": "direct", "message": final_answer})
+            
+#             # Jump to 'finally' block to save audit logs
+#             return final_output
+
+
+#         # ============================================================
+#         # BRANCH B: EXECUTE TOOLS (Refined Question)
+#         # ============================================================
+        
+#         # The 'response_text' is now the Cleaned Natural Language Question (e.g., "Show sales in West")
+#         effective_question = rephraser_result.response_text
+#         print(f"🔄 Refined Question: {effective_question}")
+
+#         # 5. INTENT CLASSIFICATION
+#         intent = manager.run_intent_classifier(effective_question)
+        
+#         if isinstance(intent, ErrorEvent):
+#             final_output["status"] = "error"
+#             final_output["results"].append(intent.model_dump())
+#             return final_output
+        
+#         row_data["INTENT_TYPE"] = intent.intent_type
+#         row_data["INTENT_CONFIDENCE"] = intent.confidence
+#         final_output["intent"] = intent.model_dump()
+
+
+#         # 6. PARALLEL EXECUTION (ThreadPool)
+#         bot_response_text = ""
+#         data_tables = []
+#         data_charts = []
+
+#         futures = {}
+#         with ThreadPoolExecutor(max_workers=2) as executor:
+            
+#             # --- DATA AGENT THREAD ---
+#             if intent.intent_type in ["data_retrieval", "combined", "clarification_needed"]:
+#                 # Use 'data_retrieval_query' if the Intent Agent extracted a specific part, 
+#                 # otherwise use the full 'effective_question'
+#                 q_payload = intent.data_retrieval_query or effective_question
+#                 futures["data"] = executor.submit(manager.run_data_agent, q_payload)
+
+#             # --- ROOT CAUSE AGENT THREAD ---
+#             if intent.intent_type in ["root_cause_analysis", "combined"]:
+#                 q_payload = intent.root_cause_query or effective_question
+#                 futures["rc"] = executor.submit(manager.run_root_cause_agent, q_payload)
+
+
+#         # 7. PROCESS RESULTS
+        
+#         # [A] Process Data Agent
+#         if "data" in futures:
+#             try:
+#                 res = futures["data"].result()
+                
+#                 if isinstance(res, ErrorEvent):
+#                     # Handle Agent-Level Error (Returned by AgentManager)
+#                     final_output["results"].append(res.model_dump())
+#                     final_output["status"] = "partial_error"
+#                     bot_response_text += f"\n[Data Agent Error]: {res.message}\n"
+#                 else:
+#                     # Audit Logging
+#                     row_data["DATA_SQL"] = res.sql_generated
+#                     row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
+#                     row_data["DATA_RESULT_SET"] = res.tables
+#                     row_data["DATA_CHARTS"] = res.charts
+#                     row_data["DATA_EVAL_SCORE"] = res.evaluation.score
+#                     row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+                    
+#                     # Response Building
+#                     data_tables.extend(res.tables)
+#                     data_charts.extend(res.charts)
+#                     final_output["results"].append(res.model_dump())
+                    
+#                     if res.bot_answer:
+#                         bot_response_text += res.bot_answer + "\n"
+#                     if res.visual_summary:
+#                         bot_response_text += f"\n{res.visual_summary}\n"
+                    
+#             except Exception as e:
+#                 # Handle Thread/Worker Crash
+#                 err = map_exception_to_error(e, "Data Agent Worker")
+#                 final_output["results"].append(err.model_dump())
+#                 final_output["status"] = "partial_error"
+#                 bot_response_text += f"\n[System Error]: {err.message}\n"
+
+#         # [B] Process Root Cause Agent
+#         if "rc" in futures:
+#             try:
+#                 res_rc = futures["rc"].result()
+#                 print("ROOT_CAUSE_FUTURE :",res_rc)
+#                 if isinstance(res_rc, ErrorEvent):
+#                     # Handle Agent-Level Error
+#                     final_output["results"].append(res_rc.model_dump())
+#                     final_output["status"] = "partial_error"
+#                     bot_response_text += f"\n[Analysis Error]: {res_rc.message}\n"
+#                 else:
+#                     # Audit Logging
+#                     row_data["RC_SUMMARY"] = res_rc.bot_answer
+#                     row_data["RC_GRAPH_JSON"] = res_rc.react_flow_json
+#                     print("ROOT_CAUSE RESULTS:", res_rc)
+#                     # Response Building
+#                     final_output["results"].append(res_rc.model_dump())
+#                     if res_rc.bot_answer:
+#                         bot_response_text += res_rc.bot_answer + "\n"
+                    
+#             except Exception as e:
+#                 # Handle Thread/Worker Crash
+#                 err = map_exception_to_error(e, "Root Cause Worker")
+#                 final_output["results"].append(err.model_dump())
+#                 final_output["status"] = "partial_error"
+#                 bot_response_text += f"\n[System Error]: {err.message}\n"
+
+#         # [C] Handle Simple Greetings / Off-Topic
+#         if intent.direct_response:
+#              final_output["results"].append({"type": "direct", "message": intent.direct_response})
+#              bot_response_text += intent.direct_response
+
+
+#         # 8. SAVE ASSISTANT MESSAGE
+#         # We only save if we generated some text.
+#         if bot_response_text.strip():
+#             meta = {
+#                 "intent": intent.model_dump(), 
+#                 "sql": row_data["DATA_SQL"],
+#                 "generated_at": datetime.datetime.now().isoformat()
+#             }
+#             # Save with artifacts (tables/charts) so Rephraser can see them next time
+#             try:
+#                 save_chat_message(
+#                     session, 
+#                     session_id, 
+#                     "assistant", 
+#                     bot_response_text.strip(), 
+#                     metadata=meta,
+#                     tables=data_tables,
+#                     charts=data_charts
+#                 )
+#             except: pass
+        
+#         row_data["FULL_RAW_JSON"] = final_output
+#         return final_output
+
+#     except Exception as e:
+#         # --- 9. CATASTROPHIC FAILURE HANDLER ---
+#         # This catches errors in the orchestration logic itself (e.g. MemoryError, SyntaxError)
+#         print(f"🔥 CRITICAL ORCHESTRATOR ERROR: {e}")
+#         traceback.print_exc()
+        
+#         fatal_error = map_exception_to_error(e, "Main Orchestrator")
+        
+#         final_output["status"] = "error"
+#         final_output["results"].append(fatal_error.model_dump())
+        
+#         return final_output
+
+#     finally:
+#         # --- 10. CLEANUP & FLUSH ---
+#         end_time = datetime.datetime.now()
+#         row_data["EXECUTION_TIME_MS"] = int((end_time - start_time).total_seconds() * 1000)
+        
+#         try:
+#             # 1. Flush Trace Events (OpenTelemetry)
+#             GLOBAL_TRACER.flush_to_snowflake(session)
+            
+#             # 2. Save High-Level Audit Log
+#             _save_audit_row(session, row_data, session_id)
+#         except: pass
+        
+#         print(f"🏁 Execution Finished in {row_data['EXECUTION_TIME_MS']}ms")
+
+
+
+
+# ==========================================
+# 6. MAIN ORCHESTRATION FUNCTION
+# ==========================================
+
+@time_execution("Main Function")
 def main(session: Session):
-    """Main Orchestrator Entry Point."""
+    """
+    The "Global Safety Net". 
+    It catches critical crashes (Level 2) and checks for agent errors (Level 1).
+    """
     
-    # --- 1. INITIALIZATION ---
+    # --- 1. SETUP ---
     start_time = datetime.datetime.now()
-    # In production, these usually come from the stored procedure arguments or request body
-    session_id = "1140" 
-    user_query = "1M vs 3M and orthopedic" 
     
-    # Set Global Trace Context
+    session_id: str="1235" 
+    user_query: str="Give me top 10 prescirbera form all the territories"
+    passed_history: List[Dict] = None
+    
     GLOBAL_TRACER.set_session_id(session_id)
-    
-    # Initialize Manager & Logs
     manager = AgentManager(session)
-    row_data = defaultdict(lambda: None)
-    row_data.update({"SESSION_ID": session_id, "USER_QUERY": user_query, "IS_BLOCKED": False})
     
+    # Audit Log Container
+    row_data = defaultdict(lambda: None)
+    row_data.update({
+        "SESSION_ID": session_id, 
+        "USER_QUERY": user_query, 
+        "IS_BLOCKED": False,
+        "CREATED_AT": start_time
+    })
+    
+    # UI Output Container
     final_output = {
         "original": user_query, 
-        "results": [], 
+        "results": [],          
         "status": "success",
-        "intent": {}
+        # "bot_answer": "",       
+        # "intent": {}
     }
 
     print(f"\n{'='*50}\n🚀 STARTING SESSION: {session_id}\n{'='*50}\n")
 
+    # [LEVEL 2] GLOBAL SAFETY NET STARTS HERE
     try:
         # --- 2. FETCH HISTORY ---
-        # We need charts/tables from history for the Rephraser's "Direct Lookup" logic
-        history = get_chat_history(session, session_id, limit=5)
-        if isinstance(history, ErrorEvent):
-            final_output["results"].append(history.model_dump())
-            history = [] # Soft Fail
+        history = passed_history if passed_history else get_chat_history(session, session_id, limit=5)
+        # Handle Helper Function Error
+        if isinstance(history, ErrorEvent): 
+            print(f"⚠️ History Error: {history.message}")
+            history = [] 
         
         # --- 3. INPUT GUARDRAILS ---
         guard = check_input_guard(session, user_query)
         
+        # [LEVEL 1 CHECK] Did the helper return an error object?
         if isinstance(guard, ErrorEvent):
             final_output["status"] = "error"
-            final_output["results"].append(guard.model_dump())
+            final_output["bot_answer"] = f"Guardrail System Error: {guard.message}"
             return final_output
 
+        # Logic Check (Not an error, but a block)
         if not guard.is_safe:
             print("⛔ Blocked by Guardrails")
             row_data["IS_BLOCKED"] = True
-            error_event = ErrorEvent(status_code=403, message=guard.message, context="Guardrails")
             final_output["status"] = "blocked"
-            final_output["results"].append(error_event.model_dump())
+            final_output["bot_answer"] = f"**🛡️ Security Alert:** {guard.message}"
+            final_output["results"].append({"source": "Guardrails", "type": "block", "message": guard.message})
             return final_output
 
-        # Save User Message to Database
+        # Save User Message
         try: save_chat_message(session, session_id, "user", user_query)
         except: pass
 
+        # --- 4. REPHRASER AGENT ---
+        # Note: Manager has its own try/except, but we wrap it just in case
+        rephraser_result = manager.run_rephraser(user_query, history)
 
-        # --- 4. REPHRASER AGENT (The Logic Brain) ---
-        # "Is this a new question, or can I answer it from history?"
-        try:
-            rephraser_result = manager.run_rephraser(user_query, history)
-        except Exception as e:
-            # Fallback if Rephraser crashes completely (Local catch, though manager handles it too)
-            print(f"⚠️ Rephraser Critical Fail: {e}")
-            rephraser_result = RephraserOutput(action="refined_query", response_text=user_query)
-
+        # [LEVEL 1 CHECK]
         if isinstance(rephraser_result, ErrorEvent):
             final_output["status"] = "error"
-            final_output["results"].append(rephraser_result.model_dump())
-            return final_output
+            final_output["results"].append({"source": "Rephraser", "type": "error", "data": rephraser_result.model_dump()})
+            # We can choose to stop here OR fall back to the raw user query
+            print("⚠️ Rephraser Failed. Using raw query.")
+            rephraser_result = RephraserOutput(action="refined_query", response_text=user_query)
 
         row_data["REPHRASED_QUERY"] = rephraser_result.response_text
+        final_output["results"].append({"source": "Rephraser", "type": "refinement", "data": rephraser_result.model_dump()})
 
-        # ============================================================
-        # BRANCH A: DIRECT ANSWER (Short Circuit)
-        # ============================================================
+        # BRANCH A: DIRECT ANSWER
         if rephraser_result.action == "direct_answer":
-            print(f"⚡ Action: Direct Answer (No SQL/Tools needed)")
-            
             final_answer = rephraser_result.response_text
-            
-            # Log Data
             row_data["INTENT_TYPE"] = "direct_lookup"
             row_data["DATA_SUMMARY"] = final_answer
             
-            # Save & Return
-            save_chat_message(session, session_id, "assistant", final_answer)
-            final_output["results"].append({"type": "direct", "message": final_answer})
+            final_output["bot_answer"] = final_answer
+            final_output["results"].append({"source": "Rephraser", "type": "direct_message", "message": final_answer})
             
-            # Jump to 'finally' block to save audit logs
+            save_chat_message(session, session_id, "assistant", final_answer)
             return final_output
 
-
-        # ============================================================
-        # BRANCH B: EXECUTE TOOLS (Refined Question)
-        # ============================================================
-        
-        # The 'response_text' is now the Cleaned Natural Language Question (e.g., "Show sales in West")
+        # BRANCH B: EXECUTE TOOLS
         effective_question = rephraser_result.response_text
-        print(f"🔄 Refined Question: {effective_question}")
-
-        # 5. INTENT CLASSIFICATION
+        
+        # --- 5. INTENT CLASSIFICATION ---
         intent = manager.run_intent_classifier(effective_question)
         
+        # [LEVEL 1 CHECK]
         if isinstance(intent, ErrorEvent):
-            final_output["status"] = "error"
-            final_output["results"].append(intent.model_dump())
-            return final_output
+             # Critical Failure: If we don't know the intent, we can't proceed.
+             raise Exception(f"Intent Classification Failed: {intent.message}")
         
+        final_output["results"].append({"source": "Intent Classifier", "type": "classification", "data": intent.model_dump()})
         row_data["INTENT_TYPE"] = intent.intent_type
         row_data["INTENT_CONFIDENCE"] = intent.confidence
-        final_output["intent"] = intent.model_dump()
+        # final_output["intent"] = intent.model_dump()
 
-
-        # 6. PARALLEL EXECUTION (ThreadPool)
+        # --- 6. PARALLEL EXECUTION ---
         bot_response_text = ""
         data_tables = []
         data_charts = []
@@ -1581,138 +1843,109 @@ def main(session: Session):
         futures = {}
         with ThreadPoolExecutor(max_workers=2) as executor:
             
-            # --- DATA AGENT THREAD ---
+            # Thread 1: Data Agent
             if intent.intent_type in ["data_retrieval", "combined", "clarification_needed"]:
-                # Use 'data_retrieval_query' if the Intent Agent extracted a specific part, 
-                # otherwise use the full 'effective_question'
                 q_payload = intent.data_retrieval_query or effective_question
                 futures["data"] = executor.submit(manager.run_data_agent, q_payload)
 
-            # --- ROOT CAUSE AGENT THREAD ---
+            # Thread 2: Root Cause Agent
             if intent.intent_type in ["root_cause_analysis", "combined"]:
                 q_payload = intent.root_cause_query or effective_question
                 futures["rc"] = executor.submit(manager.run_root_cause_agent, q_payload)
 
-
-        # 7. PROCESS RESULTS
+        # --- 7. PROCESS RESULTS ---
         
-        # [A] Process Data Agent
+        # [A] Data Agent
         if "data" in futures:
             try:
                 res = futures["data"].result()
-                
+                # [LEVEL 1 CHECK]
                 if isinstance(res, ErrorEvent):
-                    # Handle Agent-Level Error (Returned by AgentManager)
-                    final_output["results"].append(res.model_dump())
                     final_output["status"] = "partial_error"
-                    bot_response_text += f"\n[Data Agent Error]: {res.message}\n"
+                    final_output["results"].append({"source": "Data Agent", "type": "error", "data": res.model_dump()})
+                    bot_response_text += f"\n\n**⚠️ Data Agent Error:** {res.message}"
                 else:
-                    # Audit Logging
+                    # Success Path
                     row_data["DATA_SQL"] = res.sql_generated
-                    row_data["DATA_SQL_EXPLANATION"] = res.sql_explanation
                     row_data["DATA_RESULT_SET"] = res.tables
                     row_data["DATA_CHARTS"] = res.charts
-                    row_data["DATA_EVAL_SCORE"] = res.evaluation.score
-                    row_data["DATA_EVAL_REASONING"] = res.evaluation.reasoning
+                    row_data["DATA_SUMMARY"] = res.bot_answer
                     
-                    # Response Building
                     data_tables.extend(res.tables)
                     data_charts.extend(res.charts)
-                    final_output["results"].append(res.model_dump())
                     
-                    if res.bot_answer:
-                        bot_response_text += res.bot_answer + "\n"
-                    if res.visual_summary:
-                        bot_response_text += f"\n{res.visual_summary}\n"
+                    final_output["results"].append({"source": "Data Agent", "type": "sql_result", "data": res.model_dump()})
+                    # if res.bot_answer: bot_response_text += f"\n\n**📊 Data Analysis:**\n{res.bot_answer}"
+                    # if res.visual_summary: bot_response_text += f"\n\n*Visual Summary:* {res.visual_summary}"
                     
             except Exception as e:
-                # Handle Thread/Worker Crash
-                err = map_exception_to_error(e, "Data Agent Worker")
-                final_output["results"].append(err.model_dump())
-                final_output["status"] = "partial_error"
-                bot_response_text += f"\n[System Error]: {err.message}\n"
+                # [LEVEL 2 CATCH] Thread crash
+                bot_response_text += f"\n\n**⚠️ Data Agent Thread Crash:** {str(e)}"
 
-        # [B] Process Root Cause Agent
+        # [B] Root Cause Agent
         if "rc" in futures:
             try:
                 res_rc = futures["rc"].result()
-                print("ROOT_CAUSE_FUTURE :",res_rc)
+                # [LEVEL 1 CHECK]
                 if isinstance(res_rc, ErrorEvent):
-                    # Handle Agent-Level Error
-                    final_output["results"].append(res_rc.model_dump())
                     final_output["status"] = "partial_error"
-                    bot_response_text += f"\n[Analysis Error]: {res_rc.message}\n"
+                    final_output["results"].append({"source": "Root Cause Agent", "type": "error", "data": res_rc.model_dump()})
+                    bot_response_text += f"\n\n**⚠️ Root Cause Error:** {res_rc.message}"
                 else:
-                    # Audit Logging
+                    # Success Path
                     row_data["RC_SUMMARY"] = res_rc.bot_answer
                     row_data["RC_GRAPH_JSON"] = res_rc.react_flow_json
-                    print("ROOT_CAUSE RESULTS:", res_rc)
-                    # Response Building
-                    final_output["results"].append(res_rc.model_dump())
-                    if res_rc.bot_answer:
-                        bot_response_text += res_rc.bot_answer + "\n"
+                    
+                    final_output["results"].append({"source": "Root Cause Agent", "type": "diag_result", "data": res_rc.model_dump()})
+                    if res_rc.bot_answer: bot_response_text += f"\n\n**🔍 Root Cause Diagnosis:**\n{res_rc.bot_answer}"
                     
             except Exception as e:
-                # Handle Thread/Worker Crash
-                err = map_exception_to_error(e, "Root Cause Worker")
-                final_output["results"].append(err.model_dump())
-                final_output["status"] = "partial_error"
-                bot_response_text += f"\n[System Error]: {err.message}\n"
+                # [LEVEL 2 CATCH] Thread crash
+                bot_response_text += f"\n\n**⚠️ Root Cause Thread Crash:** {str(e)}"
 
-        # [C] Handle Simple Greetings / Off-Topic
+        # [C] Direct Response
         if intent.direct_response:
-             final_output["results"].append({"type": "direct", "message": intent.direct_response})
-             bot_response_text += intent.direct_response
+             final_output["results"].append({"source": "Intent Router", "type": "direct_message", "message": intent.direct_response})
+             bot_response_text += f"\n\n{intent.direct_response}"
 
+        # Finalize Output
+        # final_output["bot_answer"] = bot_response_text.strip()
+        row_data["FULL_RAW_JSON"] = final_output 
 
-        # 8. SAVE ASSISTANT MESSAGE
-        # We only save if we generated some text.
+        # Save Assistant Message
         if bot_response_text.strip():
-            meta = {
-                "intent": intent.model_dump(), 
-                "sql": row_data["DATA_SQL"],
-                "generated_at": datetime.datetime.now().isoformat()
-            }
-            # Save with artifacts (tables/charts) so Rephraser can see them next time
-            try:
-                save_chat_message(
-                    session, 
-                    session_id, 
-                    "assistant", 
-                    bot_response_text.strip(), 
-                    metadata=meta,
-                    tables=data_tables,
-                    charts=data_charts
-                )
+            meta = {"intent": intent.model_dump(), "sql": row_data["DATA_SQL"]}
+            try: save_chat_message(session, session_id, "assistant", bot_response_text.strip(), metadata=meta, tables=data_tables, charts=data_charts)
             except: pass
         
-        row_data["FULL_RAW_JSON"] = final_output
         return final_output
 
     except Exception as e:
-        # --- 9. CATASTROPHIC FAILURE HANDLER ---
-        # This catches errors in the orchestration logic itself (e.g. MemoryError, SyntaxError)
+        # [LEVEL 2 CATASTROPHIC CATCH]
+        # This catches anything that happened in the logic above (e.g. JSON parse error, Variable not found)
         print(f"🔥 CRITICAL ORCHESTRATOR ERROR: {e}")
         traceback.print_exc()
         
-        fatal_error = map_exception_to_error(e, "Main Orchestrator")
-        
+        # We must return a valid JSON so Streamlit doesn't show a stack trace
         final_output["status"] = "error"
-        final_output["results"].append(fatal_error.model_dump())
-        
+        final_output["bot_answer"] = f"**System Critical Error:** {str(e)}"
+        final_output["results"].append({
+            "source": "Orchestrator Core", 
+            "type": "critical_error", 
+            "message": str(e),
+            "trace": traceback.format_exc()
+        })
         return final_output
 
     finally:
-        # --- 10. CLEANUP & FLUSH ---
+        # [CRITICAL] This ensures logs are saved even if the "Catastrophic Catch" was triggered
         end_time = datetime.datetime.now()
         row_data["EXECUTION_TIME_MS"] = int((end_time - start_time).total_seconds() * 1000)
         
         try:
-            # 1. Flush Trace Events (OpenTelemetry)
             GLOBAL_TRACER.flush_to_snowflake(session)
-            
-            # 2. Save High-Level Audit Log
             _save_audit_row(session, row_data, session_id)
-        except: pass
+        except Exception as e:
+            print(f"Final Log Flush Error: {e}")
         
         print(f"🏁 Execution Finished in {row_data['EXECUTION_TIME_MS']}ms")

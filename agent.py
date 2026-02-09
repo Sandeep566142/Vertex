@@ -2676,3 +2676,30 @@ module_custom_instructions:
   sql_generation: |2-
 
          "If a specific value (like 'IBUPROFEN') is requested but not found in the provided sample values, do not refuse the request. Instead, perform a discovery step: write a query to SELECT DISTINCT the relevant category columns (e.g., product_category, product_family_group) filtered by a LIKE operator for the requested term. Use the results of that discovery to build the final query."
+
+
+custom_instructions: |
+  # --- SECTION 1: METRIC DEFINITIONS (The 'Dictionary') ---
+  # These rules eliminate ambiguity about which column to use.
+  - RULE 1: If the user asks for "Sales", "Revenue","Prescriptions", "Volume", "Value", or "Performance", YOU MUST use SUM(ACUTE_TRX_XPO).
+  - RULE 2: If the user asks for "New Prescriptions", "Rx", "Scripts", "New Rx", or "Counts", YOU MUST use SUM(ACUTE_NRX_XPO).
+  # - RULE 3: If the user asks for "Activity", "Calls", "Visits", or "Effort", YOU MUST use SUM(ACUTE_TRX_LAAD).
+  - RULE 4: Never confuse 'LAAD' (Activity) with 'XPO' (Sales/Rx). They are distinct metrics.
+
+  # --- SECTION 2: GLOBAL FILTERS (Data Hygiene) ---
+  # These rules clean the data automatically to improve accuracy.
+  - RULE 5: Always filter out records where 'TERRITORY_ID' is NULL or empty to ensure we only report on assigned territories.
+  - RULE 6: If the 'FLAG_VALUE' column is present, exclude rows where it equals 'VOID', 'TEST', or 'INVALID'.
+  - RULE 7: When aggregating trends, exclude the current partial week if the data looks incomplete (optional logic, usually handled by date filters).
+  - RULE 8 : If the user mention about my terriroty or my territory id , just try to use the territory or territoy id you have access to. If you do not            have access to a territory inform that to the user.
+
+  # --- SECTION 3: GUARDRAILS & LIMITS (Agent Protection) ---
+  # These rules prevent the Agent from crashing due to too much data.
+  - RULE 9: (The List Limit) If a user asks to "list", "show", "who are", or "details" regarding individual providers/rows, YOU MUST append 'LIMIT 25' to          the query
+  - RULE 10: (The Aggregation Default) If the user asks for "breakdown", "summary", "how is", or "comparison" without specifying a group, default to               grouping by 'SPECIALTY' or 'TERRITORY_NAME'.
+  - RULE 11: (Sorting) When limiting rows, ALWAYS order results by the primary metric in DESCENDING order (e.g., 'ORDER BY SUM(ACUTE_TRX_XPO) DESC NULLS           LAST').
+
+  # --- SECTION 4: PERFORMANCE & VISUALIZATION ---
+  # These rules optimize for speed and charting.
+  - RULE 12: (Trend Logic) For questions about "trends", "history", or "over time", group by 'XPO_WEEK_DT'.
+  - RULE 13: (Latency) Apply 'WHERE' filters as early as possible. Avoid filtering on aggregated results (HAVING) if a simple WHERE clause works.

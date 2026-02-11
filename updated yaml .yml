@@ -1,441 +1,435 @@
-CRITICAL: YOU MUST STRCITLY ADHERE TO FOLLOWING INSTRUCTIONS WITHOUT MISSING OUT ANYTHING. FAILURE TO APPLY THESE RULES WILL RESULT IN INACCURATE OUTPUT. ALL QUERIES MUST BE PROCESSED THROUGH THESE FILTERS.
+custom_instructions: |
 
+  # ============================================================
+  # SECTION 1: METRIC & TABLE ROUTING (Traffic Control)
+  # ============================================================
+  # These rules tell Cortex WHICH Fact Table + metric to use.
 
-# ============================================================
-# SECTION 1: METRIC & TABLE ROUTING (Traffic Control)
-# ============================================================
-# These rules tell Cortex WHICH Fact Table + metric to use.
-
-- RULES: 
-  
-  [TRx / Sales Volume]:
-    trigger: User asks for "Sales", "Revenue", "Transactions", "Volume", "TRx", "Total Rx", "Dispensed", "Bottle credit"
-    table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    metric: SUM(ACUTE_TRX_XPO)
-    note: TRx = Total prescriptions (new + refill combined). This is the primary sales proxy.
-    note : any questions related to Bottle credit MUST refers to SUM(ACUTE_TRX_XPO)
-
-  
-  [NRx / New Prescriptions]:
-    trigger: User asks for "Prescriptions", "Rx", "Scripts", "New Rx", "NRx", "New Scripts"
-    table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    metric: SUM(ACUTE_NRX_XPO)
-    note: NRx = New prescriptions only (first-fill). Do NOT use TRx for this question.
-
-  
-
-  [Calls / Visits / Activity]:
-    trigger: User asks for "Activity", "Visits", "Calls", "Interactions", "Field Effort",
-         "Details", "Call Count", "Rep Visits", "Engagements", "Touches"
-    table: FCT_CALL
-    metric: COUNT(DISTINCT INTERACTION_ID)
-    default_filter: status = 'Submitted'
-    note: >
-    Always apply the submitted_interactions filter (status = 'Submitted') unless the user
-    explicitly asks for "planned" or "all" interactions. Planned/Saved calls are not real activity.
+  - RULES: 
     
+		[TRx / Sales Volume]:
+		  trigger: User asks for "Sales", "Revenue", "Transactions", "Volume", "TRx", "Total Rx", "Dispensed"
+		  table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+		  metric: SUM(ACUTE_TRX_XPO)
+		  note: TRx = Total prescriptions (new + refill combined). This is the primary sales proxy.
+          note : any questions related to Bottle credit should be refers to SUM(ACUTE_TRX_XPO)
 
-  [LAAD / Look-Alike Audience / Benchmark]:
-    trigger: User asks for "LAAD", "Look-Alike", "Benchmark Audience", "Projected", "Expected",
-         "Look Ahead", "Historical Baseline", "LAAD TRx", "LAAD Units"
-    table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
-    available_metrics:
-    - SUM(ACUTE_TRX_LAAD)     # Benchmark transaction count
-    - SUM(ACUTE_UNITS_LAAD)   # Benchmark unit count
-    - SUM(ACUTE_TX_DAYS_LAAD) # Benchmark treatment days
-    - SUM(ACUTE_CALENDAR_DAYS_LAAD) # Calendar days in benchmark window
+	  
+		[NRx / New Prescriptions]:
+		  trigger: User asks for "Prescriptions", "Rx", "Scripts", "New Rx", "NRx", "New Scripts"
+		  table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+		  metric: SUM(ACUTE_NRX_XPO)
+		  note: NRx = New prescriptions only (first-fill). Do NOT use TRx for this question.
 
+	  
+
+		[Calls / Visits / Activity]:
+		  trigger: User asks for "Activity", "Visits", "Calls", "Interactions", "Field Effort",
+				   "Details", "Call Count", "Rep Visits", "Engagements", "Touches"
+		  table: FCT_CALL
+		  metric: COUNT(DISTINCT INTERACTION_ID)
+		  default_filter: status = 'Submitted'
+		  note: >
+			Always apply the submitted_interactions filter (status = 'Submitted') unless the user
+			explicitly asks for "planned" or "all" interactions. Planned/Saved calls are not real activity.
+			
+
+		[LAAD / Look-Alike Audience / Benchmark]:
+		  trigger: User asks for "LAAD", "Look-Alike", "Benchmark Audience", "Projected", "Expected",
+				   "Look Ahead", "Historical Baseline", "LAAD TRx", "LAAD Units"
+		  table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+		  available_metrics:
+			- SUM(ACUTE_TRX_LAAD)     # Benchmark transaction count
+			- SUM(ACUTE_UNITS_LAAD)   # Benchmark unit count
+			- SUM(ACUTE_TX_DAYS_LAAD) # Benchmark treatment days
+			- SUM(ACUTE_CALENDAR_DAYS_LAAD) # Calendar days in benchmark window
+
+	  
+
+  # ============================================================
+  # SECTION 2: JOIN PREFERENCES & DIMENSION SOURCING
+  # ============================================================
+
+  - RULES: 
   
+	  [HCP Source of Truth]:
+		  preference: ALWAYS use DIM_HCP (DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB.MODELED) for HCP attributes.
+		  fallback: Use TD_HCP (DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING) ONLY if the
+					specific column (e.g. HCP_DEGREE, KOL_IND, SAMPLEABILITY_IND) is absent in DIM_HCP.
+		  key_columns_in_DIM_HCP:
+			- FIRST_NAME, LAST_NAME, NAME         # Full name
+			- PRIMARY_SPECIALTY_DESCRIPTION       # Specialty (prefer over HCP_SPECIALTY in fact tables)
+			- PAINUSCOMM_HCP_SPECIALTY_GROUP      # Specialty Group
+			- CITY, STATE, ZIPCODE                # Location
+			- PAIN_HCP_TARGET, PAIN_HCP_TARGET_TYPE  # Pain targeting flags
+			- PAINUSCOMM_DECILE                   # Decile ranking
+			- STATUS                              # Active / Retired / Deceased
 
-# ============================================================
-# SECTION 2: JOIN PREFERENCES & DIMENSION SOURCING
-# ============================================================
+	  
+	  [Sales-to-HCP Join]:
+		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+		  right_table: DIM_HCP
+		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.VERTEX_ID = DIM_HCP.VERTEX_ID
+		  join_type: LEFT JOIN (to preserve HCPs without Veeva profiles)
+		  warning: Do NOT join via HCP_ID between XPO and DIM_HCP — use VERTEX_ID only.
 
-- RULES: 
+	  
+	  [Calls-to-HCP Join]:
+		  left_table: FCT_CALL
+		  right_table: DIM_HCP
+		  join_key: FCT_CALL.HCP_ID = DIM_HCP.ID
+		  join_type: LEFT JOIN
 
-  [HCP Source of Truth]:
-    preference: ALWAYS use DIM_HCP (DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB.MODELED) for HCP attributes.
-    fallback: Use TD_HCP (DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING) ONLY if the
-        specific column (e.g. HCP_DEGREE, KOL_IND, SAMPLEABILITY_IND) is absent in DIM_HCP.
-    key_columns_in_DIM_HCP:
-    - FIRST_NAME, LAST_NAME, NAME         # Full name
-    - PRIMARY_SPECIALTY_DESCRIPTION       # Specialty (prefer over HCP_SPECIALTY in fact tables)
-    - PAINUSCOMM_HCP_SPECIALTY_GROUP      # Specialty Group
-    - CITY, STATE, ZIPCODE                # Location
-    - PAIN_HCP_TARGET, PAIN_HCP_TARGET_TYPE  # Pain targeting flags
-    - PAINUSCOMM_DECILE                   # Decile ranking
-    - STATUS                              # Active / Retired / Deceased
+	  
+	  [Sales-to-Territory Join]:
+		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+		  right_table: DIM_TERRITORY
+		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = DIM_TERRITORY.TERRITORY_NUMBER
+		  note: Use DIM_TERRITORY.NAME for human-readable territory names in output.
 
+	  [Sales-to-Salesforce Hierarchy Join]:
+		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+		  right_table: TD_SALESFORCE_L1
+		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = TD_SALESFORCE_L1.SF_L1_CD
+		  hierarchy:
+			SF_L1_DESC: Individual territory (e.g. "COLUMBIA, SC")
+			SF_L2_DESC: District (e.g. "BLUEGRASS")
+			SF_L3_DESC: Region (e.g. "SOUTHEAST")
+			SF_L4_DESC: National (e.g. "US PAIN SF NATION")
+		  note: >
+			When a user asks for "Region", use SF_L3_DESC.
+			When a user asks for "District", use SF_L2_DESC.
+			When a user asks for "Territory", use SF_L1_DESC or PTAM_TERRITORY_ID.
+			When a user asks for "National", use SF_L4_DESC.
+
+	  
+	  [Sales-to-Product Hierarchy Join]:
+		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+		  right_table: TD_PROD_BRAND
+		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PRODUCT_FAMILY_GROUP = TD_PROD_BRAND.PROD_FAMGRP_CD
+		  hierarchy:
+			PROD_FAMGRP_CD / PROD_FAMGRP_SDESC: Molecule/Family Group (most granular — e.g. "GABAPENTIN")
+			PROD_CAT_SDESC:                     Product Category (e.g. "ANALGESICS OTHER")
+			PROD_CATGRP_SDESC:                  Category Group (e.g. "NON-NARCOTIC ANALGESIC")
+			PROD_MKT_SDESC:                     Market (e.g. "VERTEX ACUTE", "ANY PAIN", "ACUTE HEOR")
+
+	  [Calls-to-Territory Join]:
+		  left_table: FCT_CALL
+		  right_table: DIM_TERRITORY
+		  join_key: FCT_CALL.USER_TERRITORY_ID = DIM_TERRITORY.ID
+		  note: USER_TERRITORY_ID links to the rep's territory. HCP_TERRITORY_ID links to where the HCP is aligned.
+
+	  [User-to-Territory Join for Rep Lookups]:
+		  left_table: REL_USER_TERRITORY
+		  right_table: DIM_TERRITORY
+		  join_key: REL_USER_TERRITORY.TERRITORY_ID = DIM_TERRITORY.ID
+		  filter: REL_USER_TERRITORY.IS_CURRENT = TRUE
+		  note: Use REL_USER_TERRITORY to find which territory a rep currently belongs to.
+
+	  [HCP-to-State Join]:
+		  left_table: DIM_HCP
+		  right_table: TD_GEO_STATE
+		  join_key: DIM_HCP.STATE = TD_GEO_STATE.GEO_STATE_CD
+		  use_when: User asks for state-level analysis, heat maps, or geographic breakdowns.
+
+
+  # ============================================================
+  # SECTION 3: DATE / TIME HANDLING
+  # ============================================================
+
+  - RULES:
   
-  [Sales-to-HCP Join]:
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: DIM_HCP
-    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.VERTEX_ID = DIM_HCP.VERTEX_ID
-    join_type: LEFT JOIN (to preserve HCPs without Veeva profiles)
-    warning: Do NOT join via HCP_ID between XPO and DIM_HCP — use VERTEX_ID only.
+	  [DATE_KEY type in FCT_CALL]:
+		  column: FCT_CALL.DATE_KEY
+		  data_type: VARCHAR(8) stored as 'YYYYMMDD'
+		  cast_for_comparison: TO_DATE(DATE_KEY, 'YYYYMMDD')
+		  examples:
+			- "Last 90 days: TO_DATE(DATE_KEY,'YYYYMMDD') >= DATEADD(day,-90,CURRENT_DATE)"
+			- "Year 2024: TO_DATE(DATE_KEY,'YYYYMMDD') BETWEEN '2024-01-01' AND '2024-12-31'"
 
+	  [DATE_KEY in XPO and LAAD]:
+		  column: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.DATE_KEY and ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD.DATE_KEY
+		  data_type: DATE (no cast needed)
+		  note: >
+			WEEK_DT is also available as NUMBER(10,0) in format YYYYMMDD.
+			DATE_KEY is the preferred column for filtering and joining on dates.
+
+	  [Weekly Data Granularity]:
+		  note: >
+			Both XPO and LAAD tables are weekly. Each row = one HCP + one product + one week.
+			When aggregating to monthly or quarterly, use DATE_TRUNC or YEAR/MONTH functions on DATE_KEY.
+			Example monthly: DATE_TRUNC('month', DATE_KEY) or TO_CHAR(DATE_KEY,'YYYY-MM').
+
+	  [Most Recent Week Logic]:
+		  when: User asks for "current", "latest", "most recent" data without specifying a date.
+		  approach: Filter DATE_KEY = (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO)
+		  note: Do not assume a hardcoded date. Always derive the max date dynamically.
+
+	  [YTD / Rolling Window]:
+		  YTD: DATE_KEY >= DATE_TRUNC('year', CURRENT_DATE) AND DATE_KEY < CURRENT_DATE
+		  Rolling 13 weeks: DATE_KEY >= DATEADD(week, -13, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+		  Rolling 26 weeks: DATE_KEY >= DATEADD(week, -26, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+		  Rolling 52 weeks: DATE_KEY >= DATEADD(week, -52, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+		  Rolling 1 weeks: DATE_KEY >= DATEADD(week, -1, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+		  Rolling 2 weeks: DATE_KEY >= DATEADD(week, -2, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+		  Rolling 3 weeks: DATE_KEY >= DATEADD(week, -3, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+
+
+  # ============================================================
+  # SECTION 4: STANDARD FILTERS & GUARDRAILS
+  # ============================================================
+
+  - RULES:
   
-  [Calls-to-HCP Join]:
-    left_table: FCT_CALL
-    right_table: DIM_HCP
-    join_key: FCT_CALL.HCP_ID = DIM_HCP.ID
-    join_type: LEFT JOIN
+	  [Territory NULL Filter for Sales]:
+		  always_apply: Filter out rows WHERE PTAM_TERRITORY_ID IS NULL in TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.
+		  reason: NULL territory rows are unassigned/orphan records that inflate totals incorrectly.
 
+	  [Submitted Calls Only]:
+		  always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
+		  exception: Only include Planned/Saved if user explicitly says "all calls" or "planned calls".
+
+	  [Active HCPs Only]:
+		  recommendation: When joining to DIM_HCP, consider filtering DIM_HCP.STATUS = 'Active'
+						  unless user asks for historical or inactive HCPs.
+
+	  
+	  [Pain Target HCPs Only]:
+		  when: User asks about "targets", "targeted HCPs", "in-target", "pain targets"
+		  filter: DIM_HCP.PAIN_HCP_TARGET = TRUE
+		  subtypes: DIM_HCP.PAIN_HCP_TARGET_TYPE IN ('VSR', 'PTAM') for specific rep type targets.
+
+	  [Row Limit for HCP Lists]:
+		  apply_when: User asks to "list", "show me", "who are", "top HCPs", "which doctors"
+		  append: LIMIT 20 
+		  reason: Prevents timeouts and excessively large result sets.
+
+	  [Deleted Record Exclusion]:
+		  FCT_CALL: WHERE IS_DELETED = FALSE
+		  DIM_HCP:  WHERE IS_DELETED = FALSE
+		  note: Always exclude soft-deleted records unless specifically requested.
+
+
+  # ============================================================
+  # SECTION 5: DEFAULT GROUPINGS & AGGREGATION BEHAVIOR
+  # ============================================================
+
+  - RULES:
   
-  [Sales-to-Territory Join]:
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: DIM_TERRITORY
-    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = DIM_TERRITORY.TERRITORY_NUMBER
-    note: Use DIM_TERRITORY.NAME for human-readable territory names in output.
+	  [Default Grouping for "Breakdown" Requests]:
+		  when: User asks for "breakdown", "by", "split", "performance" without specifying dimension
+		  any question asked with realtive to hcp level view, the result has to be aggregated.
+		  defaults_in_order:
+			1. HCP_SPECIALTY (from DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION)
+			2. PTAM_TERRITORY_ID or SF_L1_DESC (territory level)
+			3. PRODUCT_FAMILY_GROUP (product level)
+		  note: Use the most contextually relevant grouping. If user mentions territory → group by territory.
 
-  [Sales-to-Salesforce Hierarchy Join]:
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: TD_SALESFORCE_L1
-    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = TD_SALESFORCE_L1.SF_L1_CD
-    hierarchy:
-    SF_L1_DESC: Individual territory (e.g. "COLUMBIA, SC")
-    SF_L2_DESC: District (e.g. "BLUEGRASS")
-    SF_L3_DESC: Region (e.g. "SOUTHEAST")
-    SF_L4_DESC: National (e.g. "US PAIN SF NATION")
-    note: >
-    When a user asks for "Region", use SF_L3_DESC.
-    When a user asks for "District", use SF_L2_DESC.
-    When a user asks for "Territory", use SF_L1_DESC or PTAM_TERRITORY_ID.
-    When a user asks for "National", use SF_L4_DESC.
+	  [Top N Queries]:
+		  when: User asks "top 10", "top 20", "best performing", "highest", "lowest"
+		  pattern: ORDER BY [metric] DESC/ASC LIMIT N
+		  note: Always include HCP name (DIM_HCP.NAME or FIRST_NAME + LAST_NAME) in top-N HCP lists.
 
+	  [Ranking Queries]:
+		  when: User asks for "rank", "ranking", "ranked by"
+		  pattern: >
+			ROW_NUMBER() OVER (PARTITION BY [group_col] ORDER BY [metric] DESC) AS RANK
+		  example: Rank HCPs within each territory by TRx volume.
+
+	  [Period-over-Period Comparisons]:
+		  when: User asks for "vs last year", "YoY", "QoQ", "WoW", "growth", "change"
+		  pattern: >
+			Use LAG() window function or self-join on the same table with shifted date filter.
+			Example (YoY): 
+			  SUM(CASE WHEN YEAR(DATE_KEY) = 2025 THEN ACUTE_TRX_XPO END) AS TRx_2025,
+			  SUM(CASE WHEN YEAR(DATE_KEY) = 2024 THEN ACUTE_TRX_XPO END) AS TRx_2024,
+			  (TRx_2025 - TRx_2024) / NULLIF(TRx_2024, 0) * 100 AS YoY_Growth_Pct
+
+
+  # ============================================================
+  # SECTION 6: SPECIALTY & TERRITORY DIMENSION MAPPINGS
+  # ============================================================
+
+  - RULES:
   
-  [Sales-to-Product Hierarchy Join]:
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: TD_PROD_BRAND
-    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PRODUCT_FAMILY_GROUP = TD_PROD_BRAND.PROD_FAMGRP_CD
-    hierarchy:
-    PROD_FAMGRP_CD / PROD_FAMGRP_SDESC: Molecule/Family Group (most granular — e.g. "GABAPENTIN")
-    PROD_CAT_SDESC:                     Product Category (e.g. "ANALGESICS OTHER")
-    PROD_CATGRP_SDESC:                  Category Group (e.g. "NON-NARCOTIC ANALGESIC")
-    PROD_MKT_SDESC:                     Market (e.g. "VERTEX ACUTE", "ANY PAIN", "ACUTE HEOR")
+	  [HCP Specialty Hierarchy]:
+		  granular:  DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION (e.g. "ANESTHESIOLOGY", "GENERAL SURGERY")
+		  group:     DIM_HCP.PAINUSCOMM_HCP_SPECIALTY_GROUP (e.g. "ANESTHESIOLOGY / PAIN", "NP / PA")
+		  fact_cols: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_SPECIALTY and HCP_SPECIALTY_GROUP
+					 (use as fallback when DIM_HCP join is not available)
+		  note: Prefer DIM_HCP columns; fact table specialty columns may lag Veeva updates.
 
-  [Calls-to-Territory Join]:
-    left_table: FCT_CALL
-    right_table: DIM_TERRITORY
-    join_key: FCT_CALL.USER_TERRITORY_ID = DIM_TERRITORY.ID
-    note: USER_TERRITORY_ID links to the rep's territory. HCP_TERRITORY_ID links to where the HCP is aligned.
+	  [Territory Type Distinction]:
+		  PTAM_TERRITORY_ID: Pain Territory Account Manager territory — primary territory for pain sales data.
+		  SAL_TERRITORY_ID:  SAL (Sales Account Lead) territory — broader geographic sales territory.
+		  note: >
+			For PTAM-specific analysis use PTAM_TERRITORY_ID.
+			When user says "territory" without specifying, default to PTAM_TERRITORY_ID.
+			DIM_TERRITORY.TERRITORY_GROUP = 'US_COMMERCIAL_PTAM' filters only PTAM territories.
 
-  [User-to-Territory Join for Rep Lookups]:
-    left_table: REL_USER_TERRITORY
-    right_table: DIM_TERRITORY
-    join_key: REL_USER_TERRITORY.TERRITORY_ID = DIM_TERRITORY.ID
-    filter: REL_USER_TERRITORY.IS_CURRENT = TRUE
-    note: Use REL_USER_TERRITORY to find which territory a rep currently belongs to.
-
-  [HCP-to-State Join]:
-    left_table: DIM_HCP
-    right_table: TD_GEO_STATE
-    join_key: DIM_HCP.STATE = TD_GEO_STATE.GEO_STATE_CD
-    use_when: User asks for state-level analysis, heat maps, or geographic breakdowns.
+	  [Disease Area Context]:
+		  note: >
+			This data model is focused on PAIN commercial operations.
+			INTERACTION_DISEASE_AREA = 'PAIN' or similar is the relevant filter in FCT_CALL
+			if the user is asking pain-specific call activity. Do not accidentally pull CF, HEME, or T1D calls.
 
 
-# ============================================================
-# SECTION 3: DATE / TIME HANDLING
-# ============================================================
+  # ============================================================
+  # SECTION 7: PRODUCT HIERARCHY SHORTCUTS
+  # ============================================================
 
-- RULES:
-
-  [DATE_KEY type in FCT_CALL]:
-    column: FCT_CALL.DATE_KEY
-    data_type: VARCHAR(8) stored as 'YYYYMMDD'
-    cast_for_comparison: TO_DATE(DATE_KEY, 'YYYYMMDD')
-    examples:
-    - "Last 90 days: TO_DATE(DATE_KEY,'YYYYMMDD') >= DATEADD(day,-90,CURRENT_DATE)"
-    - "Year 2024: TO_DATE(DATE_KEY,'YYYYMMDD') BETWEEN '2024-01-01' AND '2024-12-31'"
-
-  [DATE_KEY in XPO and LAAD]:
-    column: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.DATE_KEY and ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD.DATE_KEY
-    data_type: DATE (no cast needed)
-    note: >
-    WEEK_DT is also available as NUMBER(10,0) in format YYYYMMDD.
-    DATE_KEY is the preferred column for filtering and joining on dates.
-
-  [Weekly Data Granularity]:
-    note: >
-    Both XPO and LAAD tables are weekly. Each row = one HCP + one product + one week.
-    When aggregating to monthly or quarterly, use DATE_TRUNC or YEAR/MONTH functions on DATE_KEY.
-    Example monthly: DATE_TRUNC('month', DATE_KEY) or TO_CHAR(DATE_KEY,'YYYY-MM').
-
-  [Most Recent Week Logic]:
-    when: User asks for "current", "latest", "most recent" data without specifying a date.
-    approach: Filter DATE_KEY = (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO)
-    note: Do not assume a hardcoded date. Always derive the max date dynamically.
-
-  [YTD / Rolling Window]:
-    YTD: DATE_KEY >= DATE_TRUNC('year', CURRENT_DATE) AND DATE_KEY < CURRENT_DATE
-    Rolling 13 weeks: DATE_KEY >= DATEADD(week, -13, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-    Rolling 26 weeks: DATE_KEY >= DATEADD(week, -26, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-    Rolling 52 weeks: DATE_KEY >= DATEADD(week, -52, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-    Rolling 1 weeks: DATE_KEY >= DATEADD(week, -1, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-    Rolling 2 weeks: DATE_KEY >= DATEADD(week, -2, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-    Rolling 3 weeks: DATE_KEY >= DATEADD(week, -3, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-
-
-# ============================================================
-# SECTION 4: STANDARD FILTERS & GUARDRAILS
-# ============================================================
-
-- RULES:
-
-  [Territory NULL Filter for Sales]:
-    always_apply: Filter out rows WHERE PTAM_TERRITORY_ID IS NULL in TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.
-    reason: NULL territory rows are unassigned/orphan records that inflate totals incorrectly.
-
-  [Submitted Calls Only]:
-    always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
-    exception: Only include Planned/Saved if user explicitly says "all calls" or "planned calls".
-
-  [Active HCPs Only]:
-    recommendation: When joining to DIM_HCP, consider filtering DIM_HCP.STATUS = 'Active'
-          unless user asks for historical or inactive HCPs.
-
+  - RULES:
   
-  [Pain Target HCPs Only]:
-    when: User asks about "targets", "targeted HCPs", "in-target", "pain targets"
-    filter: DIM_HCP.PAIN_HCP_TARGET = TRUE
-    subtypes: DIM_HCP.PAIN_HCP_TARGET_TYPE IN ('VSR', 'PTAM') for specific rep type targets.
+	  [Journavx / Suzetrigine Queries]:
+		  note: >
+			Journavx (suzetrigine) is a branded pain product. When user asks about Journavx:
+			Filter BRANDED_FLAG = 'Y' and join TD_PROD_BRAND to identify the relevant PROD_FAMGRP_CD.
+			CLM_PRESENTATION_NAME in FCT_CALL may contain 'JOURNAVX' for call-level CLM analysis.
 
-  [Row Limit for HCP Lists]:
-    apply_when: User asks to "list", "show me", "who are", "top HCPs", "which doctors"
-    append: LIMIT 20 
-    reason: Prevents timeouts and excessively large result sets.
+	  [Branded-Only Market Share]:
+		  when: User asks for "Vertex share", "branded share", "market share"
+		  approach: >
+			Calculate SUM(ACUTE_TRX_XPO WHERE BRANDED_FLAG='Y') / SUM(ACUTE_TRX_XPO) * 100
+			grouped by relevant dimension (territory, specialty, etc.)
 
-  [Deleted Record Exclusion]:
-    FCT_CALL: WHERE IS_DELETED = FALSE
-    DIM_HCP:  WHERE IS_DELETED = FALSE
-    note: Always exclude soft-deleted records unless specifically requested.
-
-
-# ============================================================
-# SECTION 5: DEFAULT GROUPINGS & AGGREGATION BEHAVIOR
-# ============================================================
-
-- RULES:
-
-  [Default Grouping for "Breakdown" Requests]:
-    when: User asks for "breakdown", "by", "split", "performance" without specifying dimension
-    any question asked with realtive to hcp level view, the result has to be aggregated.
-    defaults_in_order:
-    1. HCP_SPECIALTY (from DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION)
-    2. PTAM_TERRITORY_ID or SF_L1_DESC (territory level)
-    3. PRODUCT_FAMILY_GROUP (product level)
-    note: Use the most contextually relevant grouping. If user mentions territory → group by territory.
-
-  [Top N Queries]:
-    when: User asks "top 10", "top 20", "best performing", "highest", "lowest"
-    pattern: ORDER BY [metric] DESC/ASC LIMIT N
-    note: Always include HCP name (DIM_HCP.NAME or FIRST_NAME + LAST_NAME) in top-N HCP lists.
-
-  [Ranking Queries]:
-    when: User asks for "rank", "ranking", "ranked by"
-    pattern: >
-    ROW_NUMBER() OVER (PARTITION BY [group_col] ORDER BY [metric] DESC) AS RANK
-    example: Rank HCPs within each territory by TRx volume.
-
-  [Period-over-Period Comparisons]:
-    when: User asks for "vs last year", "YoY", "QoQ", "WoW", "growth", "change"
-    pattern: >
-    Use LAG() window function or self-join on the same table with shifted date filter.
-    Example (YoY): 
-      SUM(CASE WHEN YEAR(DATE_KEY) = 2025 THEN ACUTE_TRX_XPO END) AS TRx_2025,
-      SUM(CASE WHEN YEAR(DATE_KEY) = 2024 THEN ACUTE_TRX_XPO END) AS TRx_2024,
-      (TRx_2025 - TRx_2024) / NULLIF(TRx_2024, 0) * 100 AS YoY_Growth_Pct
+	  [Market Segment Filtering]:
+		  PROD_MKT_SDESC values:
+			- 'VERTEX ACUTE'  = Vertex-branded acute pain products
+			- 'ANY PAIN'      = Full pain market (all products)
+			- 'ACUTE HEOR'    = HEOR (Health Economics) acute market
+		  recommendation: >
+			For competitive analysis, use 'ANY PAIN' market.
+			For Vertex performance, use 'VERTEX ACUTE' market.
+			Join via XPO_PROD_BRAND relationship (PRODUCT_FAMILY_GROUP = PROD_FAMGRP_CD).
 
 
-# ============================================================
-# SECTION 6: SPECIALTY & TERRITORY DIMENSION MAPPINGS
-# ============================================================
+  # ============================================================
+  # SECTION 8: INTERACTION / CALL SPECIFIC LOGIC
+  # ============================================================
 
-- RULES:
-
-  [HCP Specialty Hierarchy]:
-    granular:  DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION (e.g. "ANESTHESIOLOGY", "GENERAL SURGERY")
-    group:     DIM_HCP.PAINUSCOMM_HCP_SPECIALTY_GROUP (e.g. "ANESTHESIOLOGY / PAIN", "NP / PA")
-    fact_cols: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_SPECIALTY and HCP_SPECIALTY_GROUP
-         (use as fallback when DIM_HCP join is not available)
-    note: Prefer DIM_HCP columns; fact table specialty columns may lag Veeva updates.
-
-  [Territory Type Distinction]:
-    PTAM_TERRITORY_ID: Pain Territory Account Manager territory — primary territory for pain sales data.
-    SAL_TERRITORY_ID:  SAL (Sales Account Lead) territory — broader geographic sales territory.
-    note: >
-    For PTAM-specific analysis use PTAM_TERRITORY_ID.
-    When user says "territory" without specifying, default to PTAM_TERRITORY_ID.
-    DIM_TERRITORY.TERRITORY_GROUP = 'US_COMMERCIAL_PTAM' filters only PTAM territories.
-
-  [Disease Area Context]:
-    note: >
-    This data model is focused on PAIN commercial operations.
-    INTERACTION_DISEASE_AREA = 'PAIN' or similar is the relevant filter in FCT_CALL
-    if the user is asking pain-specific call activity. Do not accidentally pull CF, HEME, or T1D calls.
-
-
-# ============================================================
-# SECTION 7: PRODUCT HIERARCHY SHORTCUTS
-# ============================================================
-
-- RULES:
-
-  [Journavx / Suzetrigine Queries]:
-    note: >
-    Journavx (suzetrigine) is a branded pain product. When user asks about Journavx:
-    Filter BRANDED_FLAG = 'Y' and join TD_PROD_BRAND to identify the relevant PROD_FAMGRP_CD.
-    CLM_PRESENTATION_NAME in FCT_CALL may contain 'JOURNAVX' for call-level CLM analysis.
-
-  [Branded-Only Market Share]:
-    when: User asks for "Vertex share", "branded share", "market share"
-    approach: >
-    Calculate SUM(ACUTE_TRX_XPO WHERE BRANDED_FLAG='Y') / SUM(ACUTE_TRX_XPO) * 100
-    grouped by relevant dimension (territory, specialty, etc.)
-
-  [Market Segment Filtering]:
-    PROD_MKT_SDESC values:
-    - 'VERTEX ACUTE'  = Vertex-branded acute pain products
-    - 'ANY PAIN'      = Full pain market (all products)
-    - 'ACUTE HEOR'    = HEOR (Health Economics) acute market
-    recommendation: >
-    For competitive analysis, use 'ANY PAIN' market.
-    For Vertex performance, use 'VERTEX ACUTE' market.
-    Join via XPO_PROD_BRAND relationship (PRODUCT_FAMILY_GROUP = PROD_FAMGRP_CD).
-
-
-# ============================================================
-# SECTION 8: INTERACTION / CALL SPECIFIC LOGIC
-# ============================================================
-
-- RULES:
-
-  [Counting Unique Interactions vs. HCPs Reached]:
-    always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
-    unique_interactions: COUNT(DISTINCT FCT_CALL.INTERACTION_ID)
-    unique_HCPs_reached: COUNT(DISTINCT FCT_CALL.HCP_ID)
-    note: These are different metrics. Clarify which is needed. One rep can call same HCP multiple times.
-
-  [Most Recent Interaction per HCP]:
-    use_fact: FCT_CALL.HCP_INTERACTION_ROW_NUMBER = 1
-    note: >
-    This pre-computed row number ranks interactions per HCP by date DESC.
-    Row number 1 = most recent interaction.
-    Use when user asks "last call", "most recent visit", "when was the last contact".
-
+  - RULES:
   
-   whenever the user asks questions about engagement and sales , first aggregate the sales data at the brand hcp id level then join the aggregated data needs to join with respect to latest call date. Join aggregated sales data with dim_hcp using vertex id then full outer join with fct call hcp_id using dim_hcp  id with respect to latest call date of hcp  column.
+	  [Counting Unique Interactions vs. HCPs Reached]:
+		  always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
+		  unique_interactions: COUNT(DISTINCT FCT_CALL.INTERACTION_ID)
+		  unique_HCPs_reached: COUNT(DISTINCT FCT_CALL.HCP_ID)
+		  note: These are different metrics. Clarify which is needed. One rep can call same HCP multiple times.
 
-# ============================================================
-# SECTION 9: COMMON QUERY PATTERNS (TEMPLATES)
-# ============================================================
+	  [Most Recent Interaction per HCP]:
+		  use_fact: FCT_CALL.HCP_INTERACTION_ROW_NUMBER = 1
+		  note: >
+			This pre-computed row number ranks interactions per HCP by date DESC.
+			Row number 1 = most recent interaction.
+			Use when user asks "last call", "most recent visit", "when was the last contact".
 
-- PATTERN A [TRx by Territory, Current Quarter]:
-    description: Total TRx by PTAM Territory for the current quarter
-    template: |
-      SELECT
-        t.SF_L1_DESC AS territory_name,
-        SUM(x.ACUTE_TRX_XPO) AS total_trx
-      FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
-      JOIN TD_SALESFORCE_L1 t ON x.PTAM_TERRITORY_ID = t.SF_L1_CD
-      WHERE x.PTAM_TERRITORY_ID IS NOT NULL
-        AND x.DATE_KEY >= DATE_TRUNC('quarter', CURRENT_DATE)
-      GROUP BY t.SF_L1_DESC
-      ORDER BY total_trx DESC
+	  
+	   whenever the user asks questions about engagement and sales , first aggregate the sales data at the brand hcp id level then join the aggregated data needs to join with respect to latest call date. Join aggregated sales data with dim_hcp using vertex id then full outer join with fct call hcp_id using dim_hcp  id with respect to latest call date of hcp  column.
 
-- PATTERN B [Top HCPs by NRx with Name]:
-    description: Top 20 HCPs by NRx with their name and specialty
-    template: |
-      SELECT
-        h.NAME AS hcp_name,
-        h.PRIMARY_SPECIALTY_DESCRIPTION AS specialty,
-        SUM(x.ACUTE_NRX_XPO) AS total_nrx
-      FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
-      JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
-      WHERE x.PTAM_TERRITORY_ID IS NOT NULL
-        AND h.IS_DELETED = FALSE
-      GROUP BY h.NAME, h.PRIMARY_SPECIALTY_DESCRIPTION
-      ORDER BY total_nrx DESC
-      LIMIT 20
+  # ============================================================
+  # SECTION 9: COMMON QUERY PATTERNS (TEMPLATES)
+  # ============================================================
 
-- PATTERN C [Call Count by Territory, Submitted Only]:
-    description: Number of interactions made per PTAM territory
-    template: |
-      SELECT
-        t.SF_L1_DESC AS territory_name,
-        COUNT(DISTINCT c.INTERACTION_ID) AS call_count
-      FROM FCT_CALL c
-      JOIN DIM_TERRITORY dt ON c.USER_TERRITORY_ID = dt.ID
-      JOIN TD_SALESFORCE_L1 t ON dt.TERRITORY_NUMBER = t.SF_L1_CD
-      WHERE c.STATUS = 'Submitted'
-        AND c.INTERACTION_DISEASE_AREA LIKE '%PAIN%'
-      GROUP BY t.SF_L1_DESC
-      ORDER BY call_count DESC
+  - PATTERN A [TRx by Territory, Current Quarter]:
+      description: Total TRx by PTAM Territory for the current quarter
+      template: |
+        SELECT
+          t.SF_L1_DESC AS territory_name,
+          SUM(x.ACUTE_TRX_XPO) AS total_trx
+        FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
+        JOIN TD_SALESFORCE_L1 t ON x.PTAM_TERRITORY_ID = t.SF_L1_CD
+        WHERE x.PTAM_TERRITORY_ID IS NOT NULL
+          AND x.DATE_KEY >= DATE_TRUNC('quarter', CURRENT_DATE)
+        GROUP BY t.SF_L1_DESC
+        ORDER BY total_trx DESC
 
-- PATTERN D [XPO vs LAAD Index by HCP]:
-    description: Performance index (actual vs benchmark) per HCP
-    template: |
-      SELECT
-        h.NAME AS hcp_name,
-        x.PRODUCT_FAMILY_GROUP,
-        SUM(x.ACUTE_TRX_XPO) AS actual_trx,
-        SUM(l.ACUTE_TRX_LAAD) AS benchmark_trx,
-        ROUND(SUM(x.ACUTE_TRX_XPO) / NULLIF(SUM(l.ACUTE_TRX_LAAD), 0), 2) AS index_score
-      FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
-      JOIN ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD l
-        ON x.HCP_ID = l.HCP_ID
-       AND x.PRODUCT_FAMILY_GROUP = l.PRODUCT_FAMILY_GROUP
-       AND x.DATE_KEY = l.DATE_KEY
-      JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
-      WHERE x.PTAM_TERRITORY_ID IS NOT NULL
-      GROUP BY h.NAME,  x.PRODUCT_FAMILY_GROUP
-      ORDER BY index_score DESC
-      LIMIT 20
+  - PATTERN B [Top HCPs by NRx with Name]:
+      description: Top 20 HCPs by NRx with their name and specialty
+      template: |
+        SELECT
+          h.NAME AS hcp_name,
+          h.PRIMARY_SPECIALTY_DESCRIPTION AS specialty,
+          SUM(x.ACUTE_NRX_XPO) AS total_nrx
+        FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
+        JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
+        WHERE x.PTAM_TERRITORY_ID IS NOT NULL
+          AND h.IS_DELETED = FALSE
+        GROUP BY h.NAME, h.PRIMARY_SPECIALTY_DESCRIPTION
+        ORDER BY total_nrx DESC
+        LIMIT 20
 
+  - PATTERN C [Call Count by Territory, Submitted Only]:
+      description: Number of interactions made per PTAM territory
+      template: |
+        SELECT
+          t.SF_L1_DESC AS territory_name,
+          COUNT(DISTINCT c.INTERACTION_ID) AS call_count
+        FROM FCT_CALL c
+        JOIN DIM_TERRITORY dt ON c.USER_TERRITORY_ID = dt.ID
+        JOIN TD_SALESFORCE_L1 t ON dt.TERRITORY_NUMBER = t.SF_L1_CD
+        WHERE c.STATUS = 'Submitted'
+          AND c.INTERACTION_DISEASE_AREA LIKE '%PAIN%'
+        GROUP BY t.SF_L1_DESC
+        ORDER BY call_count DESC
 
-# ============================================================
-# SECTION 10: ANTI-PATTERNS & COMMON MISTAKES TO AVOID
-# ============================================================
-
-- AVOID 1: Never join FCT_CALL.HCP_ID to DIM_HCP.VERTEX_ID — the correct key is DIM_HCP.ID.
-- AVOID 2: Never join TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_ID directly to DIM_HCP.ID — use VERTEX_ID.
-- AVOID 3: Never compare FCT_CALL.DATE_KEY (VARCHAR) to a DATE without casting: TO_DATE(DATE_KEY, 'YYYYMMDD').
-- AVOID 4: Never include rows where PTAM_TERRITORY_ID IS NULL in sales/prescription aggregations.
-- AVOID 5: Never include STATUS != 'Submitted' calls when measuring actual field activity.
-- AVOID 6: Never divide by zero — always wrap denominators in NULLIF(..., 0).
-- AVOID 7: USE ONLY PTAM_TERRITORY_ID and NOT USE SAM_TERRITORY_ID for queries.
-- AVOID 8: Never assume "Journavx" or a branded product appears without filtering BRANDED_FLAG = 'Y'.
-- AVOID 9: Never return unlimited rows for all the queries — always apply LIMIT 20.
-- AVOID 10: YOU MUST NOT STRICTLY CREATE SEMANTIC VIEW QUERIES. ONLY GENERATE AND EXCEUTE VALID QUERIES BASED ON ACTUAL TABLES.
+  - PATTERN D [XPO vs LAAD Index by HCP]:
+      description: Performance index (actual vs benchmark) per HCP
+      template: |
+        SELECT
+          h.NAME AS hcp_name,
+          x.PRODUCT_FAMILY_GROUP,
+          SUM(x.ACUTE_TRX_XPO) AS actual_trx,
+          SUM(l.ACUTE_TRX_LAAD) AS benchmark_trx,
+          ROUND(SUM(x.ACUTE_TRX_XPO) / NULLIF(SUM(l.ACUTE_TRX_LAAD), 0), 2) AS index_score
+        FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
+        JOIN ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD l
+          ON x.HCP_ID = l.HCP_ID
+         AND x.PRODUCT_FAMILY_GROUP = l.PRODUCT_FAMILY_GROUP
+         AND x.DATE_KEY = l.DATE_KEY
+        JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
+        WHERE x.PTAM_TERRITORY_ID IS NOT NULL
+        GROUP BY h.NAME,  x.PRODUCT_FAMILY_GROUP
+        ORDER BY index_score DESC
+        LIMIT 20
 
 
-# ============================================================
-# SECTION 11: CRITICAL ADDITIONAL INSTRUCTIONS
-# ============================================================
+  # ============================================================
+  # SECTION 10: ANTI-PATTERNS & COMMON MISTAKES TO AVOID
+  # ============================================================
+
+  - AVOID 1: Never join FCT_CALL.HCP_ID to DIM_HCP.VERTEX_ID — the correct key is DIM_HCP.ID.
+  - AVOID 2: Never join TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_ID directly to DIM_HCP.ID — use VERTEX_ID.
+  - AVOID 3: Never compare FCT_CALL.DATE_KEY (VARCHAR) to a DATE without casting: TO_DATE(DATE_KEY, 'YYYYMMDD').
+  - AVOID 4: Never include rows where PTAM_TERRITORY_ID IS NULL in sales/prescription aggregations.
+  - AVOID 5: Never include STATUS != 'Submitted' calls when measuring actual field activity.
+  - AVOID 6: Never divide by zero — always wrap denominators in NULLIF(..., 0).
+  - AVOID 7: USE ONLY PTAM_TERRITORY_ID and NOT USE SAM_TERRITORY_ID for queries.
+  - AVOID 8: Never assume "Journavx" or a branded product appears without filtering BRANDED_FLAG = 'Y'.
+  - AVOID 9: Never return unlimited rows for all the queries — always apply LIMIT 20.
 
 
-RULE 1:
 
-"High Potential" ALWAYS points to Top 10% by the metric `acute prescription volume` .
+**CRITICAL**
 
-RULE 2:
+** The Three Core Business Rules **
 
-YOU MUST ALWAYS USE ` SUM(acute_units_xpo)`  for 'Procedural Volume' calculations.
+1. Metric Mapping (Bottle Credit & Performance)
 
-RULE 3:
+Bottle Credit: Mapped to acute_trx_xpo
 
-YOU MUST ALWAYS USE  `prescription volume` as the metric  when there is a mention about 'outperforming the nation' in the question.
+Performance: "Outperforming the nation" Calculate the average on national level and compare with average sales at nation level based on acute_trx_xpo value. 
 
- RULE 4:
+2. HCP Potential & Volume
 
-FOR `activity` related query , YOU MUST ALWAYS USE `FCT_CALL` table.
+Definition: "High Volume," "High Potential," or "High" means the Top 10% of HCPs by total sales.
 
-RULE 5:
+Calculation: Use SUM(acute_trx_xpo) to rank HCPs and filter for the top 10th percentile.
 
-NEW WRITER DEFINITION: "First-Time Prescriber" or "First Time HCP Writer" ALWAYS relates to record where acute_nrx_xpo > 0 for the first time.
+Threshold: Only include HCPs where SUM(acute_trx_xpo) >= 5 to remove low-volume noise.
 
-RULE 6:
+3. First-Time Prescribers/ First Time HCP writers.
 
-WILDCARD ENFORCEMENT: For all product_category queries, you are PROHIBITED from using = or IN.
+Definition: Any HCP writing their very first prescription (acute_nrx_xpo > 0).
 
-Execution: YOU MUST USE LIKE '%[value]%' exclusively to ensure full capture of categorical data.
+4. if someone asks about product category details run the like function not the = or in function.
+
+5.if someone asks about procedural volume take the acute_units_xpo not acute_trx_xpo.

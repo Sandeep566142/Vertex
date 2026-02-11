@@ -1,2788 +1,440 @@
-name: NEW_ARD_ALL
-tables:
-  - name: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
-    description: The table contains records of healthcare provider activity in the acute care market, tracked on a weekly basis. Each record represents a healthcare provider's performance metrics during a specific week, including details about their specialty, geographic location, territory assignments, product categories, and procedure types.
-    base_table:
-      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
-      schema: REPORTING
-      table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
-    dimensions:
-      - name: ACUTE_EPISODES_LAAD
-        description: The number of acute episodes during the look-alike audience period.
-        expr: ACUTE_EPISODES_LAAD
-        data_type: NUMBER(18,0)
-        sample_values:
-          - '2'
-          - '3'
-          - '1'
-      - name: ACUTE_PROCEDURES_LAAD
-        description: The number of acute procedures performed using left atrial appendage device (LAAD) technology.
-        expr: ACUTE_PROCEDURES_LAAD
-        data_type: NUMBER(18,0)
-        sample_values:
-          - '3'
-          - '2'
-          - '1'
-      - name: ACUTE_REFILLS_LAAD
-        description: The number of acute medication refills during the look-alike analysis period.
-        expr: ACUTE_REFILLS_LAAD
-        data_type: NUMBER(13,0)
-        sample_values:
-          - '1'
-          - '2'
-          - '0'
-      - name: BRANDED_FLAG
-        description: Indicator of whether the product or item is branded.
-        expr: BRANDED_FLAG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'Y'
-          - 'N'
-      - name: GOLDEN_ID
-        description: Unique identifier assigned to healthcare providers in the golden record system.
-        expr: GOLDEN_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - GLD011401140148004205
-          - GLD000500050116006206
-          - GLD010801080141009205
-      - name: HCP_ID
-        description: Unique identifier for a healthcare professional.
-        expr: HCP_ID
-        data_type: VARCHAR(32)
-        sample_values:
-          - 6189503de946e1dc06c9d5d4dd38db1b
-          - 5d5ed1d29b3e316e7d47a3aa2ae8a064
-          - 905c8af00b9752a12b8ecc5db126e103
-      - name: HCP_SPECIALTY
-        description: The medical specialty or professional designation of the healthcare provider.
-        expr: HCP_SPECIALTY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - GENERAL SURGERY
-          - EMERGENCY MEDICINE
-          - NURSE PRACTITIONER
-      - name: HCP_SPECIALTY_GROUP
-        description: The specialty group classification for healthcare providers.
-        expr: HCP_SPECIALTY_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - DENTISTRY
-          - PHYSICIAN EXTENDERS
-          - ORTHOPEDICS AND SPORTS MEDICINE
-      - name: NPI
-        description: National Provider Identifier for healthcare providers.
-        expr: NPI
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '1477824399'
-          - '1104802685'
-          - '1548557580'
-      - name: ONEKEY_HCP_ID
-        description: Unique identifier for healthcare professionals in the OneKey system.
-        expr: ONEKEY_HCP_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - WUSM00016371
-          - WUSM03467245
-          - WUSM01255088
-      - name: PRACTICE_SETTING
-        description: The type of healthcare practice setting where services are provided.
-        expr: PRACTICE_SETTING
-        data_type: VARCHAR(256)
-        sample_values:
-          - RETAIL
-          - DISCHARGE
-      - name: PROCEDURE_GROUP
-        description: The category or grouping of medical procedures performed.
-        expr: PROCEDURE_GROUP
-        data_type: VARCHAR(256)
-        sample_values:
-          - LAPAROSCOPIC UROLOGIC PROCEDURES
-          - JOINT REPAIR
-          - JOINT REPLACEMENT
-      - name: PRODUCT_CATEGORY
-        description: The therapeutic category classification of pain management and analgesic pharmaceutical products.
-        expr: PRODUCT_CATEGORY
-        data_type: VARCHAR(256)
-        sample_values:
-          - ANTICONVULSANTS MISC.
-          - ANALGESICS-SEDATIVE COMBINATION
-          - ANALGESICS OTHER
-      - name: PRODUCT_FAMILY_GROUP
-        description: Pharmaceutical product family group names for pain management medications.
-        expr: PRODUCT_FAMILY_GROUP
-        data_type: VARCHAR(256)
-        sample_values:
-          - GABAPENTIN
-          - OXYCODONE
-          - PREGABALIN
-      - name: PTAM_TERRITORY_ID
-        description: Unique identifier for a PTAM (Pain Team Account Manager) territory.
-        expr: PTAM_TERRITORY_ID
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5733504
-          - V1NAUSA-5734302
-          - V1NAUSA-5733501
-      - name: ROA
-        description: Route of administration for the pharmaceutical product.
-        expr: ROA
-        data_type: VARCHAR(256)
-        sample_values:
-          - ORAL-SOLUTION
-          - TOPICAL
-          - TOPICAL-PATCH
-      - name: SAL_TERRITORY_ID
-        description: Sales territory identifier for tracking geographic or organizational sales regions.
-        expr: SAL_TERRITORY_ID
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5720013
-          - V1NAUSA-5720016
-          - V1NAUSA-5720004
-      - name: SITE_OF_CARE_ZIP_CODE
-        description: ZIP code for the site of care location.
-        expr: SITE_OF_CARE_ZIP_CODE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '21853'
-          - '89052'
-          - '32571'
-      - name: VERTEX_ID
-        description: Unique identifier for a healthcare professional or entity within the Vertex system.
-        expr: VERTEX_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '14450768'
-          - '14481367'
-          - '14822624'
-      - name: WEEK_DT
-        description: The date representing the week in the acute market healthcare provider reporting period.
-        expr: WEEK_DT
-        data_type: NUMBER(10,0)
-        sample_values:
-          - '20240503'
-          - '20241025'
-          - '20230428'
-      - name: ZIP_CODE
-        description: United States postal ZIP codes for geographic locations.
-        expr: ZIP_CODE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '43214'
-          - '39402'
-          - '42301'
-    time_dimensions:
-      - name: DATE_KEY
-        description: The date associated with the weekly market data record.
-        expr: DATE_KEY
-        data_type: DATE
-        sample_values:
-          - '2022-12-23'
-          - '2024-11-15'
-          - '2025-04-18'
-    facts:
-      - name: ACUTE_CALENDAR_DAYS_LAAD
-        description: The number of calendar days in the acute period for the last as-of date (LAAD).
-        expr: ACUTE_CALENDAR_DAYS_LAAD
-        data_type: NUMBER(38,5)
-        access_modifier: public_access
-        sample_values:
-          - '30.00000'
-          - '5.00000'
-          - '68.00000'
-      - name: ACUTE_TRX_LAAD
-        description: The number of acute care transactions in the last-as-advertised period.
-        expr: ACUTE_TRX_LAAD
-        data_type: NUMBER(18,0)
-        access_modifier: public_access
-        sample_values:
-          - '3'
-          - '2'
-          - '1'
-      - name: ACUTE_TX_DAYS_LAAD
-        description: The number of days of acute treatment in the look-back period.
-        expr: ACUTE_TX_DAYS_LAAD
-        data_type: NUMBER(38,5)
-        access_modifier: public_access
-        sample_values:
-          - '5.00000'
-          - '3.00000'
-          - '30.00000'
-      - name: ACUTE_UNITS_LAAD
-        description: Acute care units for the latest available data period.
-        expr: ACUTE_UNITS_LAAD
-        data_type: NUMBER(38,5)
-        access_modifier: public_access
-        sample_values:
-          - '28.00000'
-          - '15.00000'
-          - '30.00000'
-    primary_key:
-      columns:
-        - HCP_ID
-        - PRODUCT_FAMILY_GROUP
-        - DATE_KEY
-  - name: DIM_HCP
-    description: The table contains records of healthcare professionals and their organizational affiliations. Each record includes contact information, segmentation classifications across multiple therapeutic areas and geographic regions, and access or priority designations.
-    base_table:
-      database: DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB
-      schema: MODELED
-      table: DIM_HCP
-    dimensions:
-      - name: ADDRESS_LINE_1
-        description: HCP address line 1
-        expr: ADDRESS_LINE_1
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 2450 RIVERSIDE AVE
-          - 8080 BLUEBONNET BLVD
-          - 5010 CRENSHAW RD STE 130
-      - name: ADDRESS_LINE_2
-        description: HCP address line 2
-        expr: ADDRESS_LINE_2
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 3400 CIVIC CENTER BLVD
-          - 99 ROUTE 37 W
-          - '# N3W143'
-      - name: ADOPTION_LADDER
-        description: The stage or level of product adoption by the healthcare professional.
-        expr: ADOPTION_LADDER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Advocate
-          - Detractor
-          - '[Not Profiled]'
-      - name: CENTER_ROLE
-        description: The role or function of the healthcare professional within their medical center or institution.
-        expr: CENTER_ROLE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Transplant Nephrologist
-          - '[Not Profiled]'
-          - Transplant Surgeon
-      - name: CFGMA_HCP_SEG
-        description: Segmentation field for CF Global Medical Affairs.
-        expr: CFGMA_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Regional/Thought Leader
-          - Community/Potential Thought Leader
-      - name: CFGMA_NO_ACCESS
-        description: Indicates whether the healthcare professional is restricted from CFGMA access.
-        expr: CFGMA_NO_ACCESS
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-          - 'TRUE'
-      - name: CFGMA_TOP_TERRITORY_TL
-        description: Flag to identify top tl at territory level for CF Medical Team
-        expr: CFGMA_TOP_TERRITORY_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: CFINTLCOMM_HCO_TIER
-        description: The tier classification assigned to the healthcare organization for international commercial purposes.
-        expr: CFINTLCOMM_HCO_TIER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - A
-          - C
-      - name: CFINTLCOMM_HCP_SEG
-        description: Segmentation field for CF International Commercial.
-        expr: CFINTLCOMM_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Advocator
-          - Striver
-      - name: CFUSCOMM_HCP_SEG
-        description: Segmentation field for CF US Commercial.
-        expr: CFUSCOMM_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Unknown
-          - Striver
-      - name: CITY
-        description: HCP city
-        expr: CITY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Shelbyville
-          - Cliffwood Beach
-          - FRIENDSWOOD
-      - name: COUNTRY
-        description: Country of the HCP
-        expr: COUNTRY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - UNITED STATES
-          - ITALY
-          - CANADA
-      - name: CREATED_BY
-        description: ID of the user who created this record.
-        expr: CREATED_BY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 005Q5000005FtXbIAK
-          - 005Q5000005FtFqIAK
-          - 0058d000001vqKDAAY
-      - name: DATA_SOURCE
-        description: Source system for this record i.e. Mosaic or VEEVA
-        expr: DATA_SOURCE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - VEEVA
-          - MOSAIC
-      - name: DISEASE_AREA_FOCUS
-        description: Value of disease area to which HCP is aligned in VEEVA
-        expr: DISEASE_AREA_FOCUS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - HEME;PAIN;T1D
-          - PAIN
-          - HEME;PAIN
-      - name: DO_NOT_CALL
-        description: TBD
-        expr: DO_NOT_CALL
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'No'
-          - 'Yes'
-      - name: EMAIL
-        description: Email Address of the HCP
-        expr: EMAIL
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - domek.reyes@yahoo.com
-          - athomas@nephdocs.com
-          - wendy_mccarty@urmc.rochester.edu
-      - name: FIRST_NAME
-        description: First Name of the health care professional.
-        expr: FIRST_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - KACI
-          - SARITHA
-          - Kathie
-      - name: FORMULARY_DECISION_MAKER
-        description: Indicates whether the healthcare professional has authority to make formulary decisions.
-        expr: FORMULARY_DECISION_MAKER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'Yes'
-          - 'No'
-      - name: GMA_CF_TOP_TL
-        description: Flag to identify Top HCPs as managed by CF Medical team
-        expr: GMA_CF_TOP_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: GMA_HEME_TOP_TL
-        description: Flag to identify Top HCPs as managed by HEME Medical team
-        expr: GMA_HEME_TOP_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: GMA_KIDNEY_TOP_TL
-        description: Flag to identify Top HCPs as managed by Kidney Medical team
-        expr: GMA_KIDNEY_TOP_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-      - name: GMA_NO_ACCESS
-        description: Deprecated. Use CFGMA_NO_ACCESS.
-        expr: GMA_NO_ACCESS
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: GMA_PAIN_TOP_TL
-        description: Flag to identify Top HCPs as managed by PAIN Medical team
-        expr: GMA_PAIN_TOP_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: GMA_T1D_TOP_TL
-        description: Flag to identify Top HCPs as managed by T1D Medical team
-        expr: GMA_T1D_TOP_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-      - name: GMA_TOP_TERRITORY_TL
-        description: Flag to identify top tl at territory level for Medical Team
-        expr: GMA_TOP_TERRITORY_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: GMAPAIN_HCP_META_SPECIALTY
-        description: The medical specialty or professional designation of the healthcare provider.
-        expr: GMAPAIN_HCP_META_SPECIALTY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Surgery
-          - Pharmacy
-      - name: HCO_ID
-        description: ID of the parent health care organization.
-        expr: HCO_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 001Q500000FTlDfIAL
-          - 001Q500000Ms5ldIAB
-          - 001Q500000UOVbmIAH
-      - name: HCO_NAME
-        description: The name of the healthcare organization where the healthcare professional practices or is affiliated.
-        expr: HCO_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - WELLSTAR DOUGLAS HOSPITAL, INC
-          - NEPHROCARE OF TENNESSEE
-          - UNIVERSITY OF TENNESSEE MEDICAL CENTER
-      - name: HEME_ACCOUNT_TYPE
-        description: The type of hematology account classification assigned to the healthcare professional or organization.
-        expr: HEME_ACCOUNT_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Other HCO
-          - ATC
-      - name: HEMEGMA_HCP_SEG
-        description: Segmentation for HEME Global Medical Affairs.
-        expr: HEMEGMA_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Regional/Thought Leader
-          - Community/Potential Thought Leader
-      - name: HEMEGMA_NO_ACCESS
-        description: Flag to identify accessibility of HCP for HEME Medical Team
-        expr: HEMEGMA_NO_ACCESS
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: HEMEGMA_TOP_25
-        description: Flag to identify Top 25 HCPs as managed by HEME, PAIN & CF Medical team
-        expr: HEMEGMA_TOP_25
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-          - 'TRUE'
-      - name: HEMEGMA_TOP_TERRITORY_TL
-        description: Flag to identify top tl at territory level for HEME Medical Team
-        expr: HEMEGMA_TOP_TERRITORY_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-          - 'TRUE'
-      - name: HEMEINTLCOMM_HCP_SEG
-        description: Segmentation field for HEME International Commercial.
-        expr: HEMEINTLCOMM_HCP_SEG
-        data_type: VARCHAR(16777216)
-      - name: HEMEINTLCOMM_HCP_TARGET_TYPE
-        description: The target type classification for healthcare professionals in the hematology international commercial segment.
-        expr: HEMEINTLCOMM_HCP_TARGET_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - MDT - Prescriber
-          - Referrer
-      - name: HEMEUSCOMM_HCP_SEG
-        description: Segmentation field for HEME US Commercial.
-        expr: HEMEUSCOMM_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Patient Facing Care Team
-          - Activation | Onboarding
-      - name: HEMEUSCOMM_HCP_SEG2
-        description: Segmentation field for HEME US Commercial.
-        expr: HEMEUSCOMM_HCP_SEG2
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Patient Facing Care Team
-          - Activation | Onboarding
-      - name: HEMEUSCOMM_HCP_SEG3
-        description: Segmentation field for HEME US Commercial.
-        expr: HEMEUSCOMM_HCP_SEG3
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Treatment Stakeholder
-          - Not Treatment Stakeholder
-      - name: HEMEUSCOMM_HCP_TARGET_TYPE
-        description: The target type classification for healthcare professionals in the hematology United States commercial segment.
-        expr: HEMEUSCOMM_HCP_TARGET_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - A
-          - B
-      - name: HEMEUSCOMM_STAKEHOLDER_TYPE
-        description: The stakeholder type classification for hematology and oncology healthcare professionals in the United States commercial segment.
-        expr: HEMEUSCOMM_STAKEHOLDER_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Advocate
-          - Account Activation Decider
-      - name: ICT_PROGRAM_ROLE
-        description: The role of the healthcare professional within the ICT (Information and Communication Technology) program.
-        expr: ICT_PROGRAM_ROLE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Procedure
-          - IS Management
-          - '[Not Profiled]'
-      - name: ID
-        description: ID of the heath care professional.
-        expr: ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 001Q500000mQ9vGIAS
-          - 001Q500000mQAHpIAO
-          - 001Q500000mQaUBIA0
-      - name: INTLCOMM_CONSENT_STATUS_SEGMENTATION_CF
-        description: The segmentation status of international communication consent for healthcare professionals.
-        expr: INTLCOMM_CONSENT_STATUS_SEGMENTATION_CF
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Requested
-          - Granted
-      - name: IQVIA_EMAIL
-        description: Email addresses for healthcare professionals sourced from IQVIA.
-        expr: IQVIA_EMAIL
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - rudolphkate@northshore.org
-          - stevenduras@fhshealth.org
-          - bradleymiller@essentiahealth.org
-      - name: IS_DELETED
-        description: Whether or not this record has been deleted in the source CRM system.
-        expr: IS_DELETED
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-      - name: KEY_STAKEHOLDER_TYPE
-        description: The type of key stakeholder classification assigned to the healthcare professional.
-        expr: KEY_STAKEHOLDER_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Key Decision Maker
-          - Operational - Primary Advocate
-          - '[Not Profiled]'
-      - name: KIDNEYGMA_HCP_SEG
-        description: Segmentation field for Kidney Medical team
-        expr: KIDNEYGMA_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Community/Potential Thought Leader
-          - Regional/Thought Leader
-      - name: KIDNEYGMA_NO_ACCESS
-        description: Flag to identify accessibility of HCP for Kidney Medical Team
-        expr: KIDNEYGMA_NO_ACCESS
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-      - name: KIDNEYGMA_TOP_TERRITORY_TL
-        description: Flag to identify top tl at territory level for Kidney Medical Team
-        expr: KIDNEYGMA_TOP_TERRITORY_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-          - 'TRUE'
-      - name: LAST_NAME
-        description: Last Name of the health care professional.
-        expr: LAST_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - MCVEY
-          - FIRMINO
-          - BABU
-      - name: MA_CONTACT_TIER
-        description: The tier classification assigned to the healthcare professional contact for market access purposes.
-        expr: MA_CONTACT_TIER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Tier 2 (Indirect Influencer, Clinical Recommendations)​
-          - Tier 3 (Unknown)
-      - name: NAME
-        description: Name of the health care professional.
-        expr: NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - PEJMAN BAHARI-NEJAD
-          - JEFFREY BURBIDGE
-          - MISTY DOCKERY
-      - name: NPI_ID
-        description: NPI ID of the HCP
-        expr: NPI_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '1184633059'
-          - '1427612829'
-      - name: ONE_KEY_EXTERNAL_ID
-        description: Unique identifier for healthcare professionals in the OneKey reference data system.
-        expr: ONE_KEY_EXTERNAL_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - WUSM05259676
-          - WFRM08718892
-      - name: PACE_TARGET_NON_TARGET
-        description: Classification indicating whether a healthcare professional is designated as a target or non-target for PACE program engagement purposes.
-        expr: PACE_TARGET_NON_TARGET
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Non Target
-          - Target
-      - name: PACE_TARGET_TYPE_FOR_FILTER
-        description: The target type classification used for filtering healthcare professionals in PACE system.
-        expr: PACE_TARGET_TYPE_FOR_FILTER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - MDT
-          - Non Target
-          - Other
-      - name: PAIN_HCP_TARGET
-        description: Indicates whether the healthcare professional is targeted for pain-related initiatives.
-        expr: PAIN_HCP_TARGET
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: PAIN_HCP_TARGET_TYPE
-        description: Type of a Target HCP for PAIN Commercial team
-        expr: PAIN_HCP_TARGET_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Non-Target
-          - VSR
-          - PTAM
-      - name: PAINGMA_HCP_SEG
-        description: Segmentation field for PAIN Medical team
-        expr: PAINGMA_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Community/Potential Thought Leader
-          - Regional/Thought Leader
-      - name: PAINGMA_NO_ACCESS
-        description: Flag to identify accessibility of HCP for PAIN Medical Team
-        expr: PAINGMA_NO_ACCESS
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: PAINGMA_TOP_TERRITORY_TL
-        description: Flag to identify top tl at territory level for PAIN Medical Team
-        expr: PAINGMA_TOP_TERRITORY_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: PAINUSCOMM_DECILE
-        description: Decile of HCP as managed by PAIN US Commercial team
-        expr: PAINUSCOMM_DECILE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '04'
-          - '01'
-      - name: PAINUSCOMM_HCP_SPECIALTY_GROUP
-        description: Healthcare professional specialty group classification for pain management and related medical disciplines.
-        expr: PAINUSCOMM_HCP_SPECIALTY_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - NP / PA
-          - DENTISTRY
-          - ANESTHESIOLOGY / PAIN
-      - name: PAINUSCOMM_MEDIA_GROUP
-        description: Stores the hcp segmentation based on the Pain digital marketing outreach
-        expr: PAINUSCOMM_MEDIA_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '4'
-          - '2'
-      - name: PAINUSCOMM_PRESCRIBER_FLAG
-        description: Whether or not the Pain health care professional is a prescriber. This is based on prescription pattern of HCPs
-        expr: PAINUSCOMM_PRESCRIBER_FLAG
-        data_type: NUMBER(38,0)
-        sample_values:
-          - '1'
-          - '0'
-      - name: PAINUSCOMM_TOP_20_PTAM_TARGET
-        description: stores status of top 20 PTAM for and HCP
-        expr: PAINUSCOMM_TOP_20_PTAM_TARGET
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: PHONE
-        description: phone of the health care professional.
-        expr: PHONE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '6028392000'
-          - '8508839506'
-          - '6172473820'
-      - name: PRIMARY_PTAM_TERRITORY
-        description: stores primary PTAM territory for and HCP
-        expr: PRIMARY_PTAM_TERRITORY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - LEXINGTON KY
-          - TYLER, TX
-          - NAPLES, FL
-      - name: PRIMARY_SPECIALTY
-        description: VEEVA API value of Primary Specialty of HCP
-        expr: PRIMARY_SPECIALTY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - D-OS
-          - D-PHO
-          - D-HMP
-      - name: PRIMARY_SPECIALTY_DESCRIPTION
-        description: VEEVA Description value of Primary Specialty of HCP
-        expr: PRIMARY_SPECIALTY_DESCRIPTION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - PEDIATRIC ENDOCRINOLOGY
-          - PULMONOLOGY
-          - PHYSICIAN ASSISTANT
-      - name: PROFESSIONAL_DESIGNATION
-        description: Designation of HCP in organization
-        expr: PROFESSIONAL_DESIGNATION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - CRNA
-          - NP
-          - MD
-      - name: PROFESSIONAL_DESIGNATION_DESCRIPTION
-        description: VEEVA Description value of professional_designation of HCP.
-        expr: PROFESSIONAL_DESIGNATION_DESCRIPTION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - DOCTOR OF OSTEOPATHY
-          - MEDICAL DOCTOR
-          - REGISTERED PHARMACIST
-      - name: RECORD_TYPE
-        description: Record type of and Account. Defines if account is HCP or just a Contact.
-        expr: RECORD_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - VTX_Contact
-          - Professional_vod
-      - name: ROLE
-        description: Role of HCP in an Organization
-        expr: ROLE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - NOT INTERESTED
-          - HCP NOT INTERESTED
-      - name: SECONDARY_EMAIL
-        description: secondary_email Address of the HCP
-        expr: SECONDARY_EMAIL
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - oleh.pankewycz@umcsn.com
-          - kkhazeni@mhs.net
-      - name: SECONDARY_SPECIALTY
-        description: VEEVA API value of Secondary Specialty of HCP
-        expr: SECONDARY_SPECIALTY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - FAMILY PRACTICE
-          - D-HSO
-      - name: SECONDARY_SPECIALTY_DESCRIPTION
-        description: VEEVA Description value of Secondary Specialty of HCP
-        expr: SECONDARY_SPECIALTY_DESCRIPTION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - ORTHOPEDIC SPORTS MEDICINE
-          - PAIN MEDICINE
-          - UROLOGY
-      - name: SITE_URL
-        description: URL link to the healthcare professional's site record in the Vertex CRM system.
-        expr: SITE_URL
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - https://vertexcrmorg.lightning.force.com/lightning/r/Account/001Q500000cbJYKIA2/view
-          - https://vertexcrmorg.lightning.force.com/lightning/r/Account/001Q500000cbJZ3IAM/view
-          - https://vertexcrmorg.lightning.force.com/lightning/r/Account/001Q500000cbJYLIA2/view
-      - name: STATE
-        description: HCP state
-        expr: STATE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - SA-04
-          - WA
-      - name: STATUS
-        description: Status of HCP to signify if HCP is Active or not in VEEVA
-        expr: STATUS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Active
-          - Retired
-          - Deceased
-      - name: T1DGMA_HCP_SEG
-        description: Segmentation field for T1D Medical team
-        expr: T1DGMA_HCP_SEG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Community/Potential Thought Leader
-          - Regional/Thought Leader
-      - name: T1DGMA_NO_ACCESS
-        description: Flag to identify accessibility of HCP for T1D Medical Team
-        expr: T1DGMA_NO_ACCESS
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: T1DGMA_TOP_TERRITORY_TL
-        description: Flag to identify top tl at territory level for T1D Medical Team
-        expr: T1DGMA_TOP_TERRITORY_TL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: TARGET
-        description: Flag to identify if HCP is a target or not. Applicable for CF INTL Commercial team.
-        expr: TARGET
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: TARGET_FORMULA
-        description: Flag to identify if HCP is a target or not. Applicable for CF INTL Commercial team.
-        expr: TARGET_FORMULA
-        data_type: NUMBER(38,0)
-        sample_values:
-          - '1'
-          - '0'
-      - name: TARGET_TYPE
-        description: Type of a Target HCP for CF INTL Commercial team
-        expr: TARGET_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Other
-          - MDT
-          - Prescriber
-      - name: TIER
-        description: Business group that follows tiering of HCPs will have tiers of HCPs
-        expr: TIER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Tier 1
-          - Tier 2
-      - name: UPDATED_BY
-        description: ID of the user who last updated this record.
-        expr: UPDATED_BY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 005Q5000001CxJuIAK
-          - 0058d000002CQWyAAO
-          - 0058d000007kjMwAAI
-      - name: VERTEX_ID
-        description: Unique Vertex identifier for this HCP.
-        expr: VERTEX_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '14340078'
-          - '18112961'
-          - '14340209'
-      - name: ZIPCODE
-        description: Postal code of the HCP
-        expr: ZIPCODE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '92008'
-          - '53226'
-          - '92103'
-    time_dimensions:
-      - name: CREATED_DATE
-        description: Date that this record was created.
-        expr: CREATED_DATE
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2025-07-11T12:37:43.000+0000
-          - 2025-07-11T12:24:24.000+0000
-          - 2025-07-11T12:30:49.000+0000
-      - name: LOAD_TIMESTAMP
-        description: The timestamp when the healthcare professional record was loaded into the database.
-        expr: LOAD_TIMESTAMP
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2026-02-05T17:41:37.789+0000
-      - name: UPDATED_DATE
-        description: Date that this record was last updated.
-        expr: UPDATED_DATE
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2025-06-23T14:15:44.000+0000
-          - 2025-12-19T07:47:53.000+0000
-          - 2026-01-01T10:59:20.000+0000
-    facts:
-      - name: PRESCRIBER_FLAG
-        description: Whether or not the health care professional is a prescriber. This is based on prescription pattern of HCPs
-        expr: PRESCRIBER_FLAG
-        data_type: NUMBER(38,0)
-        access_modifier: public_access
-        sample_values:
-          - '1'
-          - '0'
-    unique_keys:
-      - columns:
-          - ID
-      - columns:
-          - VERTEX_ID
-  - name: DIM_TERRITORY
-    description: The table contains records of geographic territories organized in a hierarchical structure. Each record represents a territory at a specific organizational level and includes identifying information, hierarchical relationships, and associated business classifications such as disease area and business group.
-    base_table:
-      database: DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB
-      schema: MODELED
-      table: DIM_TERRITORY
-    dimensions:
-      - name: BUSINESS_GROUP
-        description: Business group relevant to this record.
-        expr: BUSINESS_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - INTL_MEDICAL
-          - VERTEX_CORP
-      - name: DATA_SOURCE
-        description: Source system for this record.
-        expr: DATA_SOURCE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - VEEVA
-      - name: DISEASE_AREA
-        description: Disease area relevant to this record.
-        expr: DISEASE_AREA
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - CROSS_PRODUCT
-          - HEME
-      - name: ID
-        description: ID of the territory.
-        expr: ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0MI8d000000XxPGGA0
-          - 0MI8d000000XwspGAC
-          - 0MI8d000000XobRGAS
-      - name: LEVEL
-        description: The depth of this territory within the hierarchy, where 1 is reserved for a root node.
-        expr: LEVEL
-        data_type: NUMBER(38,0)
-        sample_values:
-          - '1'
-          - '2'
-          - '3'
-      - name: NAME
-        description: Name of Territory in VEEVA
-        expr: NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - US CF CAM NATIONAL
-          - FI Apheresis & Infusion Specialist
-          - AT HEME Country Manager
-      - name: PARENT_ID
-        description: ID of the parent territory.
-        expr: PARENT_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0MI8d000000XxQKGA0
-          - 0MI8d000000XobRGAS
-          - 0MI8d000000XwtfGAC
-      - name: TERRITORY_GROUP
-        description: Business group relevant to this record. Added New values for US_COMMERCIL SAL & PTAM
-        expr: TERRITORY_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - US_COMMERCIAL_T1D_REG_LEAD
-          - INTL_MEDICAL
-      - name: TERRITORY_NUMBER
-        description: The territory number, which is a Vertex Territory numbering convention
-        expr: TERRITORY_NUMBER
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - GB_ONC_1000_1001_SIT
-          - V1NAUSA-4223000
-          - V1ILFR-37410000
-      - name: UPDATED_BY
-        description: ID of the user who last updated this record.
-        expr: UPDATED_BY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0058d000007kjMwAAI
-          - 0058d000001vqKDAAY
-          - 0058d000002CQWPAA4
-    time_dimensions:
-      - name: LOAD_TIMESTAMP
-        description: The timestamp when the territory record was loaded into the database.
-        expr: LOAD_TIMESTAMP
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2026-02-05T17:39:15.927+0000
-      - name: UPDATED_DATE
-        description: Date that this record was last updated.
-        expr: UPDATED_DATE
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2023-10-12T13:18:23.000+0000
-          - 2026-01-29T16:20:27.000+0000
-          - 2025-12-17T16:22:37.000+0000
-    filters:
-      - name: us_commercial_ptam_territories
-        description: Filters for territories belonging to the US Commercial PTAM (Pain Territory Account Manager) group. Use when questions ask about 'PTAM territories', 'pain commercial territories', 'US pain territories', or 'commercial pain management areas'. Helps analyze pain management commercial operations, territory performance, and support PTAM-specific business decisions in the US market.
-        expr: territory_group = 'US_COMMERCIAL_PTAM'
-      - name: us_pain_field_ptam_territories
-        description: Filters for territories with names starting with 'US PAIN FIELD PTAM', representing pain management field territories in the US. Use when questions ask about 'pain field territories', 'US pain PTAM areas', 'field pain management territories', or 'pain commercial field operations'. Helps analyze field-based pain management activities, territory coverage, and support pain field team performance analysis.
-        expr: name LIKE 'US PAIN FIELD PTAM%'
-    unique_keys:
-      - columns:
-          - ID
-      - columns:
-          - TERRITORY_NUMBER
-  - name: FCT_CALL
-    description: The table contains records of sales or medical representative interactions with healthcare organizations and healthcare professionals. Each record captures details about the discussion, participants, topics covered, materials presented or left behind, and whether digital presentation tools were utilized.
-    base_table:
-      database: DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB
-      schema: MODELED
-      table: FCT_CALL
-    dimensions:
-      - name: ACCOUNT_PLAN_ID
-        description: The unique identifier for the account plan associated with the call.
-        expr: ACCOUNT_PLAN_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - a0CQ500000F0T9RMAV
-          - a0CQ5000045VoSiMAK
-      - name: ATTENDEE_TYPE
-        description: The type of attendee participating in the call.
-        expr: ATTENDEE_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Person_Account_vod
-          - User_vod
-      - name: CALL_TYPE_ID
-        description: key generated using purpose,channel,data_source. Indicates the type of call
-        expr: CALL_TYPE_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - dccc09f8f131b43cf7d8cb9d083587d1
-          - 6c489c216dc917858b11bfd85274d66d
-          - df6167999b7167652d04cc7d3f08a538
-      - name: CLM_PRESENTATION_NAME
-        description: Name of CLM presentation if it was utilized during an interaction
-        expr: CLM_PRESENTATION_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - JOURNAVX HCP Now Approved Core Visual Aid (CVA) - Digital
-          - CFTR function HCP leavepiece (Kaftrio e Kalydeco)
-          - Patient Readiness Meeting Slide Deck for ATCs
-      - name: CLM_UTILIZED
-        description: Flag indicating whether or not CLM presentations were used in this interaction.
-        expr: CLM_UTILIZED
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: COACHING_CALL
-        description: Indicates whether the call was a coaching call.
-        expr: COACHING_CALL
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'false'
-          - 'true'
-      - name: COMMENTS
-        description: Comments added in interactions. Currently applicable for Medical only
-        expr: COMMENTS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Invitation to LEAD CFTR and to the Webinar Highlights NACFC 2024
-          - |-
-            Topics:
-            ETI in non-F508del variants: US registry extended label analysis ; Expanded FrenchCompassionate program
-            ETI in lung transplanted pwCF
-      - name: COMPLETED_ATC_TRAINING
-        description: The title or name of the completed ATC training.
-        expr: COMPLETED_ATC_TRAINING
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Apheresis Considerations Training;Thaw and Administration Training;Technical Requirements For Cell Collection;Vertex Connects Order Management Portal Training;Additional Risk Minimisation Measures (aRMM) Training;Practice Run – Apheresis Pack/Ship;Practice Run – DP Thaw and Administration
-          - Apheresis Considerations Training
-          - Apheresis Considerations Training;Technical Requirements For Cell Collection;Vertex Connects Order Management Portal Training;Practice Run – Apheresis Pack/Ship
-      - name: DATA_SOURCE
-        description: Source of data. Data starting 2021 is coming from VEEVA &  historical data before 2021 is coming from MOSAIC
-        expr: DATA_SOURCE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - MOSAIC
-          - VEEVA
-      - name: DATE_KEY
-        description: String of the date user_local_datetime in YYYYMMDD format.
-        expr: DATE_KEY
-        data_type: VARCHAR(8)
-        sample_values:
-          - '20181011'
-          - '20250624'
-          - '20210427'
-      - name: DISCUSSION_ID
-        description: Unique identifier for a discussion or conversation record.
-        expr: DISCUSSION_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - a098d0000060OjxAAE
-          - a098d0000060BjpAAE
-      - name: DISCUSSION_NAME
-        description: The name or identifier assigned to a specific discussion or call interaction.
-        expr: DISCUSSION_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - CDI000105360
-          - CDI001163951
-      - name: DISCUSSION_TOPIC_SUB_CATEGORY
-        description: Subcategory of discussion topic as logged by field user in interaction
-        expr: DISCUSSION_TOPIC_SUB_CATEGORY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - C&B Guide
-          - Reimbursement Toolkit
-          - Reimbursement Toolkit;State Reimb. Methodology
-      - name: ENGAGEMENT_DURATION
-        description: The duration of the engagement in minutes.
-        expr: ENGAGEMENT_DURATION
-        data_type: NUMBER(38,0)
-        sample_values:
-          - '420'
-          - '120'
-      - name: EVENT_NAME
-        description: Name of Event where interaction was conducted. Applicable only for Medical team.
-        expr: EVENT_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - HEME_GlobeIN
-          - CF_ECFS
-          - Other
-      - name: EVENT_TYPE
-        description: The type of event associated with the call.
-        expr: EVENT_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Webinar P2P
-          - Event Other
-      - name: GMA_CALL_OBJECTIVES
-        description: GMA planned action objectives
-        expr: GMA_CALL_OBJECTIVES
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Ensure VNZ TC PIs informed of data release at NACFC
-      - name: GMA_CALL_TACTIC
-        description: GMA planned action name
-        expr: GMA_CALL_TACTIC
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - If PI agrees to data discussion, record this request and schedule a meeting
-          - When meeting has taken place, record the key insights gained
-      - name: GMA_CLM_PRESENTATION
-        description: Refres to consolidated resources and CLM presentation used in Medical interactions.
-        expr: GMA_CLM_PRESENTATION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Center Data Sheet
-          - KAF 2-5 GB IVA
-      - name: GMA_OBSERVATION
-        description: Observations logged by Medical field team
-        expr: GMA_OBSERVATION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Exa-cel data positively received by clinical nursing team in Nottingham.
-          - High expectation about TC approval by EMA.
-      - name: HCO_ID
-        description: Reference to the HCO. Primary HCO of interacted HCP.
-        expr: HCO_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0018d00000fxEIUAA2
-          - 0018d00000fxEEUAA2
-          - 0018d00000fxE16AAE
-      - name: HCO_TERRITORY_ID
-        description: VEEVA Territory ID of HCO where interactions was conducted
-        expr: HCO_TERRITORY_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0MI8d000000XxKIGA0
-          - 0MI8d000000XxN8GAK
-          - 0MI8d000000XxNLGA0
-      - name: HCP_ID
-        description: Reference to the HCP. VEEVA ID of interacted HCP
-        expr: HCP_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0018d00000fxRnqAAE
-          - 0018d00000fxEYHAA2
-          - 0018d00000fxFhMAAU
-      - name: HCP_TERRITORY_ID
-        description: VEEVA Territory ID of HCP where interactions was conducted
-        expr: HCP_TERRITORY_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0MI8d000000XxMOGA0
-          - 0MIQ500000000OIOAY
-          - 0MI8d000000Xwu5GAC
-      - name: HEME_INDICATION
-        description: Indication value of HEME Product. e.g. SCD, TDT, SCD/TDT, etc.
-        expr: HEME_INDICATION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - SCD/TDT
-          - Transfusion Dependent Thalassemia (TDT)
-      - name: HEOR_COLLABORATION_NOTES
-        description: Notes documenting collaboration activities related to health economics and outcomes research.
-        expr: HEOR_COLLABORATION_NOTES
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Pat has Journavx on his radar for future HEOR study; would like to inquire about potential collaboration opportunity at Prime Insights mtg in May. Pat stated his days are "all GLP-1s and your non-opioid pain drug" - acknowledged that ICER found Journavx cost-effective and priced appropriately.
-          - Opioids and pain is a sensitive topic at CVS health due to past allegations and lawsuits. Need to be careful how we're positioning studies against opioids. Would like to look into disparities with opioid treatment
-      - name: HEOR_INSIGHTS
-        description: Health economics and outcomes research insights derived from the call.
-        expr: HEOR_INSIGHTS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Customer found information very helpful.  Customer noted that our estimates were much lower than theirs and wanted estimates re-run, but need to discuss internally on final estimates before following up.
-          - Attended Mississippi DUR annual class review meeting. Vertex products were not on agenda, attended to address questions from the board. No questions were asked.
-      - name: ID
-        description: Unique ID generated in snowflake to define interaction detail record.
-        expr: ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - bb50d4958f96a51dad442a4eabb9cdcb
-          - 3558c963b19a0fdafc0352ebb6cf6d09
-          - 5802ad544c4f931cf1913576662e8484
-      - name: INTENT
-        description: The purpose or nature of the call indicating whether it was initiated proactively or in response to a request.
-        expr: INTENT
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Proactive
-          - Reactive
-      - name: INTERACTION_ACKNOWLDGEMENT
-        description: Indicates whether the call interaction was acknowledged by the participant.
-        expr: INTERACTION_ACKNOWLDGEMENT
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'true'
-          - 'false'
-      - name: INTERACTION_BOOK_OF_BUSINESS
-        description: The book of business associated with the call interaction.
-        expr: INTERACTION_BOOK_OF_BUSINESS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Commercial;Medicaid
-          - Medicaid
-      - name: INTERACTION_DISEASE_AREA
-        description: Detail Group of Product for which interaction was conducted by user e.g. PAIN, CF, HEME, etc.
-        expr: INTERACTION_DISEASE_AREA
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - T1D
-          - CF
-          - Corporate (Unbranded)
-      - name: INTERACTION_HCO_COMBINATION_ID
-        description: Unique to the combination of an interaction and the HCO. To be used in reporting for counting HCO Interactions.
-        expr: INTERACTION_HCO_COMBINATION_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 75819758f56e2e837861e4383fcb06ab
-          - 134baf172e5edcb4bf69e3a0ce0accee
-          - 05cc015790f83f0b8b93b8a6ae31d3c0
-      - name: INTERACTION_HCO_ID
-        description: Defines the location at which interaction was conducted. VEEVA HCO ID stamped by VEEVA as a part of Interaction data.
-        expr: INTERACTION_HCO_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0018d00000fxPu5AAE
-          - 001Q500000VPyY7IAL
-      - name: INTERACTION_ID
-        description: VEEVA ID of the parent interaction.
-        expr: INTERACTION_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - a048d00000C9sQ7AAJ
-          - a04Q500000L3eknIAB
-          - a04Q500000LqZaIIAV
-      - name: INTERACTION_NAME
-        description: Name of Interactions from VEEVA
-        expr: INTERACTION_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Group Presentation - Lisa Cameron (Mobile)
-          - In Service - Cynthia Grippi-Warren
-          - C000351000
-      - name: IS_DELETED
-        description: Whether or not the interaction has been deleted in the source CRM system.
-        expr: IS_DELETED
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-      - name: IS_OUTSIDE_TERRITORY_CALL
-        description: Flag to identify if the call was made ourtside user's territory.
-        expr: IS_OUTSIDE_TERRITORY_CALL
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-          - 'FALSE'
-      - name: KEY_MESSAGE
-        description: Value of discussion topics as logged by field team in VEEVA.
-        expr: KEY_MESSAGE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Persistence in 6-11 patients
-          - Clinical Value
-          - Apheresis & Infusion
-      - name: KEY_TOPIC_ID
-        description: Refers to ID of DIM_KEY_TOPIC. Stores ID of Key Topics discussed in an Interaction
-        expr: KEY_TOPIC_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - a1F360000028YTnEAM
-          - a1F3600000270keEAA
-          - a1F1Q00000Ceu2FUAR
-      - name: KEY_TOPIC_NAME
-        description: The primary topic or subject matter discussed during the call.
-        expr: KEY_TOPIC_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Weight Gain
-          - CF Source
-          - Orkambi 6-11
-      - name: LEAVE_BEHIND
-        description: Signifies the left behind resources during an Interaction
-        expr: LEAVE_BEHIND
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - H | ORKAMBI | Reprint Carrier Rayment
-          - JOURNAVX™ (suzetrigine) tablets 50 mg sample pack
-          - ORKAMBI Clinical Data and Analysis Brochure
-      - name: LISTENING_PRIORITY
-        description: Listening Priority as logged by user in an interaction. Applicable only for Medical team
-        expr: LISTENING_PRIORITY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'Data: exa-cel data/pubs, guidelines, gaps, learnings outside of study pop'
-          - Understanding, perception, or progress related to the CF treatment landscape
-      - name: LISTENING_PRIORITY_CATEGORY
-        description: Listening Priority Category  as logged by user in an interaction. Applicable only for Medical team
-        expr: LISTENING_PRIORITY_CATEGORY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Global Q4 Specific Topics
-          - 2025 Pain Disease Area Listening Priorities
-      - name: MATERIAL_DOCUMENT_ID
-        description: It is the vault document id for key message and resource as part of material.
-        expr: MATERIAL_DOCUMENT_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '337948'
-          - '290042'
-          - '298225'
-      - name: MATERIAL_NAME
-        description: Signifies the Resources utilized during an interaction
-        expr: MATERIAL_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - The Role of Suzetrigine in Acute Pain Management_20
-          - UK_EN_VNZ_HTML_IVA_2025_01_0_26_Dosing_Recommended-dosing
-          - CFTR function HCP leavepiece (Kaftrio e Kalydeco)_9
-      - name: MEDICAL_INQUIRY_ID
-        description: Unique identifier for a medical inquiry associated with the call.
-        expr: MEDICAL_INQUIRY_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - a0tUE00000NkzsrYAB
-          - a0tUE00000Ne6cYYAR
-          - a0tUE00000NgvJDYAZ
-      - name: NEXT_STEPS
-        description: The planned actions or follow-up activities to be taken after the call.
-        expr: NEXT_STEPS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Resource Follow-up
-          - HEOR Follow-up
-          - Clinical meeting
-      - name: PACE_CF_DATA
-        description: Whether or not this record is a CF record (for PACE).
-        expr: PACE_CF_DATA
-        data_type: BOOLEAN
-        sample_values:
-          - 'FALSE'
-          - 'TRUE'
-      - name: PARTNERING_FOR_GROWTH
-        description: Indicator of whether the call involved partnering for growth initiatives.
-        expr: PARTNERING_FOR_GROWTH
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'Yes'
-          - 'No'
-      - name: PATIENT_SEGMENT
-        description: Patient Segment for which interaction was conducted e.g. Naive Patients, Patients on Therapy, Discontinued, etc. Applicable only for INTL Commercial as of now.
-        expr: PATIENT_SEGMENT
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Pediatric Indication
-          - 'Clinical Data - Reactive: VX-445'
-      - name: PRE_PLANNED_INTERACTION
-        description: Indicates whether the call was scheduled or arranged in advance rather than occurring spontaneously.
-        expr: PRE_PLANNED_INTERACTION
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'false'
-          - 'true'
-      - name: PRODUCT_ID
-        description: VEEVA ID of Product for which interaction was conducted by user
-        expr: PRODUCT_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 266d7f7a7ee4d9da1d82e439ab6d6910
-          - a0669ec53ac197a262ccd2c4825ef709
-          - 28e7bd233f50b71e97aefb42a906813d
-      - name: RECORD_TYPE
-        description: The type of record or interaction being documented in the call tracking system.
-        expr: RECORD_TYPE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Standard Interaction
-          - Call Report PTAM
-          - Call Report_vod
-      - name: SCIENTIFIC_COMMUNICATION_TOPIC
-        description: Scientific communication topic as logged by user in an interaction. Applicable only for Medical team
-        expr: SCIENTIFIC_COMMUNICATION_TOPIC
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'TDT: Safety and tolerability'
-          - Which patients appropriate for SUZ
-      - name: STATUS
-        description: Status of interaction to signify if interaction is Saved, Planned or Submitted.
-        expr: STATUS
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - Saved
-          - Planned
-      - name: USER_ID
-        description: VEEVA ID of an user who conducted interaction
-        expr: USER_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 005Q5000005G13hIAC
-          - 0058d000007kISfAAM
-          - 0058d000007kIUtAAM
-      - name: USER_TERRITORY_ID
-        description: VEEVA Territory ID of an User who conducted interaction with customers. This is stamped by VEEVA for each interaction
-        expr: USER_TERRITORY_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0MI8d000000XwtLGAS
-          - 0MI8d000000XxMiGAK
-          - 0MIUE0000008ezh4AA
-    time_dimensions:
-      - name: DATETIME
-        description: Datetime flowing in from source
-        expr: DATETIME
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2025-08-21T16:59:56.000+0000
-          - 2025-06-12T20:01:29.000+0000
-          - 2024-03-25T16:41:00.000+0000
-      - name: GMA_CALL_PLANNED_ACTION_FROM_DATE
-        description: GMA planned action from date
-        expr: GMA_CALL_PLANNED_ACTION_FROM_DATE
-        data_type: DATE
-        sample_values:
-          - '2024-10-11'
-      - name: GMA_CALL_PLANNED_ACTION_TO_DATE
-        description: GMA planned action to date
-        expr: GMA_CALL_PLANNED_ACTION_TO_DATE
-        data_type: DATE
-        sample_values:
-          - '2025-01-31'
-      - name: LOAD_TIMESTAMP
-        description: The timestamp when the call record was loaded into the database.
-        expr: LOAD_TIMESTAMP
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2026-02-05T17:59:39.900+0000
-      - name: USER_LOCAL_DATETIME
-        description: Datetime converted to local datetime per UTC offset.
-        expr: USER_LOCAL_DATETIME
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2025-06-18T10:43:06.000+0000
-          - 2025-10-23T11:13:00.000+0000
-          - 2024-09-18T06:55:00.000+0000
-    facts:
-      - name: ADDITIONAL_ATTENDEES
-        description: Information about number of additional attendees present during Call
-        expr: ADDITIONAL_ATTENDEES
-        data_type: FLOAT
-        access_modifier: public_access
-        sample_values:
-          - '1'
-          - '6'
-      - name: HCP_INTERACTION_ROW_NUMBER
-        description: Assigns a sequential row number to interactions for each healthcare professional, ordered by date with the most recent interaction receiving row number 1. Use when questions ask about 'latest interaction', 'most recent call', 'last contact with HCP', or when needing to identify the chronological order of interactions per HCP. Helps analyze interaction recency, identify the most current engagement status, and filter for the latest activity per healthcare professional.
-        expr: ROW_NUMBER() OVER (PARTITION BY hcp_id ORDER BY date_key DESC)
-        data_type: NUMBER(18,0)
-        access_modifier: public_access
-    filters:
-      - name: submitted_interactions
-        description: Filters for interactions that have been submitted and finalized, excluding planned or saved interactions. Use when questions ask about 'completed interactions', 'finalized calls', 'submitted visits', or 'actual interactions'. Helps analyze real interaction activity, measure field team productivity, and track completed customer engagements versus planned activities.
-        expr: status = 'Submitted'
-    metrics:
-      - name: LAST_INTERACTION_DATE
-        description: Calculates the most recent interaction date from all call records. Use when questions ask about 'last call date', 'most recent interaction', 'when was the last contact', or 'latest engagement date'. Helps track recency of customer interactions, identify HCPs who haven't been contacted recently, and support territory management and follow-up planning.
-        expr: MAX(date_key)
-        access_modifier: public_access
-    unique_keys:
-      - columns:
-          - ID
-  - name: REL_USER_TERRITORY
-    description: The table contains records of user-territory assignments, tracking which users are associated with specific territories over time. Each record represents a single assignment relationship and includes temporal information indicating when the assignment was active, along with organizational context such as disease area and business group.
-    base_table:
-      database: DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB
-      schema: MODELED
-      table: REL_USER_TERRITORY
-    dimensions:
-      - name: BUSINESS_GROUP
-        description: Business Group value to which Territory belongs
-        expr: BUSINESS_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - US_MEDICAL
-          - US_AIS
-          - INTL_MEDICAL
-      - name: DATA_SOURCE
-        description: Soure of data e.g.Mosaic or VEEVA
-        expr: DATA_SOURCE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - VEEVA
-      - name: DISEASE_AREA
-        description: Disease area value to which Territory belongs
-        expr: DISEASE_AREA
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - HEME
-          - PAIN
-          - CF
-      - name: END_DATE
-        description: The date when the relationship between the user and territory ended or will end.
-        expr: END_DATE
-        data_type: VARCHAR(16777216)
-      - name: ID
-        description: Unique identifier for the relationship between a user and a territory.
-        expr: ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0R0Q500000012PbKAI
-          - 0R08d000000oMZjCAM
-          - 0R0Q500000022CDKAY
-      - name: IS_CURRENT
-        description: Flag to identify if User-Territory affiliation is Active in VEEVA
-        expr: IS_CURRENT
-        data_type: BOOLEAN
-        sample_values:
-          - 'TRUE'
-      - name: TERRITORY_GROUP
-        description: territory Group value to which Territory belongs
-        expr: TERRITORY_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - US_MEDICAL
-          - US_COMMERCIAL
-      - name: TERRITORY_ID
-        description: VEEVA ID of the territory to which User belongs to
-        expr: TERRITORY_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0MI8d000000XxLWGA0
-          - 0MI8d000000XobRGAS
-          - 0MI8d000000XwtuGAC
-      - name: USER_ID
-        description: VEEVA ID of an user
-        expr: USER_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 0058d000002EERSAA4
-          - 0058d000007kITCAA2
-          - 005Q5000005MNKrIAO
-    time_dimensions:
-      - name: LOAD_TIMESTAMP
-        description: The timestamp when the user territory relationship record was loaded into the database.
-        expr: LOAD_TIMESTAMP
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2026-02-05T17:39:36.353+0000
-      - name: START_DATE
-        description: The date and time when the user's assignment to the territory began.
-        expr: START_DATE
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2023-07-07T18:03:24.000+0000
-          - 2022-09-06T14:53:17.000+0000
-          - 2022-09-06T14:53:08.000+0000
-      - name: UPDATED_AT
-        description: The timestamp when the user-territory relationship record was last updated.
-        expr: UPDATED_AT
-        data_type: TIMESTAMP_TZ(9)
-        sample_values:
-          - 2023-07-07T18:03:24.000+0000
-          - 2022-09-06T14:53:17.000+0000
-          - 2022-09-06T14:53:08.000+0000
-    unique_keys:
-      - columns:
-          - ID
-      - columns:
-          - USER_ID
-          - TERRITORY_ID
-  - name: TD_GEO_STATE
-    description: The table contains records of geographic states or state-level administrative regions. Each record represents a single state and includes identifying information, associated country details, and geographic coordinates.
-    base_table:
-      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
-      schema: REPORTING
-      table: TD_GEO_STATE
-    dimensions:
-      - name: GEO_COUNTRY_CD
-        description: Geographic country code identifying the country associated with the state.
-        expr: GEO_COUNTRY_CD
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - US
-      - name: GEO_COUNTRY_KEY
-        description: Geographic country key used as a unique identifier for countries.
-        expr: GEO_COUNTRY_KEY
-        data_type: NUMBER(38,0)
-        sample_values:
-          - '1'
-      - name: GEO_COUNTRY_NAME
-        description: The name of the country associated with the geographic state.
-        expr: GEO_COUNTRY_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - UNITED STATES
-      - name: GEO_LATITUDE
-        description: Geographic latitude coordinates for state locations measured in decimal degrees.
-        expr: GEO_LATITUDE
-        data_type: NUMBER(11,8)
-        sample_values:
-          - '39.00040000'
-          - '34.00040000'
-      - name: GEO_LONGITUDE
-        description: The geographic longitude coordinate of the state.
-        expr: GEO_LONGITUDE
-        data_type: NUMBER(11,8)
-        sample_values:
-          - '-86.25030000'
-          - '-71.49980000'
-          - '-123.04600000'
-      - name: GEO_STATE_CD
-        description: Geographic state code representing the two-letter abbreviation for states and territories.
-        expr: GEO_STATE_CD
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - NC
-          - XX
-          - DE
-      - name: GEO_STATE_KEY
-        description: Unique identifier for geographic states in the system.
-        expr: GEO_STATE_KEY
-        data_type: NUMBER(38,0)
-        sample_values:
-          - '21'
-          - '261'
-          - '22'
-      - name: GEO_STATE_NAME
-        description: The name of the geographic state or territory.
-        expr: GEO_STATE_NAME
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - SOUTH CAROLINA
-          - DELAWARE
-          - NEBRASKA
-    primary_key:
-      columns:
-        - GEO_STATE_CD
-  - name: TD_PROD_BRAND
-    description: The table contains records of product brand hierarchies and classifications. Each record represents a product organizational structure spanning multiple levels from market segments down through category groups, categories, family groups, and product families.
-    base_table:
-      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
-      schema: REPORTING
-      table: TD_PROD_BRAND
-    dimensions:
-      - name: PROD_BRAND_CD
-        description: Product brand code identifying the brand name of pharmaceutical or medical products.
-        expr: PROD_BRAND_CD
-        data_type: VARCHAR(256)
-        sample_values:
-          - CELEBREX
-          - NALBUPHINE
-          - PACAPS
-      - name: PROD_BRAND_DESC
-        description: Brand name and associated market category for pharmaceutical pain relief products.
-        expr: PROD_BRAND_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - COCET BRAND (ACUTE HEOR MARKET)
-          - SOLARAVIX BRAND (ANY PAIN MARKET)
-          - TRICEPTIN BRAND (VERTEX ACUTE MARKET)
-      - name: PROD_BRAND_KEY
-        description: A unique identifier for the product brand.
-        expr: PROD_BRAND_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - f686959d34f7cfa9c56a12670fd2009e
-          - 11240635d64befab89cc2ab0c255307d
-          - e2a5ad11498949270bc44697f97c70d3
-      - name: PROD_BRAND_SDESC
-        description: The brand name or short description of the product.
-        expr: PROD_BRAND_SDESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - PRIKAAN LITE
-          - BACTINE
-          - TYLENOL EXTRA STRG
-      - name: PROD_BRAND_UCD
-        description: The brand name of the pharmaceutical or healthcare product.
-        expr: PROD_BRAND_UCD
-        data_type: VARCHAR(256)
-        sample_values:
-          - TYLENOL EXTRA STRG
-          - CVS SORE MUSCLE RUB
-          - MYOGESIC
-      - name: PROD_CAT_CD
-        description: The product category code representing the therapeutic or pharmacological classification of the medication or healthcare product.
-        expr: PROD_CAT_CD
-        data_type: VARCHAR(256)
-        sample_values:
-          - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
-          - DERMATOLOGICAL LOCAL NON-NARCOTIC ANALGESIC
-          - ANALGESICS-SEDATIVE COMBINATION
-      - name: PROD_CAT_DESC
-        description: Product category descriptions for pharmaceutical pain management and analgesic medications.
-        expr: PROD_CAT_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - OTHER - TOPICAL ANESTHETIC CATEGORY (ACUTE HEOR MARKET)
-          - NSAID CATEGORY (ACUTE HEOR MARKET)
-          - LIDOCAINE - DENTAL ANESTHETIC CATEGORY (ANY PAIN MARKET)
-      - name: PROD_CAT_KEY
-        description: A unique identifier for the product category.
-        expr: PROD_CAT_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 2d8609830dfd91355e0f57b69a124265
-          - 51d89477c08fab581269b5cd07cc9249
-          - 81de9bea455b07525c239b046e1e777a
-      - name: PROD_CAT_SDESC
-        description: Product category short description for pharmaceutical and medical products.
-        expr: PROD_CAT_SDESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - NSAID COMBINATIONS
-          - ANALGESIC COMBINATIONS
-          - ANALGESICS OTHER
-      - name: PROD_CATGRP_CD
-        description: Product category group code indicating the therapeutic or functional classification of the product.
-        expr: PROD_CATGRP_CD
-        data_type: VARCHAR(256)
-        sample_values:
-          - DERMATOLOGICAL
-          - NON-NARCOTIC ANALGESIC
-          - OTHER
-      - name: PROD_CATGRP_DESC
-        description: Product category group descriptions for pharmaceutical pain management markets.
-        expr: PROD_CATGRP_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - NON-NARCOTIC ANALGESIC CATEGORY GROUP (VERTEX ACUTE MARKET)
-          - OTHER CATEGORY GROUP (VERTEX ACUTE MARKET)
-          - DERMATOLOGICAL CATEGORY GROUP (VERTEX ACUTE MARKET)
-      - name: PROD_CATGRP_KEY
-        description: A unique identifier for the product category group.
-        expr: PROD_CATGRP_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 94a59ec83d39d799ec0451a66e580c8e
-          - 0477b27e08f07fe48fea13261573b50a
-          - 549c135307267e94c4db300932c3d891
-      - name: PROD_CATGRP_SDESC
-        description: Product category group short description indicating the therapeutic or pharmacological classification of the product.
-        expr: PROD_CATGRP_SDESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - DENTALS
-          - NSAID
-          - NON-NARCOTIC ANALGESIC
-      - name: PROD_FAM_CD
-        description: Product family code representing the brand or medication name.
-        expr: PROD_FAM_CD
-        data_type: VARCHAR(256)
-        sample_values:
-          - QUALA-CET
-          - SALONPAS
-          - PAIN PM
-      - name: PROD_FAM_DESC
-        description: Product family description indicating the brand name and associated pain market category.
-        expr: PROD_FAM_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - ENDOLOR FAMILY (ANY PAIN MARKET)
-          - BURN JEL FAMILY (ACUTE HEOR MARKET)
-          - ACETAMINOPHEN FAMILY (VERTEX ACUTE MARKET)
-      - name: PROD_FAM_KEY
-        description: A unique identifier for the product family.
-        expr: PROD_FAM_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 2a5c00d887ed0cba6454654be4e6c15a
-          - 8f7fb59a5cce6b2729d10db2b899d1bc
-          - b6cad454c8ebbabd2dc1ca551718b806
-      - name: PROD_FAM_SDESC
-        description: Product family short description containing pharmaceutical or medication brand names.
-        expr: PROD_FAM_SDESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - VISCO
-          - DICLOFENAC SODIUM-CAMPHOR-LIDOCAINE-METHYL SALICYLATE
-          - BUFFERIN W/CODEINE
-      - name: PROD_FAMGRP_CD
-        description: Product family group code representing the therapeutic or chemical classification of pharmaceutical products.
-        expr: PROD_FAMGRP_CD
-        data_type: VARCHAR(256)
-        sample_values:
-          - HYDROCODONE
-          - ZONISAMIDE
-          - CAPSAICIN-MENTHOL - DERMATOLOGICAL TOPICAL ANESTHETIC COMBINATIONS
-      - name: PROD_FAMGRP_DESC
-        description: Pharmaceutical product family group descriptions indicating the drug type and associated pain market category.
-        expr: PROD_FAMGRP_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - CONVENIENCE PAK FAMILY GROUP (ANY PAIN MARKET)
-          - GABAPENTIN FAMILY GROUP (ACUTE HEOR MARKET)
-          - DOXEPIN FAMILY GROUP (ANY PAIN MARKET)
-      - name: PROD_FAMGRP_KEY
-        description: Product family group key serving as a unique identifier.
-        expr: PROD_FAMGRP_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 4fd722b79b9410b0ab6196ad47767e3f
-          - 8ed47c041559ba45b686738036df6479
-          - 7d97586e0799a5eddf7e413acbebd858
-      - name: PROD_FAMGRP_SDESC
-        description: Product family group short description indicating the pharmaceutical or therapeutic category of the product.
-        expr: PROD_FAMGRP_SDESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - OTHER
-          - CONVENIENCE PAK
-          - LIDOCAINE
-      - name: PROD_MKT_CD
-        description: Product marketing code representing the brand or marketing segment for pain-related pharmaceutical products.
-        expr: PROD_MKT_CD
-        data_type: VARCHAR(256)
-        sample_values:
-          - ACUTE HEOR
-          - USMA PAIN
-          - ANY PAIN
-      - name: PROD_MKT_DESC
-        description: Product market description indicating the therapeutic or business market segment.
-        expr: PROD_MKT_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - ACUTE HEOR MARKET
-          - VERTEX ACUTE MARKET
-          - ANY PAIN MARKET
-      - name: PROD_MKT_KEY
-        description: A unique identifier or hash key for product marketing records.
-        expr: PROD_MKT_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 89cf3596760b4a79df67736f2272a1b7
-          - da0dacac9831661226335a3eb0b04274
-          - c8c606d1c69b2144eea5bbe3157289b6
-      - name: PROD_MKT_SDESC
-        description: Product marketing short description or brand name identifier.
-        expr: PROD_MKT_SDESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - ANY PAIN
-          - VERTEX ACUTE
-          - ACUTE HEOR
-    primary_key:
-      columns:
-        - PROD_FAMGRP_CD
-  - name: TD_SALESFORCE_L1
-    description: The table contains records of a hierarchical salesforce organizational structure with multiple levels of detail. Each record represents a salesforce entity at the first level and includes associated information for up to four hierarchical levels, with codes, descriptions, and aliases for each level.
-    base_table:
-      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
-      schema: REPORTING
-      table: TD_SALESFORCE_L1
-    dimensions:
-      - name: SF_ALN_CD
-        description: Salesforce alignment code indicating the quarter and incentive compensation designation.
-        expr: SF_ALN_CD
-        data_type: VARCHAR(255)
-        sample_values:
-          - 2026Q1
-          - 2026Q1-IC
-      - name: SF_ALN_DESC
-        description: Salesforce alignment description indicating the quarter and type designation.
-        expr: SF_ALN_DESC
-        data_type: VARCHAR(255)
-        sample_values:
-          - 2026Q1-IC
-          - 2026Q1
-      - name: SF_ALN_KEY
-        description: A unique identifier key for Salesforce alignment records.
-        expr: SF_ALN_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - dcb56f70a781cd1e60527995e50e0ea4
-          - 6b284bd9b1522e7883415099659b0add
-      - name: SF_L1_CD
-        description: Salesforce level 1 code identifier.
-        expr: SF_L1_CD
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5731401
-          - V1NAUSA-5732155
-          - V1NAUSA-5733351
-      - name: SF_L1_CD_ALIAS
-        description: Salesforce Level 1 code alias identifier.
-        expr: SF_L1_CD_ALIAS
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5733804
-          - V1NAUSA-5734305
-          - V1NAUSA-5733105
-      - name: SF_L1_DESC
-        description: Geographic location descriptions for Salesforce Level 1 territories including city and state information.
-        expr: SF_L1_DESC
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - COLUMBIA, SC
-          - KISSIMME, FL
-          - LOUISVILLE SOUTH, KY
-      - name: SF_L1_KEY
-        description: A unique identifier or hash key for Salesforce Level 1 records.
-        expr: SF_L1_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - a4862a26f458aa737c0cc637be7102bd
-          - 910a0a14a5854a5867857c92c073be50
-          - 29c28a37ac82d8eb90c8852042f20889
-      - name: SF_L2_CD
-        description: Salesforce level 2 code identifier.
-        expr: SF_L2_CD
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5731300
-          - V1NAUSA-5733800
-          - V1NAUSA-5734200
-      - name: SF_L2_CD_ALIAS
-        description: Salesforce level 2 code alias identifier.
-        expr: SF_L2_CD_ALIAS
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5733100
-          - V1NAUSA-5734700
-          - V1NAUSA-5733800
-      - name: SF_L2_DESC
-        description: The description of the second-level Salesforce geographic or organizational territory.
-        expr: SF_L2_DESC
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - BLUEGRASS
-          - STUDIO CITY
-          - UPSTATE NEW YORK
-      - name: SF_L2_KEY
-        description: A unique identifier or hash key for Salesforce Level 2 records.
-        expr: SF_L2_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 3ec13b7a478f0cc4f973db5a05fcbd32
-          - 85979e4b865b64b379b01162e2c5f71b
-          - d7c21cc8d51c2d29bcd4ae3ace995352
-      - name: SF_L3_CD
-        description: Salesforce level 3 code identifier.
-        expr: SF_L3_CD
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5732000
-          - V1NAUSA-5733000
-          - V1NAUSA-5734000
-      - name: SF_L3_CD_ALIAS
-        description: Salesforce level 3 code alias identifier.
-        expr: SF_L3_CD_ALIAS
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5732000
-          - V1NAUSA-5734000
-          - V1NAUSA-5731000
-      - name: SF_L3_DESC
-        description: Salesforce level 3 geographic or organizational region description.
-        expr: SF_L3_DESC
-        data_type: VARCHAR(255)
-        sample_values:
-          - WEST
-          - SOUTHEAST
-          - CENTRAL
-      - name: SF_L3_KEY
-        description: A unique identifier or hash key for Salesforce Level 3 records.
-        expr: SF_L3_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 3a802b8a0d46ed4bd99c90a778b710ba
-          - 09baada2f69dbc5c6f09773ad6fae57b
-          - 4ea812997a8fbd92120c0c78741c0b17
-      - name: SF_L4_CD
-        description: Salesforce level 4 code identifier.
-        expr: SF_L4_CD
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5730000
-          - V1NAUSA-5720000
-      - name: SF_L4_CD_ALIAS
-        description: Salesforce level 4 code alias identifier.
-        expr: SF_L4_CD_ALIAS
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5730000
-          - V1NAUSA-5720000
-      - name: SF_L4_DESC
-        description: Salesforce level 4 description for organizational hierarchy or territory classification.
-        expr: SF_L4_DESC
-        data_type: VARCHAR(255)
-        sample_values:
-          - US PAIN SF NATION
-          - US SAL SF NATION
-      - name: SF_L4_KEY
-        description: A unique identifier or hash key for Salesforce level 4 records.
-        expr: SF_L4_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 1c502fea9e06daa38408bb5e430a5a82
-          - a687e92bab530f62e73993bad9abe20d
-          - 3ed6c5bbaeb1903a5279a53f360d8b80
-      - name: SF_SF_CD
-        description: Salesforce sales force code identifying the sales team or organizational unit.
-        expr: SF_SF_CD
-        data_type: VARCHAR(255)
-        sample_values:
-          - US-PTAM
-          - US-TBM
-          - US-SAL
-      - name: SF_SF_DESC
-        description: The Salesforce description code identifying the sales function or role type.
-        expr: SF_SF_DESC
-        data_type: VARCHAR(256)
-        sample_values:
-          - PAIN-TBM-US
-          - PAIN-SAL-US
-          - PAIN-PTAM-US
-      - name: SF_SF_KEY
-        description: Unique identifier key for Salesforce records.
-        expr: SF_SF_KEY
-        data_type: VARCHAR(32)
-        sample_values:
-          - 9267154bd95729096640ac75b61cbf41
-          - 5bdfed76f541565d069768666add340d
-          - 329a35b1eeaed071ff6ab95210bba378
-    primary_key:
-      columns:
-        - SF_L1_CD
-  - name: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    description: The table contains records of healthcare provider prescribing activity for pain medication products in acute care settings, aggregated at a weekly level. Each record represents a specific healthcare provider's prescribing metrics for a given week, including transaction counts and unit volumes across different product categories and branded versus generic designations. The records include provider identifiers, geographic information, specialty classifications, and sales territory assignments.
-    base_table:
-      database: DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB
-      schema: REPORTING
-      table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    dimensions:
-      - name: BRANDED_FLAG
-        description: Indicator of whether the product or item is branded.
-        expr: BRANDED_FLAG
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - 'N'
-          - 'Y'
-      - name: GOLDEN_ID
-        description: Unique identifier assigned to healthcare professionals in the golden record system.
-        expr: GOLDEN_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - GLD999903570462007432
-          - GLD000600060001002101
-          - GLD000100070003001101
-      - name: HCP_ID
-        description: Unique identifier for a healthcare professional.
-        expr: HCP_ID
-        data_type: VARCHAR(32)
-        sample_values:
-          - a39eb0182d1abe2c27f0fc78ed07ce04
-          - a5a93654d11da55c244e50326e9168cc
-          - 8209a4c264a05b71364ec13b6020e394
-      - name: HCP_SPECIALTY
-        description: The medical specialty or professional designation of the healthcare provider.
-        expr: HCP_SPECIALTY
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - CHILD NEUROLOGY
-          - PAIN MEDICINE
-          - VETERINARIAN
-      - name: HCP_SPECIALTY_GROUP
-        description: The specialty group classification for healthcare professionals.
-        expr: HCP_SPECIALTY_GROUP
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - REHABILITATION
-          - PHYSICIAN EXTENDERS
-          - ORTHOPEDICS AND SPORTS MEDICINE
-      - name: NPI
-        description: National Provider Identifier for healthcare providers.
-        expr: NPI
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '1245436203'
-          - '1578882171'
-          - '1770135527'
-      - name: ONEKEY_HCP_ID
-        description: Unique identifier for healthcare professionals in the OneKey system.
-        expr: ONEKEY_HCP_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - WUSM00359036
-          - WUSM03079310
-          - WUSM01099336
-      - name: PRODUCT_CATEGORY
-        description: The therapeutic category or class of the pharmaceutical product used for pain management.
-        expr: PRODUCT_CATEGORY
-        data_type: VARCHAR(256)
-        sample_values:
-          - MODERATE OPIOID COMBINATIONS
-          - STRONG OPIOID COMBINATIONS
-          - ANTICONVULSANTS MISC.
-      - name: PRODUCT_FAMILY_GROUP
-        description: The pharmaceutical product family group name for pain management medications.
-        expr: PRODUCT_FAMILY_GROUP
-        data_type: VARCHAR(256)
-        sample_values:
-          - CELECOXIB
-          - DICLOFENAC
-          - MELOXICAM
-      - name: PTAM_TERRITORY_ID
-        description: Unique identifier for a PTAM (Pain Territory Account Manager) territory.
-        expr: PTAM_TERRITORY_ID
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5732203
-          - V1NAUSA-5731304
-          - V1NAUSA-5734106
-      - name: ROA
-        description: Route of administration for the pharmaceutical product.
-        expr: ROA
-        data_type: VARCHAR(256)
-        sample_values:
-          - TOPICAL-PATCH
-          - TOPICAL
-          - ORAL
-      - name: SAL_TERRITORY_ID
-        description: Sales territory identifier for tracking geographic or organizational sales regions.
-        expr: SAL_TERRITORY_ID
-        data_type: VARCHAR(255)
-        sample_values:
-          - V1NAUSA-5720016
-          - V1NAUSA-5720013
-          - V1NAUSA-5720004
-      - name: SITE_OF_CARE_ZIP_CODE
-        description: ZIP code for the site of care location.
-        expr: SITE_OF_CARE_ZIP_CODE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '96001'
-          - '21287'
-          - '63044'
-      - name: VERTEX_ID
-        description: Unique identifier for a vertex in the healthcare provider network or graph structure.
-        expr: VERTEX_ID
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '13305051'
-          - '14843156'
-      - name: WEEK_DT
-        description: The date representing the week for healthcare provider acute market exposure data.
-        expr: WEEK_DT
-        data_type: NUMBER(10,0)
-        sample_values:
-          - '20240524'
-          - '20251003'
-          - '20240105'
-      - name: ZIP_CODE
-        description: The ZIP code associated with the healthcare professional or facility location.
-        expr: ZIP_CODE
-        data_type: VARCHAR(16777216)
-        sample_values:
-          - '91950'
-          - '40207'
-          - '37203'
-    time_dimensions:
-      - name: DATE_KEY
-        description: The date associated with the weekly market exposure record for healthcare professionals in the acute care market.
-        expr: DATE_KEY
-        data_type: DATE
-        sample_values:
-          - '2025-12-26'
-          - '2025-07-18'
-          - '2024-07-26'
-    facts:
-      - name: ACUTE_NRX_XPO
-        description: Exposure index for new prescriptions in the acute market for healthcare professionals. Use this metric to identify the first-time healthcare prescribers / first time prescribers.
-        expr: ACUTE_NRX_XPO
-        data_type: NUMBER(38,10)
-        access_modifier: public_access
-        sample_values:
-          - '4.0110000000'
-          - '3.3030000000'
-          - '1.0800000000'
-      - name: ACUTE_TRX_XPO
-        description: |
-          Exposure metric for acute care transactions among healthcare professionals in the market.
-          bottle credit always refers to acute_trx_xpo.
-        expr: ACUTE_TRX_XPO
-        data_type: NUMBER(38,10)
-        sample_values:
-          - '1.1180000000'
-          - '1.0420000000'
-          - '1.0300000000'
-      - name: ACUTE_TX_DAYS_XPO
-        description: The number of days of acute treatment exposure.
-        expr: ACUTE_TX_DAYS_XPO
-        data_type: NUMBER(38,10)
-        access_modifier: public_access
-        sample_values:
-          - '33.5621760825'
-          - '20.0000000000'
-          - '28.0373092256'
-      - name: ACUTE_UNITS_XPO
-        description: The number of acute care units exposed in the healthcare provider market for the weekly reporting period.
-        expr: ACUTE_UNITS_XPO
-        data_type: NUMBER(38,10)
-        access_modifier: public_access
-        sample_values:
-          - '64.4900000000'
-          - '31.0900000000'
-          - '19.8800000000'
-relationships:
-  - name: DIM_HCP_TO_GEO_STATE
-    left_table: DIM_HCP
-    right_table: TD_GEO_STATE
-    relationship_columns:
-      - left_column: STATE
-        right_column: GEO_STATE_CD
-  - name: FCT_CALL_TO_DIM_HCP
-    left_table: FCT_CALL
-    right_table: DIM_HCP
-    relationship_columns:
-      - left_column: HCP_ID
-        right_column: ID
-    relationship_type: many_to_one
-    join_type: inner
-  - name: FCT_CALL_TO_DIM_TERRITORY
-    left_table: FCT_CALL
-    right_table: DIM_TERRITORY
-    relationship_columns:
-      - left_column: USER_TERRITORY_ID
-        right_column: ID
-    relationship_type: many_to_one
-    join_type: inner
-  - name: REL_USER_TERRITORY_TO_DIM_TERRITORY
-    left_table: REL_USER_TERRITORY
-    right_table: DIM_TERRITORY
-    relationship_columns:
-      - left_column: TERRITORY_ID
-        right_column: ID
-    relationship_type: many_to_one
-    join_type: left_outer
-  - name: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO_TO_DIM_HCP
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: DIM_HCP
-    relationship_columns:
-      - left_column: VERTEX_ID
-        right_column: VERTEX_ID
-    relationship_type: many_to_one
-    join_type: inner
-  - name: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO_TO_DIM_TERRITORY
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: DIM_TERRITORY
-    relationship_columns:
-      - left_column: PTAM_TERRITORY_ID
-        right_column: TERRITORY_NUMBER
-    relationship_type: many_to_one
-    join_type: inner
-  - name: XPO_PROD_BRAND
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: TD_PROD_BRAND
-    relationship_columns:
-      - left_column: PRODUCT_FAMILY_GROUP
-        right_column: PROD_FAMGRP_CD
-  - name: XPO_SALES_FORCE
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: TD_SALESFORCE_L1
-    relationship_columns:
-      - left_column: PTAM_TERRITORY_ID
-        right_column: SF_L1_CD
-  - name: XPO_TO_LAAD
-    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-    right_table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
-    relationship_columns:
-      - left_column: HCP_ID
-        right_column: HCP_ID
-      - left_column: PRODUCT_FAMILY_GROUP
-        right_column: PRODUCT_FAMILY_GROUP
-      - left_column: DATE_KEY
-        right_column: DATE_KEY
-module_custom_instructions:
-  sql_generation: 
 CRITICAL: YOU MUST STRCITLY ADHERE TO FOLLOWING INSTRUCTIONS WITHOUT MISSING OUT ANYTHING. FAILURE TO APPLY THESE RULES WILL RESULT IN INACCURATE OUTPUT. ALL QUERIES MUST BE PROCESSED THROUGH THESE FILTERS.
 
 
-  # ============================================================
-  # SECTION 1: METRIC & TABLE ROUTING (Traffic Control)
-  # ============================================================
-  # These rules tell Cortex WHICH Fact Table + metric to use.
+# ============================================================
+# SECTION 1: METRIC & TABLE ROUTING (Traffic Control)
+# ============================================================
+# These rules tell Cortex WHICH Fact Table + metric to use.
 
-  - RULES: 
+- RULES: 
+  
+  [TRx / Sales Volume]:
+    trigger: User asks for "Sales", "Revenue", "Transactions", "Volume", "TRx", "Total Rx", "Dispensed", "Bottle credit"
+    table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    metric: SUM(ACUTE_TRX_XPO)
+    note: TRx = Total prescriptions (new + refill combined). This is the primary sales proxy.
+    note : any questions related to Bottle credit MUST refers to SUM(ACUTE_TRX_XPO)
+
+  
+  [NRx / New Prescriptions]:
+    trigger: User asks for "Prescriptions", "Rx", "Scripts", "New Rx", "NRx", "New Scripts"
+    table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    metric: SUM(ACUTE_NRX_XPO)
+    note: NRx = New prescriptions only (first-fill). Do NOT use TRx for this question.
+
+  
+
+  [Calls / Visits / Activity]:
+    trigger: User asks for "Activity", "Visits", "Calls", "Interactions", "Field Effort",
+         "Details", "Call Count", "Rep Visits", "Engagements", "Touches"
+    table: FCT_CALL
+    metric: COUNT(DISTINCT INTERACTION_ID)
+    default_filter: status = 'Submitted'
+    note: >
+    Always apply the submitted_interactions filter (status = 'Submitted') unless the user
+    explicitly asks for "planned" or "all" interactions. Planned/Saved calls are not real activity.
     
-		[TRx / Sales Volume]:
-		  trigger: User asks for "Sales", "Revenue", "Transactions", "Volume", "TRx", "Total Rx", "Dispensed", "Bottle credit"
-		  table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-		  metric: SUM(ACUTE_TRX_XPO)
-		  note: TRx = Total prescriptions (new + refill combined). This is the primary sales proxy.
-          note : any questions related to Bottle credit MUST refers to SUM(ACUTE_TRX_XPO)
 
-	  
-		[NRx / New Prescriptions]:
-		  trigger: User asks for "Prescriptions", "Rx", "Scripts", "New Rx", "NRx", "New Scripts"
-		  table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-		  metric: SUM(ACUTE_NRX_XPO)
-		  note: NRx = New prescriptions only (first-fill). Do NOT use TRx for this question.
+  [LAAD / Look-Alike Audience / Benchmark]:
+    trigger: User asks for "LAAD", "Look-Alike", "Benchmark Audience", "Projected", "Expected",
+         "Look Ahead", "Historical Baseline", "LAAD TRx", "LAAD Units"
+    table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+    available_metrics:
+    - SUM(ACUTE_TRX_LAAD)     # Benchmark transaction count
+    - SUM(ACUTE_UNITS_LAAD)   # Benchmark unit count
+    - SUM(ACUTE_TX_DAYS_LAAD) # Benchmark treatment days
+    - SUM(ACUTE_CALENDAR_DAYS_LAAD) # Calendar days in benchmark window
 
-	  
-
-		[Calls / Visits / Activity]:
-		  trigger: User asks for "Activity", "Visits", "Calls", "Interactions", "Field Effort",
-				   "Details", "Call Count", "Rep Visits", "Engagements", "Touches"
-		  table: FCT_CALL
-		  metric: COUNT(DISTINCT INTERACTION_ID)
-		  default_filter: status = 'Submitted'
-		  note: >
-			Always apply the submitted_interactions filter (status = 'Submitted') unless the user
-			explicitly asks for "planned" or "all" interactions. Planned/Saved calls are not real activity.
-			
-
-		[LAAD / Look-Alike Audience / Benchmark]:
-		  trigger: User asks for "LAAD", "Look-Alike", "Benchmark Audience", "Projected", "Expected",
-				   "Look Ahead", "Historical Baseline", "LAAD TRx", "LAAD Units"
-		  table: ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
-		  available_metrics:
-			- SUM(ACUTE_TRX_LAAD)     # Benchmark transaction count
-			- SUM(ACUTE_UNITS_LAAD)   # Benchmark unit count
-			- SUM(ACUTE_TX_DAYS_LAAD) # Benchmark treatment days
-			- SUM(ACUTE_CALENDAR_DAYS_LAAD) # Calendar days in benchmark window
-
-	  
-
-  # ============================================================
-  # SECTION 2: JOIN PREFERENCES & DIMENSION SOURCING
-  # ============================================================
-
-  - RULES: 
   
-	  [HCP Source of Truth]:
-		  preference: ALWAYS use DIM_HCP (DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB.MODELED) for HCP attributes.
-		  fallback: Use TD_HCP (DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING) ONLY if the
-					specific column (e.g. HCP_DEGREE, KOL_IND, SAMPLEABILITY_IND) is absent in DIM_HCP.
-		  key_columns_in_DIM_HCP:
-			- FIRST_NAME, LAST_NAME, NAME         # Full name
-			- PRIMARY_SPECIALTY_DESCRIPTION       # Specialty (prefer over HCP_SPECIALTY in fact tables)
-			- PAINUSCOMM_HCP_SPECIALTY_GROUP      # Specialty Group
-			- CITY, STATE, ZIPCODE                # Location
-			- PAIN_HCP_TARGET, PAIN_HCP_TARGET_TYPE  # Pain targeting flags
-			- PAINUSCOMM_DECILE                   # Decile ranking
-			- STATUS                              # Active / Retired / Deceased
 
-	  
-	  [Sales-to-HCP Join]:
-		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-		  right_table: DIM_HCP
-		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.VERTEX_ID = DIM_HCP.VERTEX_ID
-		  join_type: LEFT JOIN (to preserve HCPs without Veeva profiles)
-		  warning: Do NOT join via HCP_ID between XPO and DIM_HCP — use VERTEX_ID only.
+# ============================================================
+# SECTION 2: JOIN PREFERENCES & DIMENSION SOURCING
+# ============================================================
 
-	  
-	  [Calls-to-HCP Join]:
-		  left_table: FCT_CALL
-		  right_table: DIM_HCP
-		  join_key: FCT_CALL.HCP_ID = DIM_HCP.ID
-		  join_type: LEFT JOIN
+- RULES: 
 
-	  
-	  [Sales-to-Territory Join]:
-		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-		  right_table: DIM_TERRITORY
-		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = DIM_TERRITORY.TERRITORY_NUMBER
-		  note: Use DIM_TERRITORY.NAME for human-readable territory names in output.
+  [HCP Source of Truth]:
+    preference: ALWAYS use DIM_HCP (DEV_P_GLOBAL_ENGAGEMENT_ANALYTICS_DB.MODELED) for HCP attributes.
+    fallback: Use TD_HCP (DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING) ONLY if the
+        specific column (e.g. HCP_DEGREE, KOL_IND, SAMPLEABILITY_IND) is absent in DIM_HCP.
+    key_columns_in_DIM_HCP:
+    - FIRST_NAME, LAST_NAME, NAME         # Full name
+    - PRIMARY_SPECIALTY_DESCRIPTION       # Specialty (prefer over HCP_SPECIALTY in fact tables)
+    - PAINUSCOMM_HCP_SPECIALTY_GROUP      # Specialty Group
+    - CITY, STATE, ZIPCODE                # Location
+    - PAIN_HCP_TARGET, PAIN_HCP_TARGET_TYPE  # Pain targeting flags
+    - PAINUSCOMM_DECILE                   # Decile ranking
+    - STATUS                              # Active / Retired / Deceased
 
-	  [Sales-to-Salesforce Hierarchy Join]:
-		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-		  right_table: TD_SALESFORCE_L1
-		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = TD_SALESFORCE_L1.SF_L1_CD
-		  hierarchy:
-			SF_L1_DESC: Individual territory (e.g. "COLUMBIA, SC")
-			SF_L2_DESC: District (e.g. "BLUEGRASS")
-			SF_L3_DESC: Region (e.g. "SOUTHEAST")
-			SF_L4_DESC: National (e.g. "US PAIN SF NATION")
-		  note: >
-			When a user asks for "Region", use SF_L3_DESC.
-			When a user asks for "District", use SF_L2_DESC.
-			When a user asks for "Territory", use SF_L1_DESC or PTAM_TERRITORY_ID.
-			When a user asks for "National", use SF_L4_DESC.
-
-	  
-	  [Sales-to-Product Hierarchy Join]:
-		  left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
-		  right_table: TD_PROD_BRAND
-		  join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PRODUCT_FAMILY_GROUP = TD_PROD_BRAND.PROD_FAMGRP_CD
-		  hierarchy:
-			PROD_FAMGRP_CD / PROD_FAMGRP_SDESC: Molecule/Family Group (most granular — e.g. "GABAPENTIN")
-			PROD_CAT_SDESC:                     Product Category (e.g. "ANALGESICS OTHER")
-			PROD_CATGRP_SDESC:                  Category Group (e.g. "NON-NARCOTIC ANALGESIC")
-			PROD_MKT_SDESC:                     Market (e.g. "VERTEX ACUTE", "ANY PAIN", "ACUTE HEOR")
-
-	  [Calls-to-Territory Join]:
-		  left_table: FCT_CALL
-		  right_table: DIM_TERRITORY
-		  join_key: FCT_CALL.USER_TERRITORY_ID = DIM_TERRITORY.ID
-		  note: USER_TERRITORY_ID links to the rep's territory. HCP_TERRITORY_ID links to where the HCP is aligned.
-
-	  [User-to-Territory Join for Rep Lookups]:
-		  left_table: REL_USER_TERRITORY
-		  right_table: DIM_TERRITORY
-		  join_key: REL_USER_TERRITORY.TERRITORY_ID = DIM_TERRITORY.ID
-		  filter: REL_USER_TERRITORY.IS_CURRENT = TRUE
-		  note: Use REL_USER_TERRITORY to find which territory a rep currently belongs to.
-
-	  [HCP-to-State Join]:
-		  left_table: DIM_HCP
-		  right_table: TD_GEO_STATE
-		  join_key: DIM_HCP.STATE = TD_GEO_STATE.GEO_STATE_CD
-		  use_when: User asks for state-level analysis, heat maps, or geographic breakdowns.
-
-
-  # ============================================================
-  # SECTION 3: DATE / TIME HANDLING
-  # ============================================================
-
-  - RULES:
   
-	  [DATE_KEY type in FCT_CALL]:
-		  column: FCT_CALL.DATE_KEY
-		  data_type: VARCHAR(8) stored as 'YYYYMMDD'
-		  cast_for_comparison: TO_DATE(DATE_KEY, 'YYYYMMDD')
-		  examples:
-			- "Last 90 days: TO_DATE(DATE_KEY,'YYYYMMDD') >= DATEADD(day,-90,CURRENT_DATE)"
-			- "Year 2024: TO_DATE(DATE_KEY,'YYYYMMDD') BETWEEN '2024-01-01' AND '2024-12-31'"
+  [Sales-to-HCP Join]:
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: DIM_HCP
+    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.VERTEX_ID = DIM_HCP.VERTEX_ID
+    join_type: LEFT JOIN (to preserve HCPs without Veeva profiles)
+    warning: Do NOT join via HCP_ID between XPO and DIM_HCP — use VERTEX_ID only.
 
-	  [DATE_KEY in XPO and LAAD]:
-		  column: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.DATE_KEY and ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD.DATE_KEY
-		  data_type: DATE (no cast needed)
-		  note: >
-			WEEK_DT is also available as NUMBER(10,0) in format YYYYMMDD.
-			DATE_KEY is the preferred column for filtering and joining on dates.
-
-	  [Weekly Data Granularity]:
-		  note: >
-			Both XPO and LAAD tables are weekly. Each row = one HCP + one product + one week.
-			When aggregating to monthly or quarterly, use DATE_TRUNC or YEAR/MONTH functions on DATE_KEY.
-			Example monthly: DATE_TRUNC('month', DATE_KEY) or TO_CHAR(DATE_KEY,'YYYY-MM').
-
-	  [Most Recent Week Logic]:
-		  when: User asks for "current", "latest", "most recent" data without specifying a date.
-		  approach: Filter DATE_KEY = (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO)
-		  note: Do not assume a hardcoded date. Always derive the max date dynamically.
-
-	  [YTD / Rolling Window]:
-		  YTD: DATE_KEY >= DATE_TRUNC('year', CURRENT_DATE) AND DATE_KEY < CURRENT_DATE
-		  Rolling 13 weeks: DATE_KEY >= DATEADD(week, -13, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-		  Rolling 26 weeks: DATE_KEY >= DATEADD(week, -26, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-		  Rolling 52 weeks: DATE_KEY >= DATEADD(week, -52, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-		  Rolling 1 weeks: DATE_KEY >= DATEADD(week, -1, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-		  Rolling 2 weeks: DATE_KEY >= DATEADD(week, -2, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-		  Rolling 3 weeks: DATE_KEY >= DATEADD(week, -3, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
-
-
-  # ============================================================
-  # SECTION 4: STANDARD FILTERS & GUARDRAILS
-  # ============================================================
-
-  - RULES:
   
-	  [Territory NULL Filter for Sales]:
-		  always_apply: Filter out rows WHERE PTAM_TERRITORY_ID IS NULL in TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.
-		  reason: NULL territory rows are unassigned/orphan records that inflate totals incorrectly.
+  [Calls-to-HCP Join]:
+    left_table: FCT_CALL
+    right_table: DIM_HCP
+    join_key: FCT_CALL.HCP_ID = DIM_HCP.ID
+    join_type: LEFT JOIN
 
-	  [Submitted Calls Only]:
-		  always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
-		  exception: Only include Planned/Saved if user explicitly says "all calls" or "planned calls".
-
-	  [Active HCPs Only]:
-		  recommendation: When joining to DIM_HCP, consider filtering DIM_HCP.STATUS = 'Active'
-						  unless user asks for historical or inactive HCPs.
-
-	  
-	  [Pain Target HCPs Only]:
-		  when: User asks about "targets", "targeted HCPs", "in-target", "pain targets"
-		  filter: DIM_HCP.PAIN_HCP_TARGET = TRUE
-		  subtypes: DIM_HCP.PAIN_HCP_TARGET_TYPE IN ('VSR', 'PTAM') for specific rep type targets.
-
-	  [Row Limit for HCP Lists]:
-		  apply_when: User asks to "list", "show me", "who are", "top HCPs", "which doctors"
-		  append: LIMIT 20 
-		  reason: Prevents timeouts and excessively large result sets.
-
-	  [Deleted Record Exclusion]:
-		  FCT_CALL: WHERE IS_DELETED = FALSE
-		  DIM_HCP:  WHERE IS_DELETED = FALSE
-		  note: Always exclude soft-deleted records unless specifically requested.
-
-
-  # ============================================================
-  # SECTION 5: DEFAULT GROUPINGS & AGGREGATION BEHAVIOR
-  # ============================================================
-
-  - RULES:
   
-	  [Default Grouping for "Breakdown" Requests]:
-		  when: User asks for "breakdown", "by", "split", "performance" without specifying dimension
-		  any question asked with realtive to hcp level view, the result has to be aggregated.
-		  defaults_in_order:
-			1. HCP_SPECIALTY (from DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION)
-			2. PTAM_TERRITORY_ID or SF_L1_DESC (territory level)
-			3. PRODUCT_FAMILY_GROUP (product level)
-		  note: Use the most contextually relevant grouping. If user mentions territory → group by territory.
+  [Sales-to-Territory Join]:
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: DIM_TERRITORY
+    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = DIM_TERRITORY.TERRITORY_NUMBER
+    note: Use DIM_TERRITORY.NAME for human-readable territory names in output.
 
-	  [Top N Queries]:
-		  when: User asks "top 10", "top 20", "best performing", "highest", "lowest"
-		  pattern: ORDER BY [metric] DESC/ASC LIMIT N
-		  note: Always include HCP name (DIM_HCP.NAME or FIRST_NAME + LAST_NAME) in top-N HCP lists.
+  [Sales-to-Salesforce Hierarchy Join]:
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: TD_SALESFORCE_L1
+    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PTAM_TERRITORY_ID = TD_SALESFORCE_L1.SF_L1_CD
+    hierarchy:
+    SF_L1_DESC: Individual territory (e.g. "COLUMBIA, SC")
+    SF_L2_DESC: District (e.g. "BLUEGRASS")
+    SF_L3_DESC: Region (e.g. "SOUTHEAST")
+    SF_L4_DESC: National (e.g. "US PAIN SF NATION")
+    note: >
+    When a user asks for "Region", use SF_L3_DESC.
+    When a user asks for "District", use SF_L2_DESC.
+    When a user asks for "Territory", use SF_L1_DESC or PTAM_TERRITORY_ID.
+    When a user asks for "National", use SF_L4_DESC.
 
-	  [Ranking Queries]:
-		  when: User asks for "rank", "ranking", "ranked by"
-		  pattern: >
-			ROW_NUMBER() OVER (PARTITION BY [group_col] ORDER BY [metric] DESC) AS RANK
-		  example: Rank HCPs within each territory by TRx volume.
-
-	  [Period-over-Period Comparisons]:
-		  when: User asks for "vs last year", "YoY", "QoQ", "WoW", "growth", "change"
-		  pattern: >
-			Use LAG() window function or self-join on the same table with shifted date filter.
-			Example (YoY): 
-			  SUM(CASE WHEN YEAR(DATE_KEY) = 2025 THEN ACUTE_TRX_XPO END) AS TRx_2025,
-			  SUM(CASE WHEN YEAR(DATE_KEY) = 2024 THEN ACUTE_TRX_XPO END) AS TRx_2024,
-			  (TRx_2025 - TRx_2024) / NULLIF(TRx_2024, 0) * 100 AS YoY_Growth_Pct
-
-
-  # ============================================================
-  # SECTION 6: SPECIALTY & TERRITORY DIMENSION MAPPINGS
-  # ============================================================
-
-  - RULES:
   
-	  [HCP Specialty Hierarchy]:
-		  granular:  DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION (e.g. "ANESTHESIOLOGY", "GENERAL SURGERY")
-		  group:     DIM_HCP.PAINUSCOMM_HCP_SPECIALTY_GROUP (e.g. "ANESTHESIOLOGY / PAIN", "NP / PA")
-		  fact_cols: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_SPECIALTY and HCP_SPECIALTY_GROUP
-					 (use as fallback when DIM_HCP join is not available)
-		  note: Prefer DIM_HCP columns; fact table specialty columns may lag Veeva updates.
+  [Sales-to-Product Hierarchy Join]:
+    left_table: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+    right_table: TD_PROD_BRAND
+    join_key: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.PRODUCT_FAMILY_GROUP = TD_PROD_BRAND.PROD_FAMGRP_CD
+    hierarchy:
+    PROD_FAMGRP_CD / PROD_FAMGRP_SDESC: Molecule/Family Group (most granular — e.g. "GABAPENTIN")
+    PROD_CAT_SDESC:                     Product Category (e.g. "ANALGESICS OTHER")
+    PROD_CATGRP_SDESC:                  Category Group (e.g. "NON-NARCOTIC ANALGESIC")
+    PROD_MKT_SDESC:                     Market (e.g. "VERTEX ACUTE", "ANY PAIN", "ACUTE HEOR")
 
-	  [Territory Type Distinction]:
-		  PTAM_TERRITORY_ID: Pain Territory Account Manager territory — primary territory for pain sales data.
-		  SAL_TERRITORY_ID:  SAL (Sales Account Lead) territory — broader geographic sales territory.
-		  note: >
-			For PTAM-specific analysis use PTAM_TERRITORY_ID.
-			When user says "territory" without specifying, default to PTAM_TERRITORY_ID.
-			DIM_TERRITORY.TERRITORY_GROUP = 'US_COMMERCIAL_PTAM' filters only PTAM territories.
+  [Calls-to-Territory Join]:
+    left_table: FCT_CALL
+    right_table: DIM_TERRITORY
+    join_key: FCT_CALL.USER_TERRITORY_ID = DIM_TERRITORY.ID
+    note: USER_TERRITORY_ID links to the rep's territory. HCP_TERRITORY_ID links to where the HCP is aligned.
 
-	  [Disease Area Context]:
-		  note: >
-			This data model is focused on PAIN commercial operations.
-			INTERACTION_DISEASE_AREA = 'PAIN' or similar is the relevant filter in FCT_CALL
-			if the user is asking pain-specific call activity. Do not accidentally pull CF, HEME, or T1D calls.
+  [User-to-Territory Join for Rep Lookups]:
+    left_table: REL_USER_TERRITORY
+    right_table: DIM_TERRITORY
+    join_key: REL_USER_TERRITORY.TERRITORY_ID = DIM_TERRITORY.ID
+    filter: REL_USER_TERRITORY.IS_CURRENT = TRUE
+    note: Use REL_USER_TERRITORY to find which territory a rep currently belongs to.
 
-
-  # ============================================================
-  # SECTION 7: PRODUCT HIERARCHY SHORTCUTS
-  # ============================================================
-
-  - RULES:
-  
-	  [Journavx / Suzetrigine Queries]:
-		  note: >
-			Journavx (suzetrigine) is a branded pain product. When user asks about Journavx:
-			Filter BRANDED_FLAG = 'Y' and join TD_PROD_BRAND to identify the relevant PROD_FAMGRP_CD.
-			CLM_PRESENTATION_NAME in FCT_CALL may contain 'JOURNAVX' for call-level CLM analysis.
-
-	  [Branded-Only Market Share]:
-		  when: User asks for "Vertex share", "branded share", "market share"
-		  approach: >
-			Calculate SUM(ACUTE_TRX_XPO WHERE BRANDED_FLAG='Y') / SUM(ACUTE_TRX_XPO) * 100
-			grouped by relevant dimension (territory, specialty, etc.)
-
-	  [Market Segment Filtering]:
-		  PROD_MKT_SDESC values:
-			- 'VERTEX ACUTE'  = Vertex-branded acute pain products
-			- 'ANY PAIN'      = Full pain market (all products)
-			- 'ACUTE HEOR'    = HEOR (Health Economics) acute market
-		  recommendation: >
-			For competitive analysis, use 'ANY PAIN' market.
-			For Vertex performance, use 'VERTEX ACUTE' market.
-			Join via XPO_PROD_BRAND relationship (PRODUCT_FAMILY_GROUP = PROD_FAMGRP_CD).
-
-
-  # ============================================================
-  # SECTION 8: INTERACTION / CALL SPECIFIC LOGIC
-  # ============================================================
-
-  - RULES:
-  
-	  [Counting Unique Interactions vs. HCPs Reached]:
-		  always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
-		  unique_interactions: COUNT(DISTINCT FCT_CALL.INTERACTION_ID)
-		  unique_HCPs_reached: COUNT(DISTINCT FCT_CALL.HCP_ID)
-		  note: These are different metrics. Clarify which is needed. One rep can call same HCP multiple times.
-
-	  [Most Recent Interaction per HCP]:
-		  use_fact: FCT_CALL.HCP_INTERACTION_ROW_NUMBER = 1
-		  note: >
-			This pre-computed row number ranks interactions per HCP by date DESC.
-			Row number 1 = most recent interaction.
-			Use when user asks "last call", "most recent visit", "when was the last contact".
-
-	  
-	   whenever the user asks questions about engagement and sales , first aggregate the sales data at the brand hcp id level then join the aggregated data needs to join with respect to latest call date. Join aggregated sales data with dim_hcp using vertex id then full outer join with fct call hcp_id using dim_hcp  id with respect to latest call date of hcp  column.
-
-  # ============================================================
-  # SECTION 9: COMMON QUERY PATTERNS (TEMPLATES)
-  # ============================================================
-
-  - PATTERN A [TRx by Territory, Current Quarter]:
-      description: Total TRx by PTAM Territory for the current quarter
-      template: |
-        SELECT
-          t.SF_L1_DESC AS territory_name,
-          SUM(x.ACUTE_TRX_XPO) AS total_trx
-        FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
-        JOIN TD_SALESFORCE_L1 t ON x.PTAM_TERRITORY_ID = t.SF_L1_CD
-        WHERE x.PTAM_TERRITORY_ID IS NOT NULL
-          AND x.DATE_KEY >= DATE_TRUNC('quarter', CURRENT_DATE)
-        GROUP BY t.SF_L1_DESC
-        ORDER BY total_trx DESC
-
-  - PATTERN B [Top HCPs by NRx with Name]:
-      description: Top 20 HCPs by NRx with their name and specialty
-      template: |
-        SELECT
-          h.NAME AS hcp_name,
-          h.PRIMARY_SPECIALTY_DESCRIPTION AS specialty,
-          SUM(x.ACUTE_NRX_XPO) AS total_nrx
-        FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
-        JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
-        WHERE x.PTAM_TERRITORY_ID IS NOT NULL
-          AND h.IS_DELETED = FALSE
-        GROUP BY h.NAME, h.PRIMARY_SPECIALTY_DESCRIPTION
-        ORDER BY total_nrx DESC
-        LIMIT 20
-
-  - PATTERN C [Call Count by Territory, Submitted Only]:
-      description: Number of interactions made per PTAM territory
-      template: |
-        SELECT
-          t.SF_L1_DESC AS territory_name,
-          COUNT(DISTINCT c.INTERACTION_ID) AS call_count
-        FROM FCT_CALL c
-        JOIN DIM_TERRITORY dt ON c.USER_TERRITORY_ID = dt.ID
-        JOIN TD_SALESFORCE_L1 t ON dt.TERRITORY_NUMBER = t.SF_L1_CD
-        WHERE c.STATUS = 'Submitted'
-          AND c.INTERACTION_DISEASE_AREA LIKE '%PAIN%'
-        GROUP BY t.SF_L1_DESC
-        ORDER BY call_count DESC
-
-  - PATTERN D [XPO vs LAAD Index by HCP]:
-      description: Performance index (actual vs benchmark) per HCP
-      template: |
-        SELECT
-          h.NAME AS hcp_name,
-          x.PRODUCT_FAMILY_GROUP,
-          SUM(x.ACUTE_TRX_XPO) AS actual_trx,
-          SUM(l.ACUTE_TRX_LAAD) AS benchmark_trx,
-          ROUND(SUM(x.ACUTE_TRX_XPO) / NULLIF(SUM(l.ACUTE_TRX_LAAD), 0), 2) AS index_score
-        FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
-        JOIN ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD l
-          ON x.HCP_ID = l.HCP_ID
-         AND x.PRODUCT_FAMILY_GROUP = l.PRODUCT_FAMILY_GROUP
-         AND x.DATE_KEY = l.DATE_KEY
-        JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
-        WHERE x.PTAM_TERRITORY_ID IS NOT NULL
-        GROUP BY h.NAME,  x.PRODUCT_FAMILY_GROUP
-        ORDER BY index_score DESC
-        LIMIT 20
-
-
-  # ============================================================
-  # SECTION 10: ANTI-PATTERNS & COMMON MISTAKES TO AVOID
-  # ============================================================
-
-  - AVOID 1: Never join FCT_CALL.HCP_ID to DIM_HCP.VERTEX_ID — the correct key is DIM_HCP.ID.
-  - AVOID 2: Never join TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_ID directly to DIM_HCP.ID — use VERTEX_ID.
-  - AVOID 3: Never compare FCT_CALL.DATE_KEY (VARCHAR) to a DATE without casting: TO_DATE(DATE_KEY, 'YYYYMMDD').
-  - AVOID 4: Never include rows where PTAM_TERRITORY_ID IS NULL in sales/prescription aggregations.
-  - AVOID 5: Never include STATUS != 'Submitted' calls when measuring actual field activity.
-  - AVOID 6: Never divide by zero — always wrap denominators in NULLIF(..., 0).
-  - AVOID 7: USE ONLY PTAM_TERRITORY_ID and NOT USE SAM_TERRITORY_ID for queries.
-  - AVOID 8: Never assume "Journavx" or a branded product appears without filtering BRANDED_FLAG = 'Y'.
-  - AVOID 9: Never return unlimited rows for all the queries — always apply LIMIT 20.
+  [HCP-to-State Join]:
+    left_table: DIM_HCP
+    right_table: TD_GEO_STATE
+    join_key: DIM_HCP.STATE = TD_GEO_STATE.GEO_STATE_CD
+    use_when: User asks for state-level analysis, heat maps, or geographic breakdowns.
 
 
 # ============================================================
-  # SECTION 11: CRITICAL ADDITIONAL INSTRUCTIONS
-  # ============================================================
+# SECTION 3: DATE / TIME HANDLING
+# ============================================================
+
+- RULES:
+
+  [DATE_KEY type in FCT_CALL]:
+    column: FCT_CALL.DATE_KEY
+    data_type: VARCHAR(8) stored as 'YYYYMMDD'
+    cast_for_comparison: TO_DATE(DATE_KEY, 'YYYYMMDD')
+    examples:
+    - "Last 90 days: TO_DATE(DATE_KEY,'YYYYMMDD') >= DATEADD(day,-90,CURRENT_DATE)"
+    - "Year 2024: TO_DATE(DATE_KEY,'YYYYMMDD') BETWEEN '2024-01-01' AND '2024-12-31'"
+
+  [DATE_KEY in XPO and LAAD]:
+    column: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.DATE_KEY and ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD.DATE_KEY
+    data_type: DATE (no cast needed)
+    note: >
+    WEEK_DT is also available as NUMBER(10,0) in format YYYYMMDD.
+    DATE_KEY is the preferred column for filtering and joining on dates.
+
+  [Weekly Data Granularity]:
+    note: >
+    Both XPO and LAAD tables are weekly. Each row = one HCP + one product + one week.
+    When aggregating to monthly or quarterly, use DATE_TRUNC or YEAR/MONTH functions on DATE_KEY.
+    Example monthly: DATE_TRUNC('month', DATE_KEY) or TO_CHAR(DATE_KEY,'YYYY-MM').
+
+  [Most Recent Week Logic]:
+    when: User asks for "current", "latest", "most recent" data without specifying a date.
+    approach: Filter DATE_KEY = (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO)
+    note: Do not assume a hardcoded date. Always derive the max date dynamically.
+
+  [YTD / Rolling Window]:
+    YTD: DATE_KEY >= DATE_TRUNC('year', CURRENT_DATE) AND DATE_KEY < CURRENT_DATE
+    Rolling 13 weeks: DATE_KEY >= DATEADD(week, -13, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+    Rolling 26 weeks: DATE_KEY >= DATEADD(week, -26, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+    Rolling 52 weeks: DATE_KEY >= DATEADD(week, -52, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+    Rolling 1 weeks: DATE_KEY >= DATEADD(week, -1, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+    Rolling 2 weeks: DATE_KEY >= DATEADD(week, -2, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
+    Rolling 3 weeks: DATE_KEY >= DATEADD(week, -3, (SELECT MAX(DATE_KEY) FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO))
 
 
+# ============================================================
+# SECTION 4: STANDARD FILTERS & GUARDRAILS
+# ============================================================
 
-I. HCP CLASSIFICATION & NOISE FILTERING
-THE 10% RULE: "High Volume," "High Potential," or "High" HCPs are EXCLUSIVELY the Top 10% of providers ranked by SUM(acute_trx_xpo).
-MANDATORY NOISE THRESHOLD: STOP and filter out any HCP where SUM(acute_trx_xpo) < 5.
+- RULES:
 
-Constraint: Never include low-volume HCPs (less than 5 units) in "High Potential" or "High Volume" lists, regardless of their percentile rank.
+  [Territory NULL Filter for Sales]:
+    always_apply: Filter out rows WHERE PTAM_TERRITORY_ID IS NULL in TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.
+    reason: NULL territory rows are unassigned/orphan records that inflate totals incorrectly.
+
+  [Submitted Calls Only]:
+    always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
+    exception: Only include Planned/Saved if user explicitly says "all calls" or "planned calls".
+
+  [Active HCPs Only]:
+    recommendation: When joining to DIM_HCP, consider filtering DIM_HCP.STATUS = 'Active'
+          unless user asks for historical or inactive HCPs.
+
+  
+  [Pain Target HCPs Only]:
+    when: User asks about "targets", "targeted HCPs", "in-target", "pain targets"
+    filter: DIM_HCP.PAIN_HCP_TARGET = TRUE
+    subtypes: DIM_HCP.PAIN_HCP_TARGET_TYPE IN ('VSR', 'PTAM') for specific rep type targets.
+
+  [Row Limit for HCP Lists]:
+    apply_when: User asks to "list", "show me", "who are", "top HCPs", "which doctors"
+    append: LIMIT 20 
+    reason: Prevents timeouts and excessively large result sets.
+
+  [Deleted Record Exclusion]:
+    FCT_CALL: WHERE IS_DELETED = FALSE
+    DIM_HCP:  WHERE IS_DELETED = FALSE
+    note: Always exclude soft-deleted records unless specifically requested.
+
+
+# ============================================================
+# SECTION 5: DEFAULT GROUPINGS & AGGREGATION BEHAVIOR
+# ============================================================
+
+- RULES:
+
+  [Default Grouping for "Breakdown" Requests]:
+    when: User asks for "breakdown", "by", "split", "performance" without specifying dimension
+    any question asked with realtive to hcp level view, the result has to be aggregated.
+    defaults_in_order:
+    1. HCP_SPECIALTY (from DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION)
+    2. PTAM_TERRITORY_ID or SF_L1_DESC (territory level)
+    3. PRODUCT_FAMILY_GROUP (product level)
+    note: Use the most contextually relevant grouping. If user mentions territory → group by territory.
+
+  [Top N Queries]:
+    when: User asks "top 10", "top 20", "best performing", "highest", "lowest"
+    pattern: ORDER BY [metric] DESC/ASC LIMIT N
+    note: Always include HCP name (DIM_HCP.NAME or FIRST_NAME + LAST_NAME) in top-N HCP lists.
+
+  [Ranking Queries]:
+    when: User asks for "rank", "ranking", "ranked by"
+    pattern: >
+    ROW_NUMBER() OVER (PARTITION BY [group_col] ORDER BY [metric] DESC) AS RANK
+    example: Rank HCPs within each territory by TRx volume.
+
+  [Period-over-Period Comparisons]:
+    when: User asks for "vs last year", "YoY", "QoQ", "WoW", "growth", "change"
+    pattern: >
+    Use LAG() window function or self-join on the same table with shifted date filter.
+    Example (YoY): 
+      SUM(CASE WHEN YEAR(DATE_KEY) = 2025 THEN ACUTE_TRX_XPO END) AS TRx_2025,
+      SUM(CASE WHEN YEAR(DATE_KEY) = 2024 THEN ACUTE_TRX_XPO END) AS TRx_2024,
+      (TRx_2025 - TRx_2024) / NULLIF(TRx_2024, 0) * 100 AS YoY_Growth_Pct
+
+
+# ============================================================
+# SECTION 6: SPECIALTY & TERRITORY DIMENSION MAPPINGS
+# ============================================================
+
+- RULES:
+
+  [HCP Specialty Hierarchy]:
+    granular:  DIM_HCP.PRIMARY_SPECIALTY_DESCRIPTION (e.g. "ANESTHESIOLOGY", "GENERAL SURGERY")
+    group:     DIM_HCP.PAINUSCOMM_HCP_SPECIALTY_GROUP (e.g. "ANESTHESIOLOGY / PAIN", "NP / PA")
+    fact_cols: TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_SPECIALTY and HCP_SPECIALTY_GROUP
+         (use as fallback when DIM_HCP join is not available)
+    note: Prefer DIM_HCP columns; fact table specialty columns may lag Veeva updates.
+
+  [Territory Type Distinction]:
+    PTAM_TERRITORY_ID: Pain Territory Account Manager territory — primary territory for pain sales data.
+    SAL_TERRITORY_ID:  SAL (Sales Account Lead) territory — broader geographic sales territory.
+    note: >
+    For PTAM-specific analysis use PTAM_TERRITORY_ID.
+    When user says "territory" without specifying, default to PTAM_TERRITORY_ID.
+    DIM_TERRITORY.TERRITORY_GROUP = 'US_COMMERCIAL_PTAM' filters only PTAM territories.
+
+  [Disease Area Context]:
+    note: >
+    This data model is focused on PAIN commercial operations.
+    INTERACTION_DISEASE_AREA = 'PAIN' or similar is the relevant filter in FCT_CALL
+    if the user is asking pain-specific call activity. Do not accidentally pull CF, HEME, or T1D calls.
+
+
+# ============================================================
+# SECTION 7: PRODUCT HIERARCHY SHORTCUTS
+# ============================================================
+
+- RULES:
+
+  [Journavx / Suzetrigine Queries]:
+    note: >
+    Journavx (suzetrigine) is a branded pain product. When user asks about Journavx:
+    Filter BRANDED_FLAG = 'Y' and join TD_PROD_BRAND to identify the relevant PROD_FAMGRP_CD.
+    CLM_PRESENTATION_NAME in FCT_CALL may contain 'JOURNAVX' for call-level CLM analysis.
+
+  [Branded-Only Market Share]:
+    when: User asks for "Vertex share", "branded share", "market share"
+    approach: >
+    Calculate SUM(ACUTE_TRX_XPO WHERE BRANDED_FLAG='Y') / SUM(ACUTE_TRX_XPO) * 100
+    grouped by relevant dimension (territory, specialty, etc.)
+
+  [Market Segment Filtering]:
+    PROD_MKT_SDESC values:
+    - 'VERTEX ACUTE'  = Vertex-branded acute pain products
+    - 'ANY PAIN'      = Full pain market (all products)
+    - 'ACUTE HEOR'    = HEOR (Health Economics) acute market
+    recommendation: >
+    For competitive analysis, use 'ANY PAIN' market.
+    For Vertex performance, use 'VERTEX ACUTE' market.
+    Join via XPO_PROD_BRAND relationship (PRODUCT_FAMILY_GROUP = PROD_FAMGRP_CD).
+
+
+# ============================================================
+# SECTION 8: INTERACTION / CALL SPECIFIC LOGIC
+# ============================================================
+
+- RULES:
+
+  [Counting Unique Interactions vs. HCPs Reached]:
+    always_apply: In FCT_CALL, default to WHERE status = 'Submitted'.
+    unique_interactions: COUNT(DISTINCT FCT_CALL.INTERACTION_ID)
+    unique_HCPs_reached: COUNT(DISTINCT FCT_CALL.HCP_ID)
+    note: These are different metrics. Clarify which is needed. One rep can call same HCP multiple times.
+
+  [Most Recent Interaction per HCP]:
+    use_fact: FCT_CALL.HCP_INTERACTION_ROW_NUMBER = 1
+    note: >
+    This pre-computed row number ranks interactions per HCP by date DESC.
+    Row number 1 = most recent interaction.
+    Use when user asks "last call", "most recent visit", "when was the last contact".
+
+  
+   whenever the user asks questions about engagement and sales , first aggregate the sales data at the brand hcp id level then join the aggregated data needs to join with respect to latest call date. Join aggregated sales data with dim_hcp using vertex id then full outer join with fct call hcp_id using dim_hcp  id with respect to latest call date of hcp  column.
+
+# ============================================================
+# SECTION 9: COMMON QUERY PATTERNS (TEMPLATES)
+# ============================================================
+
+- PATTERN A [TRx by Territory, Current Quarter]:
+    description: Total TRx by PTAM Territory for the current quarter
+    template: |
+      SELECT
+        t.SF_L1_DESC AS territory_name,
+        SUM(x.ACUTE_TRX_XPO) AS total_trx
+      FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
+      JOIN TD_SALESFORCE_L1 t ON x.PTAM_TERRITORY_ID = t.SF_L1_CD
+      WHERE x.PTAM_TERRITORY_ID IS NOT NULL
+        AND x.DATE_KEY >= DATE_TRUNC('quarter', CURRENT_DATE)
+      GROUP BY t.SF_L1_DESC
+      ORDER BY total_trx DESC
+
+- PATTERN B [Top HCPs by NRx with Name]:
+    description: Top 20 HCPs by NRx with their name and specialty
+    template: |
+      SELECT
+        h.NAME AS hcp_name,
+        h.PRIMARY_SPECIALTY_DESCRIPTION AS specialty,
+        SUM(x.ACUTE_NRX_XPO) AS total_nrx
+      FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
+      JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
+      WHERE x.PTAM_TERRITORY_ID IS NOT NULL
+        AND h.IS_DELETED = FALSE
+      GROUP BY h.NAME, h.PRIMARY_SPECIALTY_DESCRIPTION
+      ORDER BY total_nrx DESC
+      LIMIT 20
+
+- PATTERN C [Call Count by Territory, Submitted Only]:
+    description: Number of interactions made per PTAM territory
+    template: |
+      SELECT
+        t.SF_L1_DESC AS territory_name,
+        COUNT(DISTINCT c.INTERACTION_ID) AS call_count
+      FROM FCT_CALL c
+      JOIN DIM_TERRITORY dt ON c.USER_TERRITORY_ID = dt.ID
+      JOIN TD_SALESFORCE_L1 t ON dt.TERRITORY_NUMBER = t.SF_L1_CD
+      WHERE c.STATUS = 'Submitted'
+        AND c.INTERACTION_DISEASE_AREA LIKE '%PAIN%'
+      GROUP BY t.SF_L1_DESC
+      ORDER BY call_count DESC
+
+- PATTERN D [XPO vs LAAD Index by HCP]:
+    description: Performance index (actual vs benchmark) per HCP
+    template: |
+      SELECT
+        h.NAME AS hcp_name,
+        x.PRODUCT_FAMILY_GROUP,
+        SUM(x.ACUTE_TRX_XPO) AS actual_trx,
+        SUM(l.ACUTE_TRX_LAAD) AS benchmark_trx,
+        ROUND(SUM(x.ACUTE_TRX_XPO) / NULLIF(SUM(l.ACUTE_TRX_LAAD), 0), 2) AS index_score
+      FROM TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO x
+      JOIN ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD l
+        ON x.HCP_ID = l.HCP_ID
+       AND x.PRODUCT_FAMILY_GROUP = l.PRODUCT_FAMILY_GROUP
+       AND x.DATE_KEY = l.DATE_KEY
+      JOIN DIM_HCP h ON x.VERTEX_ID = h.VERTEX_ID
+      WHERE x.PTAM_TERRITORY_ID IS NOT NULL
+      GROUP BY h.NAME,  x.PRODUCT_FAMILY_GROUP
+      ORDER BY index_score DESC
+      LIMIT 20
+
+
+# ============================================================
+# SECTION 10: ANTI-PATTERNS & COMMON MISTAKES TO AVOID
+# ============================================================
+
+- AVOID 1: Never join FCT_CALL.HCP_ID to DIM_HCP.VERTEX_ID — the correct key is DIM_HCP.ID.
+- AVOID 2: Never join TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO.HCP_ID directly to DIM_HCP.ID — use VERTEX_ID.
+- AVOID 3: Never compare FCT_CALL.DATE_KEY (VARCHAR) to a DATE without casting: TO_DATE(DATE_KEY, 'YYYYMMDD').
+- AVOID 4: Never include rows where PTAM_TERRITORY_ID IS NULL in sales/prescription aggregations.
+- AVOID 5: Never include STATUS != 'Submitted' calls when measuring actual field activity.
+- AVOID 6: Never divide by zero — always wrap denominators in NULLIF(..., 0).
+- AVOID 7: USE ONLY PTAM_TERRITORY_ID and NOT USE SAM_TERRITORY_ID for queries.
+- AVOID 8: Never assume "Journavx" or a branded product appears without filtering BRANDED_FLAG = 'Y'.
+- AVOID 9: Never return unlimited rows for all the queries — always apply LIMIT 20.
+- AVOID 10: YOU MUST NOT STRICTLY CREATE SEMANTIC VIEW QUERIES. ONLY GENERATE AND EXCEUTE VALID QUERIES BASED ON ACTUAL TABLES.
+
+
+# ============================================================
+# SECTION 11: CRITICAL ADDITIONAL INSTRUCTIONS
+# ============================================================
+
+
+RULE 1:
+
+"High Potential" ALWAYS points to Top 10% by the metric `acute prescription volume` .
+
+RULE 2:
 
 YOU MUST ALWAYS USE ` SUM(acute_units_xpo)`  for 'Procedural Volume' calculations.
 
-YOU MUST ALWAYS USE  `acute_trx_xpo` as the metric  when there is a mention about 'outperforming the nation' in the question.
+RULE 3:
 
+YOU MUST ALWAYS USE  `prescription volume` as the metric  when there is a mention about 'outperforming the nation' in the question.
 
-II. WRITERS
+ RULE 4:
+
+FOR `activity` related query , YOU MUST ALWAYS USE `FCT_CALL` table.
+
+RULE 5:
 
 NEW WRITER DEFINITION: "First-Time Prescriber" or "First Time HCP Writer" ALWAYS relates to record where acute_nrx_xpo > 0 for the first time.
 
-
-III. STRING SEARCH REQUIREMENTS
+RULE 6:
 
 WILDCARD ENFORCEMENT: For all product_category queries, you are PROHIBITED from using = or IN.
 

@@ -40934,3 +40934,31 @@ relationships:
         right_column: PRODUCT_FAMILY_GROUP
       - left_column: DATE_KEY
         right_column: DATE_KEY
+
+
+
+custom_instructions: |
+      ### INTERNAL DATA INTEGRITY RULES: 
+      1. To join FCT_CALL to DIM_HCP, use DIM_HCP.ID (Never use VERTEX_ID for this join). 
+      2. To join TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO to DIM_HCP, use DIM_HCP.VERTEX_ID. 
+      3. Always filter for STATUS = 'Submitted' when measuring field activity.
+      4. Always exclude rows where PTAM_TERRITORY_ID IS NULL for sales or prescription queries.
+      5. Always use PTAM_TERRITORY_ID; never use SAM_TERRITORY_ID.
+
+      ### METRIC & FILTER DEFAULTS: 
+      1. Default Metric: If no metric is specified, use Prescription Volume (acute_trx_xpo).
+      2. Ranking: For 'Top N' questions, use acute_trx_xpo as the ranking metric.
+      3. Row Limits: Always apply LIMIT 20 to final queries unless specified otherwise.
+      4. Branding: If a branded product is mentioned, filter BRANDED_FLAG = 'Y'.
+      5. Zero Handling: Always wrap denominators in NULLIF(..., 0) to avoid division errors.
+
+      ### SPECIFIC BUSINESS DEFINITIONS:
+      1. Bottle Credit: Use the column 'acute_trx_xpo'.
+      2. Performance / Outperforming Nation: Calculate the average 'acute_trx_xpo' at the national level and compare the target entity's average against it.
+      3. High Volume/High Potential HCPs: Defined as the Top 10% of HCPs ranked by SUM(acute_trx_xpo). Only include HCPs where SUM(acute_trx_xpo) >= 5.
+      4. First-Time Prescribers/Writers: Defined as any HCP where acute_nrx_xpo > 0 for the first time.
+      5. Procedural Volume: Use 'acute_units_xpo' instead of 'acute_trx_xpo'.
+      6. Product Categories: Use the LIKE operator for filtering product categories rather than '=' or 'IN'.
+
+      ### TECHNICAL FORMATTING:
+      1. Date Comparisons: FCT_CALL.DATE_KEY is a VARCHAR. Always cast using TO_DATE(DATE_KEY, 'YYYYMMDD') before comparing to dates.

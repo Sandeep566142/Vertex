@@ -40962,3 +40962,11 @@ custom_instructions: |
 
       ### TECHNICAL FORMATTING:
       1. Date Comparisons: FCT_CALL.DATE_KEY is a VARCHAR. Always cast using TO_DATE(DATE_KEY, 'YYYYMMDD') before comparing to dates.
+
+
+
+	  Total Journavx Rx
+Total Journavx Units
+Total Anticonvulstant volume
+Total Hydrocodone volume
+Total Non-Narcotic Analgestic volume

@@ -41086,3 +41086,59 @@ Total Non-Narcotic Analgestic volume
     ]
   }
 }
+
+
+
+ARD_GIACO_TM_HCP_ACUTE_MKT_WEEKLY_LAAD
+Description: Healthcare provider activity in acute care market tracked weekly - LAAD (Look-Alike Audience Data) for benchmarking
+
+Key Columns:
+
+HCP_ID - Unique healthcare professional identifier
+GOLDEN_ID - Golden record system identifier
+NPI - National Provider Identifier
+ONEKEY_HCP_ID - OneKey system identifier
+VERTEX_ID - Vertex system identifier
+HCP_SPECIALTY - Medical specialty (e.g., "GENERAL SURGERY")
+HCP_SPECIALTY_GROUP - Specialty grouping (e.g., "ORTHOPEDICS AND SPORTS MEDICINE")
+PRODUCT_CATEGORY - Therapeutic category (e.g., "ANTICONVULSANTS MISC.")
+PRODUCT_FAMILY_GROUP - Product family (e.g., "GABAPENTIN", "OXYCODONE")
+PTAM_TERRITORY_ID - Pain Territory Account Manager territory
+SAL_TERRITORY_ID - Sales territory identifier
+ROA - Route of administration (e.g., "ORAL-SOLUTION", "TOPICAL-PATCH")
+PRACTICE_SETTING - Practice type (e.g., "RETAIL", "DISCHARGE")
+PROCEDURE_GROUP - Medical procedure category
+SITE_OF_CARE_ZIP_CODE - Care location ZIP code
+ZIP_CODE - HCP ZIP code
+BRANDED_FLAG - Branded product indicator (Y/N)
+DATE_KEY - Weekly data date
+LAAD Metrics (Benchmark/Expected values):
+
+ACUTE_CALENDAR_DAYS_LAAD - Calendar days in acute period
+ACUTE_EPISODES_LAAD - Number of acute episodes
+ACUTE_PROCEDURES_LAAD - Number of acute procedures
+ACUTE_REFILLS_LAAD - Number of medication refills
+ACUTE_TRX_LAAD - Acute care transactions (benchmark)
+ACUTE_TX_DAYS_LAAD - Days of acute treatment
+ACUTE_UNITS_LAAD - Acute care units (benchmark)
+TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO
+Description: Healthcare provider prescribing activity for pain medications in acute care settings - XPO (Exposure/Actual data)
+
+Key Columns:
+
+Same dimension columns as LAAD table above (HCP_ID, GOLDEN_ID, NPI, etc.)
+XPO Metrics (Actual/Exposure values):
+
+ACUTE_NRX_XPO - New prescriptions exposure index
+ACUTE_TRX_XPO - Total transactions exposure (actual performance)
+ACUTE_TX_DAYS_XPO - Treatment days exposure
+ACUTE_UNITS_XPO - Units dispensed exposure
+Key Differences:
+
+LAAD table = Benchmark/Expected performance data
+XPO table = Actual/Exposure performance data
+Both tables share the same dimensional structure
+XPO vs LAAD comparison shows actual performance against benchmarks
+Both are weekly grain: one row per HCP + Product + Week
+These ARD tables form the core of the pain medication market analytics, allowing comparison between actual prescribing patterns (XPO) and expected patterns (LAAD) for healthcare providers.
+

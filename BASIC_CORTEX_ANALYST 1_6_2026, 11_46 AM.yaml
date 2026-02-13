@@ -41327,3 +41327,15 @@ These ARD tables form the core of the pain medication market analytics, allowing
 
 
 There's a date format error in the tool execution. The error message shows that the system is trying to parse '2025-04-25' as a date with format 'YYYYMMDD', but the DATE_KEY column requires YYYYMMDD format (e.g., 20250425).
+
+
+
+Generated: SELECT 
+  DATE_TRUNC('month', TO_DATE(DATE_KEY::VARCHAR, 'YYYYMMDD')) AS MONTH,
+  SUM(ACUTE_NRX_XPO) AS TRAMADOL_NRX
+FROM DEV_P_PAIN_SALES_PERFORMANCE_ANALYTICS_DB.REPORTING.TM_ARD_HCP_ACUTE_MKT_WEEKLY_XPO 
+WHERE PRODUCT_FAMILY_GROUP = 'TRAMADOL' 
+  AND TO_DATE(DATE_KEY::VARCHAR, 'YYYYMMDD') >= DATEADD(month, -2, CURRENT_DATE())
+  AND PTAM_TERRITORY_ID = 'V1NAUSA-5731503'
+GROUP BY DATE_TRUNC('month', TO_DATE(DATE_KEY::VARCHAR, 'YYYYMMDD'))
+ORDER BY MONTH DESC

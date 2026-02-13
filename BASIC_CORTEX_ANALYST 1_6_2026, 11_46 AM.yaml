@@ -40970,3 +40970,119 @@ Total Journavx Units
 Total Anticonvulstant volume
 Total Hydrocodone volume
 Total Non-Narcotic Analgestic volume
+
+
+{
+  "graph": {
+    "edges": [
+      {
+        "source": "K3",
+        "target": "K1"
+      },
+      {
+        "source": "K4",
+        "target": "K1"
+      },
+      {
+        "source": "K5",
+        "target": "K3"
+      },
+      {
+        "source": "K6",
+        "target": "K4"
+      },
+      {
+        "source": "K7",
+        "target": "K5"
+      },
+      {
+        "source": "K8",
+        "target": "K5"
+      },
+      {
+        "source": "K9",
+        "target": "K6"
+      },
+      {
+        "source": "K10",
+        "target": "K7"
+      },
+      {
+        "source": "K11",
+        "target": "K7"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "K1",
+        "metric": "Total Market Volume (TRX)",
+        "polarity": 1
+      },
+      {
+        "id": "K2",
+        "metric": "Total New Starts (NRX)",
+        "polarity": 1
+      },
+      {
+        "id": "K3",
+        "metric": "Opioid Category Volume",
+        "polarity": 1
+      },
+      {
+        "id": "K4",
+        "metric": "NSAID Category Volume",
+        "polarity": 1
+      },
+      {
+        "id": "K5",
+        "metric": "Tramadol Brand Volume",
+        "polarity": 1
+      },
+      {
+        "id": "K6",
+        "metric": "Diclofenac Brand Volume",
+        "polarity": 1
+      },
+      {
+        "id": "K7",
+        "metric": "Tramadol New Growth (NRX)",
+        "polarity": 1
+      },
+      {
+        "id": "K8",
+        "metric": "Tramadol Retention (Refills)",
+        "polarity": 1
+      },
+      {
+        "id": "K9",
+        "metric": "Diclofenac New Growth (NRX)",
+        "polarity": 1
+      },
+      {
+        "id": "K10",
+        "metric": "Orthopedic Tramadol Starts",
+        "polarity": 1
+      },
+      {
+        "id": "K11",
+        "metric": "PCP Tramadol Starts",
+        "polarity": 1
+      },
+      {
+        "id": "K12",
+        "metric": "Opioid Market Volume",
+        "polarity": 1
+      },
+      {
+        "id": "K13",
+        "metric": "NSAID Market Volume",
+        "polarity": 1
+      },
+      {
+        "id": "K14",
+        "metric": "High Volume Writers (>10)",
+        "polarity": 1
+      }
+    ]
+  }
+}
